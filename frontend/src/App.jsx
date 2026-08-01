@@ -24,8 +24,9 @@ import { Config } from "./pages/Config";
 
 import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact } from "./api/contacts";
-import { listCampaigns, createCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
+import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
+import { getMe, updateCorPerfil } from "./api/me";
 import { checkHealth } from "./api/health";
 
 // Segmentações ainda não têm endpoint no backend (fora do escopo inicial) —
@@ -58,17 +59,26 @@ export default function App() {
 
   const showToast = (msg, kind = "ok") => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200); };
 
-  const carregarTudo = async () => {
+  // Se já autenticado mas sem "usuario" em memória (recarregou a página com um
+  // token salvo, por exemplo), busca o próprio perfil de novo — sem isso, o
+  // header ficava com "?"/"-" até a pessoa deslogar e logar de novo.
+  const carregarTudo = async (usuarioAtual) => {
     setCarregando(true);
     try {
-      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes] = await Promise.all([
+      const precisaUsuario = !usuarioAtual;
+      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, meRes] = await Promise.all([
         listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(),
+        precisaUsuario ? getMe() : Promise.resolve(usuarioAtual),
       ]);
       setPatients(pacientesRes);
       setCampanhas(campanhasRes);
       setTemplates(templatesRes);
       setHistorico(historicoRes);
       setColaboradores(colaboradoresRes);
+      if (precisaUsuario) {
+        setUsuario(meRes);
+        setAvatarColor(meRes.corPerfil || T.primary);
+      }
     } catch (e) {
       showToast(e.message || "Erro ao carregar dados do servidor", "warn");
     } finally {
@@ -76,7 +86,20 @@ export default function App() {
     }
   };
 
-  useEffect(() => { if (authed) carregarTudo(); else setCarregando(false); }, [authed]);
+  useEffect(() => { if (authed) carregarTudo(usuario); else setCarregando(false); }, [authed]);
+
+  // Se o token expirar/for rejeitado em qualquer chamada (client.js dispara esse
+  // evento no 401), volta pro login em vez de deixar a tela com dados quebrados.
+  useEffect(() => {
+    const aoDeslogarPorExpiracao = () => {
+      setAuthed(false);
+      setUsuario(null);
+      setAvatarColor(T.primary);
+      setView("dashboard");
+    };
+    window.addEventListener("sorria:unauthorized", aoDeslogarPorExpiracao);
+    return () => window.removeEventListener("sorria:unauthorized", aoDeslogarPorExpiracao);
+  }, []);
 
   // Monitora a saúde real do backend. Uma falha isolada não conta: só marca "inativo"
   // depois de uma segunda tentativa (evita alarme falso por causa do cold start do Render).
@@ -120,6 +143,18 @@ export default function App() {
     return comSegmento;
   };
 
+  const atualizarCampanha = async (id, dadosCampanha, segmentoId) => {
+    const atualizada = await updateCampaign(id, dadosCampanha);
+    const comSegmento = segmentoId ? { ...atualizada, segmentoId } : atualizada;
+    setCampanhas((c) => c.map((x) => (x.id === id ? comSegmento : x)));
+    return comSegmento;
+  };
+
+  const excluirCampanha = async (id) => {
+    await deleteCampaign(id);
+    setCampanhas((c) => c.filter((x) => x.id !== id));
+  };
+
   const finalizarDisparo = async () => {
     setDisparoCampanha(null);
     setView("disparos");
@@ -151,8 +186,26 @@ export default function App() {
     setColaboradores((c) => c.filter((x) => x.id !== id));
   };
 
-  const onLogout = () => { apiLogout(); setAuthed(false); setView("dashboard"); };
-  const onLoginOk = (u) => { setUsuario(u); setAuthed(true); };
+  const onLogout = () => {
+    apiLogout();
+    setAuthed(false);
+    setUsuario(null);
+    setAvatarColor(T.primary);
+    setView("dashboard");
+  };
+  const onLoginOk = (u) => {
+    setUsuario(u);
+    setAvatarColor(u.corPerfil || T.primary);
+    setAuthed(true);
+  };
+
+  // A cor do avatar é preferência de cada conta — muda na hora na tela, mas
+  // também salva no backend pra não vazar pra outra conta no mesmo navegador
+  // nem se perder quando essa pessoa logar de novo depois.
+  const mudarCorPerfil = (cor) => {
+    setAvatarColor(cor);
+    updateCorPerfil(cor).catch(() => {});
+  };
 
   const irParaPacientes = (filtroEleg) => {
     setFiltroPacientesInicial(filtroEleg ? { eleg: filtroEleg } : null);
@@ -175,12 +228,12 @@ export default function App() {
     <div style={s.root}>
       <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} angry={angry} setAngry={setAngry} />
       <div style={s.main}>
-        <Topbar view={view} usuario={usuario} avatarColor={avatarColor} setAvatarColor={setAvatarColor} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} />
+        <Topbar view={view} usuario={usuario} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} />}
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} setSegmentos={setSegmentos} tags={tags} setTags={setTags} showToast={showToast} />}
-          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
+          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
           {view === "automacoes" && <Automacoes showToast={showToast} />}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}

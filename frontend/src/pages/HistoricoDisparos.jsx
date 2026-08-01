@@ -17,7 +17,7 @@ export function HistoricoDisparos({ historico, patients, onAbrirPaciente }) {
     <Card noPad>
       <div style={s.tableScroll}>
         <table style={s.table}>
-          <thead><tr><th style={s.thL}>Paciente</th><th style={s.th}>Campanha</th><th style={s.th}>Status</th><th style={s.th}>Hora</th></tr></thead>
+          <thead><tr><th style={s.thL}>Lead</th><th style={s.th}>Campanha</th><th style={s.th}>Status</th><th style={s.th}>Data</th></tr></thead>
           <tbody>
             {historico.map((h, i) => (
               <tr key={i} className="prow" onClick={() => abrir(h)}>

@@ -36,6 +36,7 @@ function hslToHex(h, s, l) {
 export function ColorPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [hsl, setHsl] = useState(() => hexToHsl(value));
+  const [hexInput, setHexInput] = useState(() => value.replace("#", "").toUpperCase());
   const ref = useRef(null);
 
   useEffect(() => {
@@ -47,7 +48,20 @@ export function ColorPicker({ value, onChange }) {
   const update = (patch) => {
     const next = { ...hsl, ...patch };
     setHsl(next);
-    onChange(hslToHex(next.h, next.s, next.l));
+    const hex = hslToHex(next.h, next.s, next.l);
+    setHexInput(hex.slice(1).toUpperCase());
+    onChange(hex);
+  };
+
+  // Deixa o usuário digitar o código direto; só aplica quando fecha em 6 dígitos válidos.
+  const onHexInput = (raw) => {
+    const clean = raw.toUpperCase().replace(/[^0-9A-F]/g, "").slice(0, 6);
+    setHexInput(clean);
+    if (clean.length === 6) {
+      const hex = `#${clean}`;
+      setHsl(hexToHsl(hex));
+      onChange(hex);
+    }
   };
 
   return (
@@ -68,6 +82,17 @@ export function ColorPicker({ value, onChange }) {
           <SliderRow label="Matiz" value={hsl.h} max={360} track="linear-gradient(90deg,red,yellow,lime,cyan,blue,magenta,red)" onChange={(v) => update({ h: v })} />
           <SliderRow label="Saturação" value={hsl.s} max={100} track={`linear-gradient(90deg,#bbb,${hslToHex(hsl.h, 100, hsl.l)})`} onChange={(v) => update({ s: v })} />
           <SliderRow label="Luminosidade" value={hsl.l} max={100} track={`linear-gradient(90deg,#000,${hslToHex(hsl.h, hsl.s, 50)},#fff)`} onChange={(v) => update({ l: v })} />
+          <div style={{ fontSize: 11, color: T.inkSoft, margin: "10px 0 4px" }}>Ou digite o código</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, border: `1px solid ${T.line}`, borderRadius: 9, padding: "0 10px", height: 34 }}>
+            <span style={{ fontSize: 13, color: T.inkSoft, fontWeight: 700 }}>#</span>
+            <input
+              value={hexInput}
+              onChange={(e) => onHexInput(e.target.value)}
+              maxLength={6}
+              placeholder="0FA895"
+              style={{ border: "none", outline: "none", fontSize: 13, letterSpacing: .5, textTransform: "uppercase", width: "100%", fontFamily: "monospace" }}
+            />
+          </div>
         </div>
       )}
     </div>

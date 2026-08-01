@@ -25,7 +25,7 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
     .sort((a, b) => new Date(b.horaCompleta || 0) - new Date(a.horaCompleta || 0));
 
   return (
-    <Modal title={`Paciente: ${paciente.nome}`} onClose={onClose} dirty={aba === "dados" && dirty} onSave={() => onSave(p)} wide>
+    <Modal title={`Lead: ${paciente.nome}`} onClose={onClose} dirty={aba === "dados" && dirty} onSave={() => onSave(p)} wide>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button
           onClick={() => setAba("dados")}
@@ -74,7 +74,7 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
 
       {aba === "historico" && (
         <div style={{ display: "grid", gap: 8, maxHeight: 360, overflowY: "auto" }}>
-          {!mensagens.length && <div style={{ fontSize: 13.5, color: T.inkSoft, padding: "12px 0" }}>Nenhuma mensagem enviada pra esse paciente ainda.</div>}
+          {!mensagens.length && <div style={{ fontSize: 13.5, color: T.inkSoft, padding: "12px 0" }}>Nenhuma mensagem enviada pra esse lead ainda.</div>}
           {mensagens.map((m, i) => (
             <div key={i} style={s.feedRow}>
               <span style={{ width: 74, flexShrink: 0, display: "inline-flex" }}><StatusBadge status={m.status} sm /></span>

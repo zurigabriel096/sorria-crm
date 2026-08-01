@@ -11,7 +11,7 @@ import { DotMenu } from "../components/ui/DotMenu";
 
 const novaCondicao = () => ({ field: "segmento", op: "é", value: "VIP" });
 const novoGrupo = () => [{ field: "recencia", op: "maior", value: 120 }];
-const contagemLabel = (n) => (n === 1 ? "1 paciente" : `${n} pacientes`);
+const contagemLabel = (n) => (n === 1 ? "1 lead" : `${n} leads`);
 
 export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags, showToast }) {
   const [builder, setBuilder] = useState(null);
@@ -150,7 +150,7 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
                 </div>
               ))
             ) : (
-              <span style={{ fontSize: 13, color: T.inkSoft }}>Nenhum paciente.</span>
+              <span style={{ fontSize: 13, color: T.inkSoft }}>Nenhum lead.</span>
             )}
           </div>
         </Card>

@@ -43,7 +43,7 @@ export function Login({ onEnter, onSupport }) {
             O CRM que faz sua clínica{" "}
             <span className="notranslate" translate="no" style={{ color: "#fff", background: T.primaryDark, padding: "0 6px", borderRadius: 6 }}>sorrir</span> de novo.
           </h1>
-          <p style={s.loginSub}>Reative pacientes inativos por WhatsApp e email, acompanhe conversões e LTV, sem planilha e sem operar disparo por disparo.</p>
+          <p style={s.loginSub}>Reative leads inativos por WhatsApp e email, acompanhe conversões e LTV, sem planilha e sem operar disparo por disparo.</p>
         </div>
       </div>
       <div style={s.loginRight}>

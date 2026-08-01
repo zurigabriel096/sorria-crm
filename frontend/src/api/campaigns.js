@@ -1,4 +1,5 @@
 import { api } from "./client";
+import { dataHora } from "../utils/format";
 
 export const listCampaigns = () => api.get("/api/campaigns");
 export const createCampaign = (payload) => api.post("/api/campaigns", payload);
@@ -25,7 +26,7 @@ export const listDispatchHistory = async () =>
     campanha: h.campanhaNome,
     status: h.status,
     horaCompleta: h.hora,
-    hora: h.hora ? new Date(h.hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "",
+    hora: dataHora(h.hora),
   }));
 
 // Templates: o WhatsApp não permite botões interativos fora da API Business oficial,
@@ -43,3 +44,4 @@ function templateToApi(t) {
 export const listTemplates = async () => (await api.get("/api/templates")).map(templateFromApi);
 export const createTemplate = async (tpl) => templateFromApi(await api.post("/api/templates", templateToApi(tpl)));
 export const updateTemplate = async (id, tpl) => templateFromApi(await api.put(`/api/templates/${id}`, templateToApi(tpl)));
+export const deleteTemplate = (id) => api.del(`/api/templates/${id}`);

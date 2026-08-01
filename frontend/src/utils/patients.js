@@ -96,8 +96,8 @@ export function importarPlanilha(file, cb) {
 }
 
 export function exportarXlsx(patients) {
-  const data = patients.map((p) => ({ Cód: p.cod, Paciente: p.nome, Telefone: p.tel, Email: p.email, "Sit.Financ.": p.financ, Dentista: p.dentista, "Últ. Atend": p.ultAtend, Segmento: p.segmento, Elegível: p.elegivel ? "Sim" : "Não", Tags: (p.tags || []).join(", "), Status: p.enviado }));
+  const data = patients.map((p) => ({ Cód: p.cod, Lead: p.nome, Telefone: p.tel, Email: p.email, "Sit.Financ.": p.financ, Dentista: p.dentista, "Últ. Atend": p.ultAtend, Segmento: p.segmento, Elegível: p.elegivel ? "Sim" : "Não", Tags: (p.tags || []).join(", "), Status: p.enviado }));
   const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Pacientes");
-  XLSX.writeFile(wb, "sorria_base_atualizada.xlsx");
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Leads");
+  XLSX.writeFile(wb, "sorria_leads_atualizado.xlsx");
 }

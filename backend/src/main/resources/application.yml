@@ -15,6 +15,10 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 6MB
 
 app:
   jwt:
@@ -27,6 +31,14 @@ evolution:
   base-url: ${EVOLUTION_API_URL:}
   instance: ${EVOLUTION_INSTANCE:}
   api-key: ${EVOLUTION_API_KEY:}
+
+# Storage do Supabase pra foto de perfil dos colaboradores. Sem essas duas env vars
+# configuradas no Render, o upload responde 400 com uma mensagem explicando o motivo
+# em vez de quebrar (ver AvatarService).
+supabase:
+  url: ${SUPABASE_URL:}
+  service-key: ${SUPABASE_SERVICE_KEY:}
+  avatar-bucket: ${SUPABASE_AVATAR_BUCKET:avatars}
 
 management:
   endpoints:

@@ -6,6 +6,8 @@ public record UsuarioDTO(
         String nome,
         String cpf,
         String email,
-        String papel
+        String papel,
+        String corPerfil,
+        String avatarUrl
 ) {
 }

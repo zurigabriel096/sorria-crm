@@ -33,21 +33,21 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
       <div style={{ ...s.toolbar, alignItems: "flex-end" }}>
         <div>
           <div style={s.fieldLabel}>Buscar</div>
-          <div style={s.search}><IconSearch /><input placeholder="Nome do paciente..." style={s.searchInput} value={q} onChange={(e) => setQ(e.target.value)} /></div>
+          <div style={s.search}><IconSearch /><input placeholder="Nome do lead..." style={s.searchInput} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         </div>
         <div><div style={s.fieldLabel}>Segmento</div><Select value={fSeg} onChange={setFSeg} options={["Todos", "VIP", "Fidelizado", "Regular", "Risco", "Inativo"]} /></div>
         <div><div style={s.fieldLabel}>Elegibilidade</div><Select value={fEleg} onChange={setFEleg} options={["Todos", "Elegíveis", "A corrigir"]} /></div>
         <div><div style={s.fieldLabel}>Tag</div><Select value={fTag} onChange={setFTag} options={["Todas", ...tags]} /></div>
         <button style={s.btnGhostSm} onClick={limpar}>Limpar filtros</button>
         <div style={{ flex: 1 }} />
-        <button style={s.btnGhostSm} onClick={() => exportarXlsx(patients)}><IconDownload color={T.ink} /> Exportar base</button>
+        <button style={s.btnGhostSm} onClick={() => exportarXlsx(patients)}><IconDownload color={T.ink} /> Exportar Lead</button>
       </div>
       <Card noPad>
         <div style={s.tableScroll}>
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.thL}>Paciente</th><th style={s.th}>Segmento</th><th style={s.th}>Financeiro</th>
+                <th style={s.thL}>Lead</th><th style={s.th}>Segmento</th><th style={s.th}>Financeiro</th>
                 <th style={s.th}>Dentista</th><th style={s.th}>Recência</th><th style={s.th}>Elegível</th><th style={s.th}>Tags</th>
               </tr>
             </thead>
@@ -73,7 +73,7 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
           </table>
         </div>
       </Card>
-      <div style={{ fontSize: 12.5, color: T.inkSoft }}>Mostrando {Math.min(200, filtered.length)} de {filtered.length}. Clique num paciente para ver o cadastro. O "Exportar base" já sai com suas edições.</div>
+      <div style={{ fontSize: 12.5, color: T.inkSoft }}>Mostrando {Math.min(200, filtered.length)} de {filtered.length}. Clique num lead para ver o cadastro. O "Exportar Lead" já sai com suas edições.</div>
     </div>
   );
 }

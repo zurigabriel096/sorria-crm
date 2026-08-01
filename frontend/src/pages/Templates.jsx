@@ -5,7 +5,8 @@ import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
-import { createTemplate, updateTemplate } from "../api/campaigns";
+import { DotMenu } from "../components/ui/DotMenu";
+import { createTemplate, updateTemplate, deleteTemplate } from "../api/campaigns";
 
 export function Templates({ templates, setTemplates, objetivos, showToast }) {
   const [modal, setModal] = useState(null);
@@ -26,6 +27,26 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
     }
   };
 
+  const duplicar = async (t) => {
+    try {
+      const copia = await createTemplate({ ...t, id: null, nome: `${t.nome} (cópia)` });
+      setTemplates((ts) => [copia, ...ts]);
+      showToast("Template duplicado", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao duplicar template", "warn");
+    }
+  };
+
+  const excluir = async (t) => {
+    try {
+      await deleteTemplate(t.id);
+      setTemplates((ts) => ts.filter((x) => x.id !== t.id));
+      showToast("Template removido", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao remover template", "warn");
+    }
+  };
+
   const lista = templates.filter((t) => fCat === "Todas" || t.categoria === fCat);
 
   return (
@@ -40,13 +61,21 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
           <div key={t.id} style={s.campCard}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <span style={{ ...s.objTag, background: t.categoria === "Marketing" ? "#FCEFD9" : "#E1F4F0", color: t.categoria === "Marketing" ? T.gold : "#0E9484" }}>{t.categoria}</span>
-              <span style={t.ativo ? s.tagOk : s.tagMuted}>{t.ativo ? "Ativo" : "Inativo"}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={t.ativo ? s.tagOk : s.tagMuted}>{t.ativo ? "Ativo" : "Inativo"}</span>
+                <DotMenu
+                  items={[
+                    { label: "Editar", onClick: () => setModal({ ...t }) },
+                    { label: "Duplicar", onClick: () => duplicar(t) },
+                    { label: "Excluir", danger: true, onClick: () => excluir(t) },
+                  ]}
+                />
+              </div>
             </div>
             <div style={{ fontWeight: 700, color: T.ink, margin: "10px 0 4px" }}>{t.nome}</div>
             {t.imagem && <div style={{ height: 90, borderRadius: 8, background: `#eee url(${t.imagem}) center/cover`, marginBottom: 8 }} />}
             <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.45 }}>{t.corpo}</div>
             <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 6 }}>{t.corpo.length} caracteres</div>
-            <button style={{ ...s.btnGhostSm, marginTop: 12 }} onClick={() => setModal({ ...t })}>Editar</button>
           </div>
         ))}
       </div>

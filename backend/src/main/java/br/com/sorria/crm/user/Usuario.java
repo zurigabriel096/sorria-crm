@@ -24,6 +24,10 @@ public class Usuario {
 
     private String cpf;
 
+    private String corPerfil;
+
+    private String avatarUrl;
+
     @Column(nullable = false)
     private String senhaHash;
 

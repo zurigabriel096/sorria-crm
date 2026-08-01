@@ -40,6 +40,13 @@ public class TemplateService {
         return toDTO(templateRepository.save(template));
     }
 
+    public void remover(Long id) {
+        if (!templateRepository.existsById(id)) {
+            throw new NoSuchElementException("Template nao encontrado: " + id);
+        }
+        templateRepository.deleteById(id);
+    }
+
     private void aplicar(TemplateDTO dto, Template template) {
         template.setNome(dto.nome());
         template.setCategoria(dto.categoria());

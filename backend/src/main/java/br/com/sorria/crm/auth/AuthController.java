@@ -38,6 +38,6 @@ public class AuthController {
                 "papel", usuario.getPapel().name()
         ));
 
-        return ResponseEntity.ok(new LoginResponse(token, usuario.getNome(), usuario.getEmail(), usuario.getPapel().name()));
+        return ResponseEntity.ok(new LoginResponse(token, usuario.getNome(), usuario.getEmail(), usuario.getPapel().name(), usuario.getCorPerfil(), usuario.getAvatarUrl()));
     }
 }

@@ -3,17 +3,19 @@ import { T, AVATAR_COLORS, CLINICA } from "../../theme";
 import { s } from "../../styles/s";
 import { IconLogout, GlowDot } from "../icons";
 import { ColorPicker } from "../ui/ColorPicker";
+import { AvatarUploader } from "../ui/AvatarUploader";
 import { PAPEL_LABEL, iniciais } from "../../utils/usuario";
 
 const TITLES = {
-  dashboard: "Painel executivo", pacientes: "Pacientes", segmentacoes: "Segmentações",
+  dashboard: "Painel executivo", pacientes: "Base de Leads", segmentacoes: "Segmentações",
   campanhas: "Campanhas", templates: "Templates de WhatsApp", automacoes: "Automação", disparo: "Novo disparo",
   disparos: "Histórico de disparos", colaboradores: "Colaboradores", plano: "Meu plano",
   suporte: "Suporte", config: "Configurações",
 };
 
-export function Topbar({ view, usuario, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout }) {
+export function Topbar({ view, usuario, onAvatarUploaded, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout, showToast }) {
   const [open, setOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const ref = useRef(null);
   const sigla = iniciais(usuario?.nome);
   const papelLabel = PAPEL_LABEL[usuario?.papel] || usuario?.papel || "";
@@ -23,6 +25,13 @@ export function Topbar({ view, usuario, avatarColor, setAvatarColor, sistemaAtiv
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
+
+  const Avatar = ({ size }) =>
+    usuario?.avatarUrl ? (
+      <img src={usuario.avatarUrl} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+    ) : (
+      <div style={{ ...s.avatar, background: avatarColor, width: size, height: size, fontSize: size <= 36 ? 13 : 15 }}>{sigla}</div>
+    );
 
   return (
     <header style={s.topbar}>
@@ -39,11 +48,13 @@ export function Topbar({ view, usuario, avatarColor, setAvatarColor, sistemaAtiv
           <GlowDot color={sistemaAtivo ? T.wa : T.coral} /> {sistemaAtivo ? "Sistema ativo" : "Sistema inativo"}
         </button>
         <div style={{ position: "relative" }} ref={ref}>
-          <button style={{ ...s.avatar, background: avatarColor }} onClick={() => setOpen((o) => !o)}>{sigla}</button>
+          <button style={{ ...s.avatar, background: "transparent", padding: 0, overflow: "hidden" }} onClick={() => setOpen((o) => !o)}>
+            <Avatar size={36} />
+          </button>
           {open && (
             <div style={s.profileMenu} className="pop">
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 6px 12px" }}>
-                <div style={{ ...s.avatar, background: avatarColor, width: 40, height: 40 }}>{sigla}</div>
+                <Avatar size={40} />
                 <div>
                   <div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>{usuario?.nome || "—"}</div>
                   <div style={{ fontSize: 12, color: T.inkSoft }}>{papelLabel}</div>
@@ -61,13 +72,22 @@ export function Topbar({ view, usuario, avatarColor, setAvatarColor, sistemaAtiv
                 ))}
                 <ColorPicker value={avatarColor} onChange={setAvatarColor} />
               </div>
-              <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 12 }}>Upload de foto na versão completa.</div>
-              <div style={s.hr} />
+              <button style={s.linkBtn} onClick={() => { setOpen(false); setUploadOpen(true); }}>
+                {usuario?.avatarUrl ? "Trocar foto de perfil" : "Enviar foto de perfil"}
+              </button>
+              <div style={{ ...s.hr, marginTop: 12 }} />
               <button style={s.logoutBtn} onClick={onLogout}><IconLogout color={T.coral} /> Sair da conta</button>
             </div>
           )}
         </div>
       </div>
+      {uploadOpen && (
+        <AvatarUploader
+          showToast={showToast}
+          onClose={() => setUploadOpen(false)}
+          onUploaded={onAvatarUploaded}
+        />
+      )}
     </header>
   );
 }

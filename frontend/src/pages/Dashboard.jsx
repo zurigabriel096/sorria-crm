@@ -22,7 +22,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
       <div style={{ display: "grid", gap: 16, placeItems: "center", padding: "40px 0" }}>
         <div style={{ textAlign: "center", maxWidth: 460 }}>
           <div style={{ fontSize: 20, fontWeight: 800, color: T.ink, marginBottom: 6 }}>Comece importando sua base</div>
-          <div style={{ fontSize: 14, color: T.inkSoft, marginBottom: 20 }}>Sua conta está limpa. Suba uma das suas planilhas da Orthodontic para popular o painel, os pacientes e a agenda.</div>
+          <div style={{ fontSize: 14, color: T.inkSoft, marginBottom: 20 }}>Sua conta está limpa. Suba uma das suas planilhas da Orthodontic para popular o painel, a base de leads e a agenda.</div>
         </div>
         <div style={{ width: "min(560px,100%)" }}><ImportBox onImport={onImport} showToast={showToast} /></div>
       </div>
@@ -34,7 +34,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <div style={s.kpiRow}>
-        <KpiCard label="Pacientes na base" value={num(kpis.totalContatos)} icon={<IconUsers color={T.primary} />} onClick={() => irParaPacientes()} />
+        <KpiCard label="Leads na base" value={num(kpis.totalContatos)} icon={<IconUsers color={T.primary} />} onClick={() => irParaPacientes()} />
         <KpiCard label="Elegíveis p/ disparo" value={num(kpis.elegiveis)} sub="telefone válido" icon={<IconCheck color={T.wa} />} onClick={() => irParaPacientes("Elegíveis")} />
         <KpiCard label="Mensagens disparadas" value={num(kpis.disparados)} icon={<IconSend color={T.gold} />} onClick={() => setView("disparos")} />
         <KpiCard label="Entregues" value={num(kpis.entregues)} highlight icon={<IconCheck color="#fff" />} onClick={() => setView("disparos")} />
@@ -50,7 +50,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
               <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{kpis.porSegmento[seg] || 0}</b>
             </div>
           ))}
-          <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver pacientes</button>
+          <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
         </Card>
         <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
           <ImportBox onImport={onImport} showToast={showToast} compact />

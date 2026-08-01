@@ -32,15 +32,19 @@ export function Suporte({ showToast }) {
           <div style={{ textAlign: "left" }}><div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>WhatsApp</div><div style={{ fontSize: 12.5, color: T.inkSoft }}>Resposta em ~10 min</div></div>
           <span style={{ marginLeft: "auto", color: T.inkSoft }}>›</span>
         </a>
-        <button className="channelCard" style={s.channelCard} onClick={() => showToast("suporte@sorria.app", "ok")}>
+        <button className="channelCard" style={s.channelCard} onClick={() => showToast("suporte@sorria.com.br", "ok")}>
           <span style={{ ...s.channelIcon, background: T.primary + "1A" }}><IconMail color={T.primary} /></span>
-          <div style={{ textAlign: "left" }}><div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>Email</div><div style={{ fontSize: 12.5, color: T.inkSoft }}>suporte@sorria.app</div></div>
+          <div style={{ textAlign: "left" }}><div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>Email</div><div style={{ fontSize: 12.5, color: T.inkSoft }}>suporte@sorria.com.br</div></div>
         </button>
         <div style={s.slaCard}>
           <div style={{ fontWeight: 700, color: T.ink, fontSize: 14, marginBottom: 6 }}>Status dos sistemas</div>
-          {["Disparo WhatsApp", "Envio de email", "Painel"].map((x) => (
-            <div key={x} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.inkSoft, padding: "4px 0" }}>
-              <Dot color={T.wa} /> {x}<span style={{ marginLeft: "auto", color: T.wa, fontWeight: 600 }}>Operacional</span>
+          {[
+            { nome: "Disparo WhatsApp", cor: T.wa },
+            { nome: "Envio de email", cor: T.angry },
+            { nome: "Painel", cor: T.wa },
+          ].map(({ nome, cor }) => (
+            <div key={nome} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.inkSoft, padding: "4px 0" }}>
+              <Dot color={cor} /> {nome}<span style={{ marginLeft: "auto", color: cor, fontWeight: 600 }}>Operacional</span>
             </div>
           ))}
         </div>

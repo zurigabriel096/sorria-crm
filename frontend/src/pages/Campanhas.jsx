@@ -5,30 +5,65 @@ import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
+import { DotMenu } from "../components/ui/DotMenu";
 import { IconSend } from "../components/icons";
 
-export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
+const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "" });
+
+export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
-  const [modal, setModal] = useState(false);
+  const [modal, setModal] = useState(null);
   const [salvando, setSalvando] = useState(false);
-  const [f, setF] = useState({ nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "" });
+  const [f, setF] = useState(vazio());
   const [novoObj, setNovoObj] = useState("");
   const ativos = templates.filter((t) => t.ativo);
 
-  const criar = async () => {
+  const abrirNovo = () => { setF(vazio()); setModal("novo"); };
+  const abrirEdicao = (c) => {
+    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "" });
+    setModal("editar");
+  };
+
+  const salvar = async () => {
     if (!f.nome.trim()) return showToast("Dê um nome", "warn");
     if (f.canal === "WhatsApp" && !f.templateId) return showToast("Escolha um template", "warn");
     setSalvando(true);
     try {
-      const { segmentoId, ...dadosApi } = f;
-      await onCriarCampanha({ ...dadosApi, templateId: dadosApi.templateId || null, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR") }, segmentoId || null);
-      setModal(false);
-      setF({ ...f, nome: "", segmentoId: "", templateId: "" });
-      showToast("Campanha criada", "ok");
+      const { id, segmentoId, ...dadosApi } = f;
+      const payload = { ...dadosApi, templateId: dadosApi.templateId || null, responsavel };
+      if (id) {
+        await onAtualizarCampanha(id, { ...payload, status: "Ativa", inicio: campanhas.find((c) => c.id === id)?.inicio }, segmentoId || null);
+        showToast("Campanha atualizada", "ok");
+      } else {
+        await onCriarCampanha({ ...payload, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR") }, segmentoId || null);
+        showToast("Campanha criada", "ok");
+      }
+      setModal(null);
     } catch (e) {
-      showToast(e.message || "Erro ao criar campanha", "warn");
+      showToast(e.message || "Erro ao salvar campanha", "warn");
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const duplicar = async (c) => {
+    try {
+      await onCriarCampanha({
+        nome: `${c.nome} (cópia)`, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "",
+        templateId: c.templateId || null, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR"),
+      }, c.segmentoId || null);
+      showToast("Campanha duplicada", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao duplicar campanha", "warn");
+    }
+  };
+
+  const excluir = async (c) => {
+    try {
+      await onExcluirCampanha(c.id);
+      showToast("Campanha removida", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao remover campanha", "warn");
     }
   };
 
@@ -44,7 +79,7 @@ export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, se
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button style={s.btnPrimarySm} onClick={() => setModal(true)}>+ Nova campanha</button>
+        <button style={s.btnPrimarySm} onClick={abrirNovo}>+ Nova campanha</button>
       </div>
       {!campanhas.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>Nenhuma campanha ainda. Crie a primeira.</div></Card>}
       <div style={s.cardGrid}>
@@ -52,7 +87,16 @@ export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, se
           <div key={c.id} style={{ ...s.campCard, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <span style={{ ...s.objTag, background: T.primarySoft, color: T.primaryDark }}>{c.objetivo}</span>
-              <span style={{ ...s.tagOk, background: c.canal === "Email" ? "#EDEBFF" : "#E1F4F0", color: c.canal === "Email" ? "#5B4CE0" : "#0E9484" }}>{c.canal}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ ...s.tagOk, background: c.canal === "Email" ? "#EDEBFF" : "#E1F4F0", color: c.canal === "Email" ? "#5B4CE0" : "#0E9484" }}>{c.canal}</span>
+                <DotMenu
+                  items={[
+                    { label: "Editar", onClick: () => abrirEdicao(c) },
+                    { label: "Duplicar", onClick: () => duplicar(c) },
+                    { label: "Excluir", danger: true, onClick: () => excluir(c) },
+                  ]}
+                />
+              </div>
             </div>
             <div style={{ fontWeight: 700, fontSize: 16, color: T.ink, margin: "12px 0 4px" }}>{c.nome}</div>
             <div style={{ fontSize: 12.5, color: T.inkSoft, flex: 1 }}>{c.responsavel} · {c.inicio}</div>
@@ -63,7 +107,7 @@ export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, se
         ))}
       </div>
       {modal && (
-        <Modal title="Nova campanha" onClose={() => setModal(false)}>
+        <Modal title={f.id ? "Editar campanha" : "Nova campanha"} onClose={() => setModal(null)}>
           <Field label="Nome da campanha"><input style={s.input} value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} placeholder="Ex: Reativação Agosto" /></Field>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Canal"><Select block value={f.canal} onChange={(v) => setF({ ...f, canal: v })} options={["WhatsApp", "Email"]} /></Field>
@@ -108,8 +152,8 @@ export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, se
             </Field>
           )}
           <div style={{ display: "flex", gap: 10 }}>
-            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setModal(false)}>Cancelar</button>
-            <button style={{ ...s.btnPrimary, flex: 1, opacity: salvando ? .6 : 1 }} onClick={criar} disabled={salvando}>{salvando ? "Criando..." : "Criar campanha"}</button>
+            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setModal(null)}>Cancelar</button>
+            <button style={{ ...s.btnPrimary, flex: 1, opacity: salvando ? .6 : 1 }} onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : f.id ? "Salvar alterações" : "Criar campanha"}</button>
           </div>
         </Modal>
       )}

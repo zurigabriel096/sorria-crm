@@ -27,6 +27,7 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 
   if (res.status === 401) {
     setToken(null);
+    window.dispatchEvent(new Event("sorria:unauthorized"));
     throw new Error("Sessão expirada, faça login novamente.");
   }
   if (!res.ok) {

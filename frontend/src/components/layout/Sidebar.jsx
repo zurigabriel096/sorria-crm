@@ -5,14 +5,15 @@ import { Logo } from "../Logo";
 import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam, IconCard, IconLife, IconGear, IconChevron, IconZap, IconPanelLeft } from "../icons";
 
 // Itens simples navegam direto; itens com "children" viram um grupo expansível
-// (acordeão inline), no espírito do menu de Campanhas da RD Station.
+// (acordeão inline), no espírito do menu de Campanhas da RD Station. O próprio
+// grupo já é uma página navegável (view === group), os "children" são só os
+// itens satélite — sem duplicar "Campanhas" dentro do próprio submenu.
 const ITEMS = [
   ["dashboard", "Painel", IconGrid],
-  ["pacientes", "Pacientes", IconUsers],
+  ["pacientes", "Base de Leads", IconUsers],
   {
     group: "campanhas", label: "Campanhas", icon: IconMega,
     children: [
-      ["campanhas", "Campanhas", IconMega],
       ["segmentacoes", "Segmentações", IconFilter],
       ["templates", "Templates", IconChat],
       ["automacoes", "Automação", IconZap],
@@ -25,9 +26,19 @@ const ITEMS = [
   ["config", "Configurações", IconGear],
 ];
 
+const isViewInGroup = (item, v) =>
+  v === item.group || (v === "disparo" && item.group === "campanhas") || item.children.some(([k]) => k === v);
+
 export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngry }) {
   const clicks = useRef([]);
-  const [openGroups, setOpenGroups] = useState(() => new Set());
+  // Só semeia aberto se a página inicial já cair no grupo; depois disso o estado
+  // de expandido/recolhido é só do usuário — nunca recalculado a partir da página
+  // ativa, senão a seta trava aberta enquanto o grupo estiver selecionado.
+  const [openGroups, setOpenGroups] = useState(() => {
+    const initial = new Set();
+    ITEMS.forEach((item) => { if (!Array.isArray(item) && isViewInGroup(item, view)) initial.add(item.group); });
+    return initial;
+  });
 
   const toggle = () => {
     const now = Date.now();
@@ -49,8 +60,6 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
       return next;
     });
   };
-
-  const isViewIn = (children, v) => children.some(([k]) => k === v || (v === "disparo" && k === "campanhas"));
 
   return (
     <aside style={{ ...s.sidebar, width: collapsed ? 76 : 234 }}>
@@ -79,25 +88,36 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
           }
 
           const { group, label, icon: Icon, children } = item;
-          const childActive = isViewIn(children, view);
-          const expanded = collapsed ? false : openGroups.has(group) || childActive;
+          const rowActive = isViewInGroup(item, view);
+          const expanded = collapsed ? false : openGroups.has(group);
 
           return (
             <div key={group}>
-              <button
-                onClick={() => (collapsed ? setView(children[0][0]) : toggleGroup(group))}
+              <div
                 className="navItem"
-                title={label}
-                style={{ ...s.navItem, justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? "11px 0" : "11px 14px", ...(childActive && !expanded ? s.navItemActive : {}) }}
+                style={{ ...s.navItem, padding: 0, justifyContent: collapsed ? "center" : "flex-start", ...(rowActive ? s.navItemActive : {}) }}
               >
-                <Icon color={childActive ? T.primary : T.inkSoft} />
-                {!collapsed && <span className="fadeItem" style={{ flex: 1, textAlign: "left" }}>{label}</span>}
-                {!collapsed && <IconChevron color={T.inkSoft} dir={expanded ? "down" : "right"} />}
-              </button>
+                <button
+                  onClick={() => setView(group)}
+                  title={label}
+                  style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, padding: collapsed ? "11px 0" : "11px 0 11px 14px", color: "inherit", background: "transparent" }}
+                >
+                  <Icon color={rowActive ? T.primary : T.inkSoft} /> {!collapsed && <span className="fadeItem">{label}</span>}
+                </button>
+                {!collapsed && (
+                  <button
+                    onClick={() => toggleGroup(group)}
+                    title={expanded ? "Recolher" : "Expandir"}
+                    style={{ display: "flex", alignItems: "center", padding: "11px 12px 11px 4px", background: "transparent" }}
+                  >
+                    <IconChevron color={T.inkSoft} dir={expanded ? "down" : "right"} />
+                  </button>
+                )}
+              </div>
               {expanded && (
                 <div className="fadeItem" style={{ display: "grid", gap: 2, margin: "2px 0 4px", paddingLeft: 14 }}>
                   {children.map(([key, childLabel, ChildIcon]) => {
-                    const active = view === key || (view === "disparo" && key === "campanhas");
+                    const active = view === key;
                     return (
                       <button
                         key={key}
