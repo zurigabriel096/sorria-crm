@@ -1,0 +1,51 @@
+package br.com.sorria.crm.campaign;
+
+import br.com.sorria.crm.campaign.dto.CampanhaDTO;
+import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/campaigns")
+@RequiredArgsConstructor
+public class CampanhaController {
+
+    private final CampanhaService campanhaService;
+
+    @GetMapping
+    public List<CampanhaDTO> listar() {
+        return campanhaService.listar();
+    }
+
+    @GetMapping("/{id}")
+    public CampanhaDTO buscar(@PathVariable Long id) {
+        return campanhaService.buscar(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public CampanhaDTO criar(@Valid @RequestBody CampanhaDTO dto) {
+        return campanhaService.criar(dto);
+    }
+
+    @PutMapping("/{id}")
+    public CampanhaDTO atualizar(@PathVariable Long id, @Valid @RequestBody CampanhaDTO dto) {
+        return campanhaService.atualizar(id, dto);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> remover(@PathVariable Long id) {
+        campanhaService.remover(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/dispatch")
+    public DispatchResultDTO disparar(@PathVariable Long id) {
+        return campanhaService.disparar(id);
+    }
+}
