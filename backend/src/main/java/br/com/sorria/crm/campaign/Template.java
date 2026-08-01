@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "templates")
 @Getter
@@ -29,4 +31,14 @@ public class Template {
     private String imagemUrl;
 
     private boolean ativo = true;
+
+    private Boolean arquivado = false;
+
+    private LocalDateTime atualizadoEm;
+
+    @PrePersist
+    @PreUpdate
+    protected void aoSalvar() {
+        this.atualizadoEm = LocalDateTime.now();
+    }
 }

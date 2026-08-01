@@ -47,6 +47,12 @@ public class TemplateService {
         templateRepository.deleteById(id);
     }
 
+    public TemplateDTO arquivar(Long id, boolean arquivado) {
+        Template template = buscarEntidade(id);
+        template.setArquivado(arquivado);
+        return toDTO(templateRepository.save(template));
+    }
+
     private void aplicar(TemplateDTO dto, Template template) {
         template.setNome(dto.nome());
         template.setCategoria(dto.categoria());
@@ -58,6 +64,7 @@ public class TemplateService {
 
     private TemplateDTO toDTO(Template t) {
         return new TemplateDTO(t.getId(), t.getNome(), t.getCategoria(), t.getCampanhaObjetivo(),
-                t.getCorpo(), t.getImagemUrl(), t.isAtivo());
+                t.getCorpo(), t.getImagemUrl(), t.isAtivo(),
+                Boolean.TRUE.equals(t.getArquivado()), t.getAtualizadoEm());
     }
 }

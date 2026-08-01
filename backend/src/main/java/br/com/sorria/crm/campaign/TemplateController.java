@@ -1,6 +1,7 @@
 package br.com.sorria.crm.campaign;
 
 import br.com.sorria.crm.campaign.dto.TemplateDTO;
+import br.com.sorria.crm.common.dto.ArquivarRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -36,5 +37,10 @@ public class TemplateController {
     public ResponseEntity<Void> remover(@PathVariable Long id) {
         templateService.remover(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/arquivar")
+    public TemplateDTO arquivar(@PathVariable Long id, @RequestBody ArquivarRequest req) {
+        return templateService.arquivar(id, req.arquivado());
     }
 }

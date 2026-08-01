@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
+import { dataHora } from "../utils/format";
 import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
-import { createTemplate, updateTemplate, deleteTemplate } from "../api/campaigns";
+import { createTemplate, updateTemplate, deleteTemplate, archiveTemplate } from "../api/campaigns";
 
 export function Templates({ templates, setTemplates, objetivos, showToast }) {
   const [modal, setModal] = useState(null);
   const [fCat, setFCat] = useState("Todas");
+  const [fCampanha, setFCampanha] = useState("Todas");
+  const [verArquivados, setVerArquivados] = useState(false);
 
   const salvar = async (tpl) => {
     if (!tpl.nome.trim()) return showToast("Dê um nome ao template", "warn");
@@ -47,18 +50,39 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
     }
   };
 
-  const lista = templates.filter((t) => fCat === "Todas" || t.categoria === fCat);
+  const arquivar = async (t) => {
+    try {
+      const atualizado = await archiveTemplate(t.id, !t.arquivado);
+      setTemplates((ts) => ts.map((x) => (x.id === t.id ? atualizado : x)));
+      showToast(t.arquivado ? "Template reativado" : "Template arquivado", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao arquivar template", "warn");
+    }
+  };
+
+  const lista = templates.filter((t) => {
+    if (!!t.arquivado !== verArquivados) return false;
+    if (fCat !== "Todas" && t.categoria !== fCat) return false;
+    if (fCampanha !== "Todas" && t.campanha !== fCampanha) return false;
+    return true;
+  });
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div style={s.toolbar}>
         <Select value={fCat} onChange={setFCat} options={["Todas", "Utilidade", "Marketing", "Autenticação"]} />
+        <Select value={fCampanha} onChange={setFCampanha} options={["Todas", ...objetivos]} />
+        <div style={s.toggle}>
+          <button style={{ ...s.toggleBtn, ...(!verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(false)}>Ativos</button>
+          <button style={{ ...s.toggleBtn, ...(verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(true)}>Arquivados</button>
+        </div>
         <div style={{ flex: 1 }} />
         <button style={s.btnPrimarySm} onClick={() => setModal({ id: null, nome: "", categoria: "Utilidade", campanha: objetivos[0], corpo: "", imagem: "", ativo: true })}>+ Novo template</button>
       </div>
+      {!lista.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivados ? "Nenhum template arquivado." : "Nenhum template ativo."}</div></Card>}
       <div style={s.cardGrid}>
         {lista.map((t) => (
-          <div key={t.id} style={s.campCard}>
+          <div key={t.id} style={{ ...s.campCard, opacity: t.arquivado ? .7 : 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <span style={{ ...s.objTag, background: t.categoria === "Marketing" ? "#FCEFD9" : "#E1F4F0", color: t.categoria === "Marketing" ? T.gold : "#0E9484" }}>{t.categoria}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -67,6 +91,7 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
                   items={[
                     { label: "Editar", onClick: () => setModal({ ...t }) },
                     { label: "Duplicar", onClick: () => duplicar(t) },
+                    { label: t.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(t) },
                     { label: "Excluir", danger: true, onClick: () => excluir(t) },
                   ]}
                 />
@@ -76,6 +101,7 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
             {t.imagem && <div style={{ height: 90, borderRadius: 8, background: `#eee url(${t.imagem}) center/cover`, marginBottom: 8 }} />}
             <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.45 }}>{t.corpo}</div>
             <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 6 }}>{t.corpo.length} caracteres</div>
+            {t.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 6 }}>Editado em {dataHora(t.atualizadoEm)}</div>}
           </div>
         ))}
       </div>

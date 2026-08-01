@@ -1,5 +1,6 @@
 package br.com.sorria.crm.segment;
 
+import br.com.sorria.crm.common.dto.ArquivarRequest;
 import br.com.sorria.crm.segment.dto.SegmentacaoDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +37,10 @@ public class SegmentacaoController {
     public ResponseEntity<Void> remover(@PathVariable Long id) {
         service.remover(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/arquivar")
+    public SegmentacaoDTO arquivar(@PathVariable Long id, @RequestBody ArquivarRequest req) {
+        return service.arquivar(id, req.arquivado());
     }
 }

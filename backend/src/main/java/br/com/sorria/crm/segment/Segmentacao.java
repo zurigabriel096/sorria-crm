@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "segmentacoes")
 @Getter
@@ -23,4 +25,14 @@ public class Segmentacao {
     // Ex.: [[{field,op,value}], [{field,op,value},{field,op,value}]]
     @Column(columnDefinition = "TEXT", nullable = false)
     private String groupsJson;
+
+    private Boolean arquivado = false;
+
+    private LocalDateTime atualizadoEm;
+
+    @PrePersist
+    @PreUpdate
+    protected void aoSalvar() {
+        this.atualizadoEm = LocalDateTime.now();
+    }
 }

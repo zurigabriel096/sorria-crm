@@ -59,6 +59,12 @@ public class CampanhaService {
         campanhaRepository.deleteById(id);
     }
 
+    public CampanhaDTO arquivar(Long id, boolean arquivado) {
+        Campanha campanha = buscarEntidade(id);
+        campanha.setArquivado(arquivado);
+        return toDTO(campanhaRepository.save(campanha));
+    }
+
     @Transactional
     public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos) {
         Campanha campanha = buscarEntidade(id);
@@ -142,6 +148,7 @@ public class CampanhaService {
 
     private CampanhaDTO toDTO(Campanha c) {
         return new CampanhaDTO(c.getId(), c.getNome(), c.getObjetivo(), c.getCanal(), c.getResponsavel(),
-                c.getStatus(), c.getInicio(), c.getEmailMsg(), c.getTemplateId());
+                c.getStatus(), c.getInicio(), c.getEmailMsg(), c.getTemplateId(),
+                Boolean.TRUE.equals(c.getArquivado()), c.getAtualizadoEm());
     }
 }

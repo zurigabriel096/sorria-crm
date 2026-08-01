@@ -28,7 +28,7 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, historic
   const [trocandoTpl, setTrocandoTpl] = useState(!camp?.templateId);
   const [resultado, setResultado] = useState(null);
   const custo = elegiveis.length * (email ? PRECOS.msgEmail : PRECOS.msgWhats);
-  const ativos = templates.filter((t) => t.ativo);
+  const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
   const iniciar = async () => {
     setStep("enviando");

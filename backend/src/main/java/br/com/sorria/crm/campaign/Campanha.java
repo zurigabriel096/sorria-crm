@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "campanhas")
 @Getter
@@ -33,4 +35,17 @@ public class Campanha {
     private String emailMsg;
 
     private Long templateId;
+
+    // Wrapper (nao primitivo) de proposito: coluna nova numa tabela que ja tem
+    // linhas, ddl-auto:update nao faz backfill, entao registros antigos ficam
+    // com null aqui — e null != false pra um boolean primitivo (quebraria a leitura).
+    private Boolean arquivado = false;
+
+    private LocalDateTime atualizadoEm;
+
+    @PrePersist
+    @PreUpdate
+    protected void aoSalvar() {
+        this.atualizadoEm = LocalDateTime.now();
+    }
 }

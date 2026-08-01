@@ -6,3 +6,4 @@ export const listSegmentacoes = () => api.get("/api/segmentacoes");
 export const createSegmentacao = (seg) => api.post("/api/segmentacoes", { nome: seg.nome, groups: seg.groups });
 export const updateSegmentacao = (id, seg) => api.put(`/api/segmentacoes/${id}`, { nome: seg.nome, groups: seg.groups });
 export const deleteSegmentacao = (id) => api.del(`/api/segmentacoes/${id}`);
+export const archiveSegmentacao = (id, arquivado) => api.patch(`/api/segmentacoes/${id}/arquivar`, { arquivado });

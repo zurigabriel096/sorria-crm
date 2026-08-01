@@ -2,6 +2,8 @@ package br.com.sorria.crm.campaign.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.time.LocalDateTime;
+
 public record TemplateDTO(
         Long id,
         @NotBlank String nome,
@@ -9,6 +11,8 @@ public record TemplateDTO(
         String campanhaObjetivo,
         String corpo,
         String imagemUrl,
-        boolean ativo
+        boolean ativo,
+        Boolean arquivado,
+        LocalDateTime atualizadoEm
 ) {
 }

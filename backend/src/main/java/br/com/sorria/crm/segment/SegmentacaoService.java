@@ -41,6 +41,12 @@ public class SegmentacaoService {
         repository.deleteById(id);
     }
 
+    public SegmentacaoDTO arquivar(Long id, boolean arquivado) {
+        Segmentacao seg = buscarEntidade(id);
+        seg.setArquivado(arquivado);
+        return toDTO(repository.save(seg));
+    }
+
     private Segmentacao buscarEntidade(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Segmentacao nao encontrada: " + id));
@@ -58,7 +64,8 @@ public class SegmentacaoService {
     private SegmentacaoDTO toDTO(Segmentacao seg) {
         try {
             Object groups = objectMapper.readValue(seg.getGroupsJson(), Object.class);
-            return new SegmentacaoDTO(seg.getId(), seg.getNome(), groups);
+            return new SegmentacaoDTO(seg.getId(), seg.getNome(), groups,
+                    Boolean.TRUE.equals(seg.getArquivado()), seg.getAtualizadoEm());
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("groupsJson corrompido pra segmentacao " + seg.getId(), e);
         }

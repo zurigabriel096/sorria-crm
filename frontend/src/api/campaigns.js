@@ -5,6 +5,7 @@ export const listCampaigns = () => api.get("/api/campaigns");
 export const createCampaign = (payload) => api.post("/api/campaigns", payload);
 export const updateCampaign = (id, payload) => api.put(`/api/campaigns/${id}`, payload);
 export const deleteCampaign = (id) => api.del(`/api/campaigns/${id}`);
+export const archiveCampaign = (id, arquivado) => api.patch(`/api/campaigns/${id}/arquivar`, { arquivado });
 
 // Dispara a campanha para os contatos elegíveis. Retorna { total, entregues, falhas }.
 // templateId (opcional): o template escolhido na tela de revisão do disparo.
@@ -32,7 +33,10 @@ export const listDispatchHistory = async () =>
 // Templates: o WhatsApp não permite botões interativos fora da API Business oficial,
 // e o backend não suporta imagem de verdade ainda (só guarda uma URL, sem upload).
 function templateFromApi(t) {
-  return { id: t.id, nome: t.nome, categoria: t.categoria, campanha: t.campanhaObjetivo || "", corpo: t.corpo || "", imagem: t.imagemUrl || "", ativo: !!t.ativo };
+  return {
+    id: t.id, nome: t.nome, categoria: t.categoria, campanha: t.campanhaObjetivo || "", corpo: t.corpo || "",
+    imagem: t.imagemUrl || "", ativo: !!t.ativo, arquivado: !!t.arquivado, atualizadoEm: t.atualizadoEm,
+  };
 }
 function templateToApi(t) {
   return {
@@ -45,3 +49,4 @@ export const listTemplates = async () => (await api.get("/api/templates")).map(t
 export const createTemplate = async (tpl) => templateFromApi(await api.post("/api/templates", templateToApi(tpl)));
 export const updateTemplate = async (id, tpl) => templateFromApi(await api.put(`/api/templates/${id}`, templateToApi(tpl)));
 export const deleteTemplate = (id) => api.del(`/api/templates/${id}`);
+export const archiveTemplate = async (id, arquivado) => templateFromApi(await api.patch(`/api/templates/${id}/arquivar`, { arquivado }));

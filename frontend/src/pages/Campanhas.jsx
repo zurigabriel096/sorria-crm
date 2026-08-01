@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
+import { dataHora } from "../utils/format";
 import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
@@ -10,13 +11,15 @@ import { IconSend } from "../components/icons";
 
 const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "" });
 
-export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
+export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
   const [modal, setModal] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [f, setF] = useState(vazio());
   const [novoObj, setNovoObj] = useState("");
-  const ativos = templates.filter((t) => t.ativo);
+  const [fObjetivo, setFObjetivo] = useState("Todos");
+  const [verArquivadas, setVerArquivadas] = useState(false);
+  const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
   const abrirNovo = () => { setF(vazio()); setModal("novo"); };
   const abrirEdicao = (c) => {
@@ -67,6 +70,15 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
     }
   };
 
+  const arquivar = async (c) => {
+    try {
+      await onArquivarCampanha(c.id, !c.arquivado);
+      showToast(c.arquivado ? "Campanha reativada" : "Campanha arquivada", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao arquivar campanha", "warn");
+    }
+  };
+
   const addObj = () => {
     const o = novoObj.trim();
     if (!o || objetivos.includes(o)) return;
@@ -76,15 +88,27 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
     showToast("Objetivo criado", "ok");
   };
 
+  const lista = campanhas.filter((c) => {
+    if (!!c.arquivado !== verArquivadas) return false;
+    if (fObjetivo !== "Todos" && c.objetivo !== fObjetivo) return false;
+    return true;
+  });
+
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div style={s.toolbar}>
+        <Select value={fObjetivo} onChange={setFObjetivo} options={["Todos", ...objetivos]} />
+        <div style={s.toggle}>
+          <button style={{ ...s.toggleBtn, ...(!verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(false)}>Ativas</button>
+          <button style={{ ...s.toggleBtn, ...(verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(true)}>Arquivadas</button>
+        </div>
+        <div style={{ flex: 1 }} />
         <button style={s.btnPrimarySm} onClick={abrirNovo}>+ Nova campanha</button>
       </div>
-      {!campanhas.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>Nenhuma campanha ainda. Crie a primeira.</div></Card>}
+      {!lista.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivadas ? "Nenhuma campanha arquivada." : "Nenhuma campanha ativa. Crie a primeira."}</div></Card>}
       <div style={s.cardGrid}>
-        {campanhas.map((c) => (
-          <div key={c.id} style={{ ...s.campCard, display: "flex", flexDirection: "column" }}>
+        {lista.map((c) => (
+          <div key={c.id} style={{ ...s.campCard, display: "flex", flexDirection: "column", opacity: c.arquivado ? .7 : 1 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <span style={{ ...s.objTag, background: T.primarySoft, color: T.primaryDark }}>{c.objetivo}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -93,6 +117,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
                   items={[
                     { label: "Editar", onClick: () => abrirEdicao(c) },
                     { label: "Duplicar", onClick: () => duplicar(c) },
+                    { label: c.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(c) },
                     { label: "Excluir", danger: true, onClick: () => excluir(c) },
                   ]}
                 />
@@ -102,6 +127,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
             <div style={{ fontSize: 12.5, color: T.inkSoft, flex: 1 }}>{c.responsavel} · {c.inicio}</div>
             {c.segmentoId && <div style={{ fontSize: 11.5, color: T.primary, fontWeight: 600, marginTop: 2 }}>Segmentação: {segmentos.find((sg) => sg.id === c.segmentoId)?.nome || "—"}</div>}
             {c.templateId && <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2 }}>Template: {templates.find((t) => t.id === c.templateId)?.nome || "—"}</div>}
+            {c.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 6 }}>Editado em {dataHora(c.atualizadoEm)}</div>}
             <button onClick={() => onDisparar(c)} style={{ ...s.btnWa, marginTop: 16, width: "100%", justifyContent: "center" }}><IconSend color="#fff" /> Disparar campanha</button>
           </div>
         ))}
@@ -127,7 +153,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
               onChange={(e) => setF({ ...f, segmentoId: e.target.value ? Number(e.target.value) : "" })}
             >
               <option value="">Sem segmentação (toda a base elegível)</option>
-              {segmentos.map((sg) => <option key={sg.id} value={sg.id}>{sg.nome}</option>)}
+              {segmentos.filter((sg) => !sg.arquivado || sg.id === f.segmentoId).map((sg) => <option key={sg.id} value={sg.id}>{sg.nome}</option>)}
             </select>
             <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
               {f.segmentoId ? `Disparo restrito à segmentação "${segmentos.find((sg) => sg.id === f.segmentoId)?.nome}".` : "Sem segmentação: dispara pra toda a base elegível."}

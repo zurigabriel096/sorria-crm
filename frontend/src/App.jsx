@@ -23,9 +23,9 @@ import { Config } from "./pages/Config";
 
 import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact } from "./api/contacts";
-import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
+import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
-import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao } from "./api/segmentacoes";
+import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
 import { getMe, updateCorPerfil } from "./api/me";
 import { checkHealth } from "./api/health";
 
@@ -53,6 +53,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [disparoCampanha, setDisparoCampanha] = useState(null);
   const [pacienteAberto, setPacienteAberto] = useState(null);
+  const [carregandoDevagar, setCarregandoDevagar] = useState(false);
 
   const showToast = (msg, kind = "ok") => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200); };
 
@@ -85,6 +86,15 @@ export default function App() {
   };
 
   useEffect(() => { if (authed) carregarTudo(usuario); else setCarregando(false); }, [authed]);
+
+  // Mesmo aviso do login, mas pra quando o carregamento inicial pós-login é que
+  // pega o backend ainda acordando (cold start do Render) — sem isso a tela
+  // "Carregando seus dados..." fica parada sem explicar o motivo da demora.
+  useEffect(() => {
+    if (!carregando) { setCarregandoDevagar(false); return; }
+    const t = setTimeout(() => setCarregandoDevagar(true), 4000);
+    return () => clearTimeout(t);
+  }, [carregando]);
 
   // Se o token expirar/for rejeitado em qualquer chamada (client.js dispara esse
   // evento no 401), volta pro login em vez de deixar a tela com dados quebrados.
@@ -153,6 +163,11 @@ export default function App() {
     setCampanhas((c) => c.filter((x) => x.id !== id));
   };
 
+  const arquivarCampanha = async (id, arquivado) => {
+    const atualizada = await archiveCampaign(id, arquivado);
+    setCampanhas((c) => c.map((x) => (x.id === id ? { ...x, ...atualizada, segmentoId: x.segmentoId } : x)));
+  };
+
   const finalizarDisparo = async () => {
     setDisparoCampanha(null);
     setView("disparos");
@@ -201,6 +216,11 @@ export default function App() {
     setSegmentos((s2) => s2.filter((x) => x.id !== id));
   };
 
+  const arquivarSegmentacao = async (id, arquivado) => {
+    const atualizada = await archiveSegmentacao(id, arquivado);
+    setSegmentos((s2) => s2.map((x) => (x.id === id ? atualizada : x)));
+  };
+
   const onLogout = () => {
     apiLogout();
     setAuthed(false);
@@ -233,8 +253,13 @@ export default function App() {
 
   if (carregando) {
     return (
-      <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", color: T.inkSoft, fontSize: 14 }}>
-        Carregando seus dados...
+      <div style={{ display: "grid", placeItems: "center", minHeight: "100vh", color: T.inkSoft, fontSize: 14, textAlign: "center", gap: 10 }}>
+        <div>Carregando seus dados...</div>
+        {carregandoDevagar && (
+          <div style={{ fontSize: 12.5, color: T.inkSoft, maxWidth: 320 }}>
+            Pode demorar até 1 minuto — o servidor está acordando.
+          </div>
+        )}
       </div>
     );
   }
@@ -247,8 +272,8 @@ export default function App() {
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} />}
-          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} tags={tags} setTags={setTags} showToast={showToast} />}
-          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
+          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} setTags={setTags} showToast={showToast} />}
+          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
           {view === "automacoes" && <Automacoes showToast={showToast} />}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}

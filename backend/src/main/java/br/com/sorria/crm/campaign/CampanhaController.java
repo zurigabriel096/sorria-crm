@@ -2,6 +2,7 @@ package br.com.sorria.crm.campaign;
 
 import br.com.sorria.crm.campaign.dto.CampanhaDTO;
 import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
+import br.com.sorria.crm.common.dto.ArquivarRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,6 +43,11 @@ public class CampanhaController {
     public ResponseEntity<Void> remover(@PathVariable Long id) {
         campanhaService.remover(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/arquivar")
+    public CampanhaDTO arquivar(@PathVariable Long id, @RequestBody ArquivarRequest req) {
+        return campanhaService.arquivar(id, req.arquivado());
     }
 
     // contatoIds (opcional): quando o disparo é restrito a uma segmentação escolhida no

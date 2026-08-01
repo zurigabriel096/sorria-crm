@@ -3,6 +3,7 @@ import { T } from "../theme";
 import { s } from "../styles/s";
 import { FIELD_META, OP_LABEL } from "../data/seed";
 import { matchSeg } from "../utils/patients";
+import { dataHora } from "../utils/format";
 import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
@@ -13,13 +14,14 @@ const novaCondicao = () => ({ field: "segmento", op: "é", value: "VIP" });
 const novoGrupo = () => [{ field: "recencia", op: "maior", value: 120 }];
 const contagemLabel = (n) => (n === 1 ? "1 lead" : `${n} leads`);
 
-export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcluir, tags, setTags, showToast }) {
+export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcluir, onArquivar, tags, setTags, showToast }) {
   const [builder, setBuilder] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [novaTag, setNovaTag] = useState("");
   const [buscaTag, setBuscaTag] = useState("Todas");
   const [tagEditando, setTagEditando] = useState(null);
   const [tagEditValor, setTagEditValor] = useState("");
+  const [verArquivadas, setVerArquivadas] = useState(false);
 
   const salvar = async () => {
     if (!builder.nome.trim()) return showToast("Dê um nome", "warn");
@@ -54,6 +56,15 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
     }
   };
 
+  const arquivar = async (seg) => {
+    try {
+      await onArquivar(seg.id, !seg.arquivado);
+      showToast(seg.arquivado ? "Segmentação reativada" : "Segmentação arquivada", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao arquivar segmentação", "warn");
+    }
+  };
+
   const criarTag = () => {
     const t = novaTag.trim();
     if (!t) return;
@@ -82,15 +93,23 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18 }} className="dashGrid">
       <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Suas segmentações</div>
-          <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: null, nome: "", groups: [novoGrupo()] })}>+ Nova segmentação</button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={s.toggle}>
+              <button style={{ ...s.toggleBtn, ...(!verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(false)}>Ativas</button>
+              <button style={{ ...s.toggleBtn, ...(verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(true)}>Arquivadas</button>
+            </div>
+            <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: null, nome: "", groups: [novoGrupo()] })}>+ Nova segmentação</button>
+          </div>
         </div>
-        {!segmentos.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>Nenhuma segmentação ainda.</div></Card>}
-        {segmentos.map((seg) => {
+        {segmentos.filter((seg) => !!seg.arquivado === verArquivadas).length === 0 && (
+          <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivadas ? "Nenhuma segmentação arquivada." : "Nenhuma segmentação ativa."}</div></Card>
+        )}
+        {segmentos.filter((seg) => !!seg.arquivado === verArquivadas).map((seg) => {
           const count = patients.filter((p) => matchSeg(p, seg)).length;
           return (
-            <div key={seg.id} style={s.segCard}>
+            <div key={seg.id} style={{ ...s.segCard, opacity: seg.arquivado ? .7 : 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: T.ink }}>{seg.nome}</div>
@@ -107,6 +126,7 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
                       </span>
                     ))}
                   </div>
+                  {seg.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 4 }}>Editado em {dataHora(seg.atualizadoEm)}</div>}
                 </div>
                 <div style={{ display: "flex", alignItems: "start", gap: 8 }}>
                   <span style={s.countPill}>{contagemLabel(count)}</span>
@@ -114,6 +134,7 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
                     items={[
                       { label: "Editar", onClick: () => setBuilder(JSON.parse(JSON.stringify(seg))) },
                       { label: "Duplicar", onClick: () => duplicar(seg) },
+                      { label: seg.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(seg) },
                       { label: "Excluir", danger: true, onClick: () => excluir(seg) },
                     ]}
                   />
