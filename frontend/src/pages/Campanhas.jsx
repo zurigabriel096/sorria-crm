@@ -8,18 +8,25 @@ import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { IconSend } from "../components/icons";
 
-// TODO(backend): criar/listar campanhas via src/api/campaigns.js (listCampaigns, createCampaign).
-export function Campanhas({ campanhas, setCampanhas, templates, objetivos, setObjetivos, onDisparar, showToast }) {
+export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, setObjetivos, onDisparar, showToast }) {
   const [modal, setModal] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const [f, setF] = useState({ nome: "", objetivo: "Reativação", canal: "WhatsApp", responsavel: COLAB_SEED[0].nome, emailMsg: "" });
   const [novoObj, setNovoObj] = useState("");
 
-  const criar = () => {
+  const criar = async () => {
     if (!f.nome.trim()) return showToast("Dê um nome", "warn");
-    setCampanhas((c) => [{ id: Date.now(), ...f, status: "Ativa", inicio: "hoje" }, ...c]);
-    setModal(false);
-    setF({ ...f, nome: "" });
-    showToast("Campanha criada", "ok");
+    setSalvando(true);
+    try {
+      await onCriarCampanha({ ...f, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR") });
+      setModal(false);
+      setF({ ...f, nome: "" });
+      showToast("Campanha criada", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao criar campanha", "warn");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const addObj = () => {
@@ -72,7 +79,7 @@ export function Campanhas({ campanhas, setCampanhas, templates, objetivos, setOb
           {f.canal === "WhatsApp" && <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 12 }}>O template do WhatsApp você escolhe na hora do disparo, entre os templates ativos.</div>}
           <div style={{ display: "flex", gap: 10 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setModal(false)}>Cancelar</button>
-            <button style={{ ...s.btnPrimary, flex: 1 }} onClick={criar}>Criar campanha</button>
+            <button style={{ ...s.btnPrimary, flex: 1, opacity: salvando ? .6 : 1 }} onClick={criar} disabled={salvando}>{salvando ? "Criando..." : "Criar campanha"}</button>
           </div>
         </Modal>
       )}

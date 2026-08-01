@@ -1,55 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { brl, num, pct } from "../utils/format";
+import { dispatchCampaign } from "../api/campaigns";
 import { Card } from "../components/ui/Card";
 import { Metric } from "../components/ui/Metric";
-import { StatusBadge } from "../components/ui/StatusBadge";
 import { IconSend } from "../components/icons";
 
-// TODO(backend): este componente hoje SIMULA o envio no próprio navegador
-// (setInterval + Math.random) só para fins de demo. No mundo real, o disparo
-// deve ser feito pelo backend (fila + Evolution API) e este componente deve
-// apenas chamar src/api/campaigns.js `dispatchCampaign(id, {...})` e então
-// consultar o progresso via polling ou WebSocket em /api/dispatch-history.
-export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel }) {
+// Dispara de verdade via backend (que fala com a Evolution API GO). O backend decide
+// quais contatos são elegíveis no momento do disparo; a contagem aqui é só uma prévia.
+export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel, showToast }) {
   const camp = campanha;
   const email = camp?.canal === "Email";
   const elegiveis = useMemo(() => patients.filter((p) => p.elegivel && p.enviado === "Pendente"), [patients]);
   const [step, setStep] = useState("revisar");
   const [tpl, setTpl] = useState(null);
-  const [progress, setProgress] = useState(0);
-  const [resultados, setResultados] = useState([]);
-  const timer = useRef(null);
+  const [resultado, setResultado] = useState(null);
   const custo = elegiveis.length * (email ? 0.001 : 0.31);
   const ativos = templates.filter((t) => t.ativo);
-  const iniciar = () => { setStep("enviando"); setProgress(0); setResultados([]); };
 
-  useEffect(() => {
-    if (step !== "enviando") return;
-    let i = 0;
-    const res = [];
-    timer.current = setInterval(() => {
-      if (i >= elegiveis.length) {
-        clearInterval(timer.current);
-        setTimeout(() => setStep("resumo"), 400);
-        return;
-      }
-      const p = elegiveis[i];
-      const roll = Math.random();
-      const status = roll < 0.8 ? "Entregue" : roll < 0.92 ? "Disparado" : roll < 0.97 ? "Falhou" : "Bloqueado";
-      res.push({ paciente_id: p.id, nome: p.nome, status, hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) });
-      setResultados([...res]);
-      i++;
-      setProgress(Math.round((i / elegiveis.length) * 100));
-    }, 400);
-    return () => clearInterval(timer.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  const iniciar = async () => {
+    setStep("enviando");
+    try {
+      const res = await dispatchCampaign(camp.id);
+      setResultado(res);
+      setStep("resumo");
+    } catch (e) {
+      showToast(e.message || "Erro ao disparar campanha", "warn");
+      setStep("revisar");
+    }
+  };
 
   if (!camp) return <Card title="Disparo"><p style={{ color: T.inkSoft }}>Selecione uma campanha.</p></Card>;
 
-  const entregues = resultados.filter((r) => r.status === "Entregue" || r.status === "Disparado").length;
   const podeEnviar = elegiveis.length && (email || tpl);
 
   return (
@@ -59,7 +42,7 @@ export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel 
         <>
           <Card title={`${camp.nome} · ${camp.canal}`}>
             <div style={s.summaryRow}>
-              <Metric label="Destinatários elegíveis" value={num(elegiveis.length)} />
+              <Metric label="Destinatários elegíveis (prévia)" value={num(elegiveis.length)} />
               <Metric label="Canal" value={email ? "Email" : "WhatsApp oficial"} />
               <Metric label="Custo estimado" value={brl(custo)} />
             </div>
@@ -82,7 +65,6 @@ export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel 
                         <span style={{ fontSize: 10.5, fontWeight: 700, color: t.categoria === "Marketing" ? T.gold : "#0E9484" }}>{t.categoria}</span>
                       </div>
                       <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, lineHeight: 1.4 }}>{t.corpo.slice(0, 90)}{t.corpo.length > 90 ? "..." : ""}</div>
-                      {!!t.botoes.length && <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>{t.botoes.map((b, i) => <span key={i} style={s.btnPreview}>{b.texto}</span>)}</div>}
                     </button>
                   ))}
                 </div>
@@ -91,11 +73,6 @@ export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel 
                 <div style={{ ...s.waPreview, marginTop: 14 }}>
                   <div style={s.waBubble}>
                     {tpl.corpo.replace(/\{nome\}/g, elegiveis[0]?.primeiro || "Maria").replace(/\{data\}/g, "05/08").replace(/\{hora\}/g, "14:30")}
-                    {!!tpl.botoes.length && (
-                      <div style={{ borderTop: "1px solid #b9d8a8", marginTop: 8, paddingTop: 6, display: "grid", gap: 4 }}>
-                        {tpl.botoes.map((b, i) => <div key={i} style={{ textAlign: "center", color: "#0a7", fontWeight: 600, fontSize: 12.5 }}>{b.texto}</div>)}
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -107,40 +84,26 @@ export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel 
               <IconSend color="#fff" /> Disparar para {elegiveis.length}
             </button>
           </div>
-          <p style={{ fontSize: 12, color: T.inkSoft, textAlign: "center" }}>Roda no servidor, em segundo plano. Você não precisa ficar na tela.</p>
+          <p style={{ fontSize: 12, color: T.inkSoft, textAlign: "center" }}>O envio roda no servidor e fala de verdade com o WhatsApp conectado.</p>
         </>
       )}
       {step === "enviando" && (
         <Card title="Enviando campanha...">
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={s.spinner} />
-            <div>
-              <div style={{ fontWeight: 700, color: T.ink }}>Processando em segundo plano</div>
-              <div style={{ fontSize: 13, color: T.inkSoft }}>{resultados.length} de {elegiveis.length} · {entregues} entregues</div>
-            </div>
-            <div style={{ marginLeft: "auto", fontSize: 26, fontWeight: 800, color: T.primary }}>{progress}%</div>
-          </div>
-          <div style={s.progTrack}><div style={{ ...s.progFill, width: `${progress}%` }} /></div>
-          <div style={s.feed}>
-            {resultados.slice().reverse().slice(0, 6).map((r, i) => (
-              <div key={i} style={s.feedRow}>
-                <StatusBadge status={r.status} sm />
-                <span style={{ color: T.ink }}>{r.nome}</span>
-                <span style={{ marginLeft: "auto", color: T.inkSoft, fontSize: 12 }}>{r.hora}</span>
-              </div>
-            ))}
+            <div style={{ fontWeight: 700, color: T.ink }}>Disparando pelo WhatsApp, aguarde...</div>
           </div>
         </Card>
       )}
-      {step === "resumo" && (
+      {step === "resumo" && resultado && (
         <Card title="Campanha concluída">
           <div style={s.summaryRow}>
-            <Metric label="Enviados" value={num(resultados.length)} />
-            <Metric label="Entregues" value={num(entregues)} accent={T.wa} />
-            <Metric label="Taxa" value={pct((entregues / resultados.length) * 100)} />
-            <Metric label="Custo" value={brl(entregues * (email ? 0.001 : 0.31))} />
+            <Metric label="Enviados" value={num(resultado.total)} />
+            <Metric label="Entregues" value={num(resultado.entregues)} accent={T.wa} />
+            <Metric label="Taxa" value={pct((resultado.entregues / (resultado.total || 1)) * 100)} />
+            <Metric label="Falhas" value={num(resultado.falhas)} accent={resultado.falhas ? T.coral : undefined} />
           </div>
-          <button style={{ ...s.btnPrimary, width: "100%", marginTop: 16 }} onClick={() => onFinish(resultados, camp)}>Ver histórico</button>
+          <button style={{ ...s.btnPrimary, width: "100%", marginTop: 16 }} onClick={onFinish}>Ver histórico</button>
         </Card>
       )}
     </div>

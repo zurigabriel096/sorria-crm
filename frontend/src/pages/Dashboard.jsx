@@ -1,24 +1,21 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { num } from "../utils/format";
+import { getDashboardKpis } from "../api/dashboard";
 import { Card } from "../components/ui/Card";
 import { KpiCard } from "../components/ui/KpiCard";
 import { ImportBox } from "../components/ui/ImportBox";
 import { IconUsers, IconCheck, IconSend } from "../components/icons";
 
-// TODO(backend): substituir os cálculos abaixo por uma chamada a
-// src/api/dashboard.js `getDashboardKpis()` — hoje tudo é derivado no cliente
-// a partir da lista completa de pacientes em memória.
 export function Dashboard({ patients, historico, onImport, showToast, setView }) {
-  const segCount = useMemo(() => {
-    const c = {};
-    patients.forEach((p) => (c[p.segmento] = (c[p.segmento] || 0) + 1));
-    return c;
-  }, [patients]);
+  const [kpis, setKpis] = useState(null);
 
-  const elegiveis = patients.filter((p) => p.elegivel && p.enviado === "Pendente").length;
-  const entregues = historico.filter((h) => h.status === "Entregue" || h.status === "Disparado").length;
+  useEffect(() => {
+    if (!patients.length) return;
+    getDashboardKpis().then(setKpis).catch((e) => showToast(e.message || "Erro ao carregar KPIs", "warn"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patients.length, historico.length]);
 
   if (!patients.length) {
     return (
@@ -32,13 +29,15 @@ export function Dashboard({ patients, historico, onImport, showToast, setView })
     );
   }
 
+  if (!kpis) return <div style={{ color: T.inkSoft, fontSize: 14, padding: "20px 0" }}>Carregando painel...</div>;
+
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <div style={s.kpiRow}>
-        <KpiCard label="Pacientes na base" value={num(patients.length)} icon={<IconUsers color={T.primary} />} />
-        <KpiCard label="Elegíveis p/ disparo" value={num(elegiveis)} sub="telefone válido" icon={<IconCheck color={T.wa} />} />
-        <KpiCard label="Mensagens disparadas" value={num(historico.length)} icon={<IconSend color={T.gold} />} />
-        <KpiCard label="Entregues" value={num(entregues)} highlight icon={<IconCheck color="#fff" />} />
+        <KpiCard label="Pacientes na base" value={num(kpis.totalContatos)} icon={<IconUsers color={T.primary} />} />
+        <KpiCard label="Elegíveis p/ disparo" value={num(kpis.elegiveis)} sub="telefone válido" icon={<IconCheck color={T.wa} />} />
+        <KpiCard label="Mensagens disparadas" value={num(kpis.disparados)} icon={<IconSend color={T.gold} />} />
+        <KpiCard label="Entregues" value={num(kpis.entregues)} highlight icon={<IconCheck color="#fff" />} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18 }} className="dashGrid">
         <Card title="Base por segmento (RFMV)">
@@ -46,9 +45,9 @@ export function Dashboard({ patients, historico, onImport, showToast, setView })
             <div key={seg} style={s.segRow}>
               <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{seg}</span>
               <div style={s.segBarTrack}>
-                <div style={{ ...s.segBarFill, width: `${(segCount[seg] || 0) / patients.length * 100}%`, background: col.fg }} />
+                <div style={{ ...s.segBarFill, width: `${((kpis.porSegmento[seg] || 0) / (kpis.totalContatos || 1)) * 100}%`, background: col.fg }} />
               </div>
-              <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{segCount[seg] || 0}</b>
+              <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{kpis.porSegmento[seg] || 0}</b>
             </div>
           ))}
           <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver pacientes</button>

@@ -3,8 +3,6 @@ import { T } from "../theme";
 import { Card } from "../components/ui/Card";
 import { StatusBadge } from "../components/ui/StatusBadge";
 
-// TODO(backend): trocar `historico` (estado local em App.jsx) por
-// src/api/campaigns.js `listDispatchHistory()`.
 export function HistoricoDisparos({ historico }) {
   if (!historico.length) {
     return <Card><div style={{ textAlign: "center", padding: 24, color: T.inkSoft }}>Nenhum disparo ainda.</div></Card>;

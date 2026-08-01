@@ -3,12 +3,26 @@ import { T } from "../theme";
 import { s } from "../styles/s";
 import { Logo } from "../components/Logo";
 import { Field } from "../components/ui/Field";
+import { login } from "../api/auth";
 
-// TODO(backend): trocar onEnter() por uma chamada real a src/api/auth.js `login(email, senha)`
-// e só liberar o app quando o backend responder 200 com o token JWT.
 export function Login({ onEnter, onSupport }) {
   const [email, setEmail] = useState("clinica@orthodonticsjc.com.br");
   const [senha, setSenha] = useState("demodemo");
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const entrar = async () => {
+    setErro("");
+    setLoading(true);
+    try {
+      const usuario = await login(email, senha);
+      onEnter(usuario);
+    } catch (e) {
+      setErro(e.message || "Não foi possível entrar. Confira email e senha.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={s.loginRoot}>
@@ -27,12 +41,13 @@ export function Login({ onEnter, onSupport }) {
           <Logo size={24} />
           <h2 style={{ marginTop: 22, fontSize: 20, fontWeight: 800, color: T.ink }}>Entrar na sua conta</h2>
           <p style={{ color: T.inkSoft, fontSize: 13.5, margin: "4px 0 22px" }}>Bem-vindo de volta</p>
-          <Field label="Email"><input style={s.input} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-          <Field label="Senha"><input style={s.input} type="password" value={senha} onChange={(e) => setSenha(e.target.value)} /></Field>
+          <Field label="Email"><input style={s.input} value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && entrar()} /></Field>
+          <Field label="Senha"><input style={s.input} type="password" value={senha} onChange={(e) => setSenha(e.target.value)} onKeyDown={(e) => e.key === "Enter" && entrar()} /></Field>
+          {erro && <p style={{ color: T.coral, fontSize: 13, marginTop: -8, marginBottom: 14 }}>{erro}</p>}
           <div style={{ textAlign: "right", margin: "-4px 0 18px" }}>
             <button style={s.linkBtn} onClick={onSupport}>Esqueci minha senha</button>
           </div>
-          <button style={s.btnPrimary} onClick={onEnter}>Entrar</button>
+          <button style={{ ...s.btnPrimary, opacity: loading ? .6 : 1 }} onClick={entrar} disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
           <p style={{ textAlign: "center", fontSize: 13, color: T.inkSoft, marginTop: 22 }}>
             Precisa de ajuda? <button style={s.linkBtn} onClick={onSupport}>Falar com o suporte</button>
           </p>

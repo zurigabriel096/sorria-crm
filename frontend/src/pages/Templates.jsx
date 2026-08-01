@@ -5,20 +5,25 @@ import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
+import { createTemplate, updateTemplate } from "../api/campaigns";
 
-// TODO(backend): CRUD via src/api/campaigns.js (listTemplates, createTemplate, updateTemplate).
 export function Templates({ templates, setTemplates, objetivos, showToast }) {
   const [modal, setModal] = useState(null);
   const [fCat, setFCat] = useState("Todas");
 
-  const salvar = (tpl) => {
+  const salvar = async (tpl) => {
     if (!tpl.nome.trim()) return showToast("Dê um nome ao template", "warn");
-    setTemplates((t) => {
-      const ex = t.find((x) => x.id === tpl.id);
-      return ex ? t.map((x) => (x.id === tpl.id ? tpl : x)) : [tpl, ...t];
-    });
-    setModal(null);
-    showToast("Template salvo", "ok");
+    try {
+      const salvo = tpl.id == null ? await createTemplate(tpl) : await updateTemplate(tpl.id, tpl);
+      setTemplates((t) => {
+        const ex = t.find((x) => x.id === salvo.id);
+        return ex ? t.map((x) => (x.id === salvo.id ? salvo : x)) : [salvo, ...t];
+      });
+      setModal(null);
+      showToast("Template salvo", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar template", "warn");
+    }
   };
 
   const lista = templates.filter((t) => fCat === "Todas" || t.categoria === fCat);
@@ -28,7 +33,7 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
       <div style={s.toolbar}>
         <Select value={fCat} onChange={setFCat} options={["Todas", "Utilidade", "Marketing", "Autenticação"]} />
         <div style={{ flex: 1 }} />
-        <button style={s.btnPrimarySm} onClick={() => setModal({ id: "t" + Date.now(), nome: "", categoria: "Utilidade", campanha: objetivos[0], corpo: "", botoes: [], imagem: "", ativo: true })}>+ Novo template</button>
+        <button style={s.btnPrimarySm} onClick={() => setModal({ id: null, nome: "", categoria: "Utilidade", campanha: objetivos[0], corpo: "", botoes: [], imagem: "", ativo: true })}>+ Novo template</button>
       </div>
       <div style={s.cardGrid}>
         {lista.map((t) => (

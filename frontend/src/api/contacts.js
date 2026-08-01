@@ -1,22 +1,49 @@
 import { api } from "./client";
 
-// CRUD de pacientes/contatos. Espelha o shape usado hoje em memória (ver utils/patients.js)
-// mas persistido no backend (tabela contatos).
-export const listContacts = (params = "") => api.get(`/api/contacts${params}`);
-export const getContact = (id) => api.get(`/api/contacts/${id}`);
-export const createContact = (payload) => api.post("/api/contacts", payload);
-export const updateContact = (id, payload) => api.put(`/api/contacts/${id}`, payload);
-export const deleteContact = (id) => api.del(`/api/contacts/${id}`);
+// O shape usado nas páginas (Pacientes, Dashboard, Segmentacoes...) vem do protótipo original
+// (tel, ultAtend) e não bate 1:1 com o DTO do backend (telefone, ultAtendimento). As funções
+// abaixo convertem nos dois sentidos para que o resto do app não precise saber da diferença.
 
-// Importação de planilha: hoje é feita 100% no navegador (utils/patients.js).
-// Quando o backend existir, o ideal é enviar o arquivo pro endpoint abaixo e deixar
-// o parsing/normalização do lado do servidor (mais seguro para bases grandes).
-export const importContactsFile = (file) => {
-  const form = new FormData();
-  form.append("file", file);
-  return fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/contacts/import`, {
-    method: "POST",
-    body: form,
-    headers: { Authorization: `Bearer ${localStorage.getItem("sorria_token") || ""}` },
-  }).then((r) => r.json());
-};
+function fromApi(c) {
+  return {
+    id: c.id,
+    cod: c.cod || "",
+    nome: c.nome,
+    primeiro: String(c.nome || "").trim().split(/\s+/)[0] || "",
+    tel: c.telefone || "",
+    telValido: !!c.telefone,
+    email: c.email || "",
+    financ: c.financ || "—",
+    dentista: c.dentista || "",
+    ultAtend: c.ultAtendimento || "",
+    recencia: c.recencia,
+    segmento: c.segmento || "Regular",
+    elegivel: !!c.elegivel,
+    enviado: c.enviado || "Pendente",
+    tags: c.tags || [],
+    origem: c.origem || "",
+  };
+}
+
+function toApi(p) {
+  return {
+    cod: p.cod || null,
+    nome: p.nome,
+    telefone: p.tel || null,
+    email: p.email || null,
+    financ: p.financ || null,
+    dentista: p.dentista || null,
+    ultAtendimento: p.ultAtend || null,
+    recencia: p.recencia ?? null,
+    segmento: p.segmento || "Regular",
+    elegivel: !!p.elegivel,
+    enviado: p.enviado || "Pendente",
+    tags: p.tags || [],
+    origem: p.origem || null,
+  };
+}
+
+export const listContacts = async () => (await api.get("/api/contacts")).map(fromApi);
+export const createContact = async (patient) => fromApi(await api.post("/api/contacts", toApi(patient)));
+export const updateContact = async (id, patient) => fromApi(await api.put(`/api/contacts/${id}`, toApi(patient)));
+export const deleteContact = (id) => api.del(`/api/contacts/${id}`);

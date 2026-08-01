@@ -9,9 +9,7 @@ import { Modal } from "../components/ui/Modal";
 import { ImportBox } from "../components/ui/ImportBox";
 import { IconSearch, IconDownload } from "../components/icons";
 
-// TODO(backend): listagem/paginação/edição devem passar a usar src/api/contacts.js
-// (listContacts, updateContact) em vez do array `patients` mantido em memória em App.jsx.
-export function Pacientes({ patients, setPatients, tags, onImport, showToast }) {
+export function Pacientes({ patients, onSalvarPaciente, tags, onImport, showToast }) {
   const [fSeg, setFSeg] = useState("Todos");
   const [fEleg, setFEleg] = useState("Todos");
   const [fTag, setFTag] = useState("Todas");
@@ -29,10 +27,14 @@ export function Pacientes({ patients, setPatients, tags, onImport, showToast }) 
     return true;
   });
 
-  const salvarEdit = (novo) => {
-    setPatients((ps) => ps.map((p) => (p.id === novo.id ? novo : p)));
-    setEdit(null);
-    showToast("Cadastro atualizado", "ok");
+  const salvarEdit = async (novo) => {
+    try {
+      await onSalvarPaciente(novo);
+      setEdit(null);
+      showToast("Cadastro atualizado", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar", "warn");
+    }
   };
 
   if (!patients.length) {
