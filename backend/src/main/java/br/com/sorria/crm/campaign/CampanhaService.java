@@ -68,14 +68,27 @@ public class CampanhaService {
         }
         List<Contato> elegiveis = contatoRepository.findByElegivelTrueAndEnviado(STATUS_PENDENTE);
 
-        String corpoTemplate = resolverCorpoMensagem(campanha);
+        boolean email = CANAL_EMAIL.equalsIgnoreCase(campanha.getCanal());
+        Template template = (!email && campanha.getTemplateId() != null)
+                ? templateRepository.findById(campanha.getTemplateId()).orElse(null)
+                : null;
+        boolean comBotoes = template != null && !template.getBotoes().isEmpty();
+        String corpoTemplate = resolverCorpoMensagem(campanha, template, email);
 
         int entregues = 0;
         int falhas = 0;
 
         for (Contato contato : elegiveis) {
-            String mensagem = corpoTemplate.replace("{nome}", primeiroNome(contato.getNome()));
-            String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem);
+            String primeiroNome = primeiroNome(contato.getNome());
+            String status;
+            if (comBotoes) {
+                status = evolutionApiClient.enviarMensagemComBotoes(
+                        contato.getTelefone(), campanha.getNome(),
+                        corpoTemplate.replace("{nome}", primeiroNome), "Sorr.ia", template.getBotoes());
+            } else {
+                String mensagem = corpoTemplate.replace("{nome}", primeiroNome);
+                status = evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem);
+            }
 
             contato.setEnviado(status);
             contatoRepository.save(contato);
@@ -101,14 +114,12 @@ public class CampanhaService {
         return new DispatchResultDTO(elegiveis.size(), entregues, falhas);
     }
 
-    private String resolverCorpoMensagem(Campanha campanha) {
-        if (CANAL_EMAIL.equalsIgnoreCase(campanha.getCanal()) && campanha.getEmailMsg() != null) {
+    private String resolverCorpoMensagem(Campanha campanha, Template template, boolean email) {
+        if (email && campanha.getEmailMsg() != null) {
             return campanha.getEmailMsg();
         }
-        if (campanha.getTemplateId() != null) {
-            return templateRepository.findById(campanha.getTemplateId())
-                    .map(t -> t.getCorpo() != null ? t.getCorpo() : "")
-                    .orElse("");
+        if (template != null) {
+            return template.getCorpo() != null ? template.getCorpo() : "";
         }
         return campanha.getEmailMsg() != null ? campanha.getEmailMsg() : "";
     }

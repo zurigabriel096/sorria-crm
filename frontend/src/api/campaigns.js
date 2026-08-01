@@ -20,14 +20,17 @@ export const listDispatchHistory = async () =>
     hora: h.hora ? new Date(h.hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "",
   }));
 
-// Templates: o backend não suporta botões/imagem por enquanto (só nome, categoria,
-// objetivo/campanha, corpo e ativo) — esses campos ficam só no estado local do editor
-// e não são persistidos ao salvar.
+// Templates: o backend não suporta imagem de verdade ainda (só guarda uma URL, sem
+// upload) — imagens em base64 (upload local) não são persistidas ao salvar.
 function templateFromApi(t) {
-  return { id: t.id, nome: t.nome, categoria: t.categoria, campanha: t.campanhaObjetivo || "", corpo: t.corpo || "", botoes: [], imagem: t.imagemUrl || "", ativo: !!t.ativo };
+  return { id: t.id, nome: t.nome, categoria: t.categoria, campanha: t.campanhaObjetivo || "", corpo: t.corpo || "", botoes: t.botoes || [], imagem: t.imagemUrl || "", ativo: !!t.ativo };
 }
 function templateToApi(t) {
-  return { nome: t.nome, categoria: t.categoria, campanhaObjetivo: t.campanha || null, corpo: t.corpo || "", imagemUrl: t.imagem?.startsWith("data:") ? null : (t.imagem || null), ativo: !!t.ativo };
+  return {
+    nome: t.nome, categoria: t.categoria, campanhaObjetivo: t.campanha || null, corpo: t.corpo || "",
+    imagemUrl: t.imagem?.startsWith("data:") ? null : (t.imagem || null), ativo: !!t.ativo,
+    botoes: (t.botoes || []).filter((b) => b.texto?.trim()).map((b) => ({ texto: b.texto, link: b.link || null })),
+  };
 }
 
 export const listTemplates = async () => (await api.get("/api/templates")).map(templateFromApi);
