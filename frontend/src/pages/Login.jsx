@@ -1,25 +1,35 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { Logo } from "../components/Logo";
 import { Field } from "../components/ui/Field";
 import { login } from "../api/auth";
 
+// No plano free do Render, o backend "dorme" após ~15 min sem uso e demora até
+// ~1 min pra acordar na próxima chamada — esse aviso evita que pareça travado.
+const AVISO_DELAY_MS = 4000;
+
 export function Login({ onEnter, onSupport }) {
   const [email, setEmail] = useState("clinica@orthodonticsjc.com.br");
   const [senha, setSenha] = useState("demodemo");
   const [loading, setLoading] = useState(false);
+  const [avisoLento, setAvisoLento] = useState(false);
   const [erro, setErro] = useState("");
+  const avisoTimer = useRef(null);
 
   const entrar = async () => {
     setErro("");
+    setAvisoLento(false);
     setLoading(true);
+    avisoTimer.current = setTimeout(() => setAvisoLento(true), AVISO_DELAY_MS);
     try {
       const usuario = await login(email, senha);
       onEnter(usuario);
     } catch (e) {
       setErro(e.message || "Não foi possível entrar. Confira email e senha.");
     } finally {
+      clearTimeout(avisoTimer.current);
+      setAvisoLento(false);
       setLoading(false);
     }
   };
@@ -48,6 +58,11 @@ export function Login({ onEnter, onSupport }) {
             <button style={s.linkBtn} onClick={onSupport}>Esqueci minha senha</button>
           </div>
           <button style={{ ...s.btnPrimary, opacity: loading ? .6 : 1 }} onClick={entrar} disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
+          {avisoLento && (
+            <p style={{ textAlign: "center", fontSize: 12.5, color: T.inkSoft, marginTop: 10 }}>
+              Pode demorar até 1 minuto na primeira vez — o servidor está acordando.
+            </p>
+          )}
           <p style={{ textAlign: "center", fontSize: 13, color: T.inkSoft, marginTop: 22 }}>
             Precisa de ajuda? <button style={s.linkBtn} onClick={onSupport}>Falar com o suporte</button>
           </p>
