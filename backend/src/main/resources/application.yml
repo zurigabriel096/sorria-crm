@@ -1,5 +1,11 @@
 server:
   port: 8080
+  # Reduz de 200 (default) - cada thread reserva stack de memoria mesmo ociosa,
+  # e o plano free do Render (512MB) nao aguenta o default em produção.
+  tomcat:
+    threads:
+      max: 30
+      min-spare: 4
 
 spring:
   application:
