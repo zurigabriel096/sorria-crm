@@ -29,7 +29,7 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(request.email());
         if (usuarioOpt.isEmpty() || !passwordEncoder.matches(request.senha(), usuarioOpt.get().getSenhaHash())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Email ou senha invalidos"));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "A senha ou o email podem estar errados."));
         }
 
         Usuario usuario = usuarioOpt.get();
