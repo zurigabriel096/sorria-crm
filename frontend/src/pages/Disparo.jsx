@@ -22,7 +22,7 @@ export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel,
   const iniciar = async () => {
     setStep("enviando");
     try {
-      const res = await dispatchCampaign(camp.id);
+      const res = await dispatchCampaign(camp.id, email ? null : tpl?.id);
       setResultado(res);
       setStep("resumo");
     } catch (e) {

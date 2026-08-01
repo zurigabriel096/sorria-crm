@@ -61,8 +61,11 @@ public class CampanhaService {
     }
 
     @Transactional
-    public DispatchResultDTO disparar(Long id) {
+    public DispatchResultDTO disparar(Long id, Long templateIdEscolhido) {
         Campanha campanha = buscarEntidade(id);
+        if (templateIdEscolhido != null && !templateIdEscolhido.equals(campanha.getTemplateId())) {
+            campanha.setTemplateId(templateIdEscolhido);
+        }
         List<Contato> elegiveis = contatoRepository.findByElegivelTrueAndEnviado(STATUS_PENDENTE);
 
         String corpoTemplate = resolverCorpoMensagem(campanha);

@@ -6,8 +6,11 @@ export const updateCampaign = (id, payload) => api.put(`/api/campaigns/${id}`, p
 export const deleteCampaign = (id) => api.del(`/api/campaigns/${id}`);
 
 // Dispara a campanha para os contatos elegíveis. Retorna { total, entregues, falhas }.
+// templateId (opcional): o template escolhido na tela de revisão do disparo — sem isso,
+// o backend usaria o texto genérico salvo na campanha em vez do template selecionado.
 // O backend fala com a Evolution API GO de verdade (ver /backend/whatsapp).
-export const dispatchCampaign = (id) => api.post(`/api/campaigns/${id}/dispatch`);
+export const dispatchCampaign = (id, templateId) =>
+  api.post(`/api/campaigns/${id}/dispatch${templateId ? `?templateId=${templateId}` : ""}`);
 
 export const listDispatchHistory = async () =>
   (await api.get("/api/dispatch-history")).map((h) => ({

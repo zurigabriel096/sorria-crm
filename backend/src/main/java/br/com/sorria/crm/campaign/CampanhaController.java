@@ -45,7 +45,7 @@ public class CampanhaController {
     }
 
     @PostMapping("/{id}/dispatch")
-    public DispatchResultDTO disparar(@PathVariable Long id) {
-        return campanhaService.disparar(id);
+    public DispatchResultDTO disparar(@PathVariable Long id, @RequestParam(required = false) Long templateId) {
+        return campanhaService.disparar(id, templateId);
     }
 }
