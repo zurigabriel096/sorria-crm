@@ -22,9 +22,6 @@ public class EvolutionApiClient {
     @Value("${evolution.base-url}")
     private String baseUrl;
 
-    @Value("${evolution.instance}")
-    private String instance;
-
     @Value("${evolution.api-key}")
     private String apiKey;
 
@@ -41,9 +38,10 @@ public class EvolutionApiClient {
         }
 
         try {
-            // Estrutura aproximada da Evolution API v2 (POST /message/sendText/{instance}).
-            // Ajuste o corpo/headers conforme a versao da Evolution API efetivamente instalada.
-            String url = baseUrl + "/message/sendText/" + instance;
+            // Evolution GO (evolution-foundation/evolution-go): POST /send/text, autenticado
+            // pelo header "apikey" com o TOKEN DA INSTANCIA (nao o GLOBAL_API_KEY) - o token
+            // de instancia e obtido em GET /instance/all com o GLOBAL_API_KEY.
+            String url = baseUrl + "/send/text";
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -51,7 +49,7 @@ public class EvolutionApiClient {
 
             Map<String, Object> body = Map.of(
                     "number", telefone,
-                    "textMessage", Map.of("text", mensagem)
+                    "text", mensagem
             );
 
             restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
