@@ -12,6 +12,8 @@ public interface ContatoRepository extends JpaRepository<Contato, Long> {
 
     List<Contato> findByElegivelTrueAndEnviado(String enviado);
 
+    List<Contato> findByElegivelTrue();
+
     long countByElegivelTrue();
 
     long countByEnviado(String enviado);

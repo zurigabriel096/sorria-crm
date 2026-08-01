@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { T } from "./theme";
 import { s } from "./styles/s";
-import { SEG_SEED } from "./data/seed";
 
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
@@ -26,11 +25,9 @@ import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact } from "./api/contacts";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
+import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao } from "./api/segmentacoes";
 import { getMe, updateCorPerfil } from "./api/me";
 import { checkHealth } from "./api/health";
-
-// Segmentações ainda não têm endpoint no backend (fora do escopo inicial) —
-// continuam só em memória.
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem("sorria_token"));
@@ -48,7 +45,7 @@ export default function App() {
   const [templates, setTemplates] = useState([]);
   const [historico, setHistorico] = useState([]);
 
-  const [segmentos, setSegmentos] = useState(SEG_SEED);
+  const [segmentos, setSegmentos] = useState([]);
   const [tags, setTags] = useState(["Inadimplente", "Sem agendamento", "Agenda Agosto", "Retorno"]);
   const [colaboradores, setColaboradores] = useState([]);
   const [objetivos, setObjetivos] = useState(["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"]);
@@ -66,8 +63,8 @@ export default function App() {
     setCarregando(true);
     try {
       const precisaUsuario = !usuarioAtual;
-      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, meRes] = await Promise.all([
-        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(),
+      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, segmentosRes, meRes] = await Promise.all([
+        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(), listSegmentacoes(),
         precisaUsuario ? getMe() : Promise.resolve(usuarioAtual),
       ]);
       setPatients(pacientesRes);
@@ -75,6 +72,7 @@ export default function App() {
       setTemplates(templatesRes);
       setHistorico(historicoRes);
       setColaboradores(colaboradoresRes);
+      setSegmentos(segmentosRes);
       if (precisaUsuario) {
         setUsuario(meRes);
         setAvatarColor(meRes.corPerfil || T.primary);
@@ -186,6 +184,23 @@ export default function App() {
     setColaboradores((c) => c.filter((x) => x.id !== id));
   };
 
+  const criarSegmentacao = async (seg) => {
+    const criada = await createSegmentacao(seg);
+    setSegmentos((s2) => [criada, ...s2]);
+    return criada;
+  };
+
+  const atualizarSegmentacao = async (id, seg) => {
+    const atualizada = await updateSegmentacao(id, seg);
+    setSegmentos((s2) => s2.map((x) => (x.id === id ? atualizada : x)));
+    return atualizada;
+  };
+
+  const excluirSegmentacao = async (id) => {
+    await deleteSegmentacao(id);
+    setSegmentos((s2) => s2.filter((x) => x.id !== id));
+  };
+
   const onLogout = () => {
     apiLogout();
     setAuthed(false);
@@ -232,11 +247,11 @@ export default function App() {
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} />}
-          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} setSegmentos={setSegmentos} tags={tags} setTags={setTags} showToast={showToast} />}
+          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} tags={tags} setTags={setTags} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
           {view === "automacoes" && <Automacoes showToast={showToast} />}
-          {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
+          {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} />}
           {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} />}
           {view === "plano" && <Plano showToast={showToast} />}

@@ -19,7 +19,6 @@ import java.util.NoSuchElementException;
 @RequiredArgsConstructor
 public class CampanhaService {
 
-    private static final String STATUS_PENDENTE = "Pendente";
     private static final String CANAL_EMAIL = "Email";
 
     private final CampanhaRepository campanhaRepository;
@@ -66,7 +65,13 @@ public class CampanhaService {
         if (templateIdEscolhido != null && !templateIdEscolhido.equals(campanha.getTemplateId())) {
             campanha.setTemplateId(templateIdEscolhido);
         }
-        List<Contato> elegiveis = contatoRepository.findByElegivelTrueAndEnviado(STATUS_PENDENTE);
+        // "enviado" no Contato e so o status do ULTIMO disparo (pra exibicao na tela de
+        // Leads) — nao pode travar o contato pra sempre depois da primeira campanha.
+        // A elegibilidade real e por campanha: um contato so fica de fora de UMA campanha
+        // especifica se ja tiver um registro de disparo pra ELA (evita reenvio duplicado).
+        List<Contato> elegiveis = contatoRepository.findByElegivelTrue().stream()
+                .filter(c -> !disparoRepository.existsByCampanhaIdAndContatoId(campanha.getId(), c.getId()))
+                .toList();
         if (contatoIdsEscolhidos != null && !contatoIdsEscolhidos.isEmpty()) {
             elegiveis = elegiveis.stream().filter(c -> contatoIdsEscolhidos.contains(c.getId())).toList();
         }
@@ -90,6 +95,7 @@ public class CampanhaService {
             DisparoHistorico historico = new DisparoHistorico();
             historico.setContatoId(contato.getId());
             historico.setContatoNome(contato.getNome());
+            historico.setCampanhaId(campanha.getId());
             historico.setCampanhaNome(campanha.getNome());
             historico.setStatus(status);
             historico.setHora(LocalDateTime.now());

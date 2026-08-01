@@ -13,27 +13,45 @@ const novaCondicao = () => ({ field: "segmento", op: "é", value: "VIP" });
 const novoGrupo = () => [{ field: "recencia", op: "maior", value: 120 }];
 const contagemLabel = (n) => (n === 1 ? "1 lead" : `${n} leads`);
 
-export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags, showToast }) {
+export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcluir, tags, setTags, showToast }) {
   const [builder, setBuilder] = useState(null);
+  const [salvando, setSalvando] = useState(false);
   const [novaTag, setNovaTag] = useState("");
   const [buscaTag, setBuscaTag] = useState("Todas");
   const [tagEditando, setTagEditando] = useState(null);
   const [tagEditValor, setTagEditValor] = useState("");
 
-  const salvar = () => {
+  const salvar = async () => {
     if (!builder.nome.trim()) return showToast("Dê um nome", "warn");
-    setSegmentos((s2) => {
-      const ex = s2.find((x) => x.id === builder.id);
-      return ex ? s2.map((x) => (x.id === builder.id ? builder : x)) : [builder, ...s2];
-    });
-    setBuilder(null);
-    showToast("Segmentação salva", "ok");
+    setSalvando(true);
+    try {
+      if (builder.id) await onAtualizar(builder.id, builder);
+      else await onCriar(builder);
+      setBuilder(null);
+      showToast("Segmentação salva", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar segmentação", "warn");
+    } finally {
+      setSalvando(false);
+    }
   };
 
-  const duplicar = (seg) => {
-    const copia = { ...JSON.parse(JSON.stringify(seg)), id: Date.now(), nome: `${seg.nome} (cópia)` };
-    setSegmentos((s2) => [copia, ...s2]);
-    showToast("Segmentação duplicada", "ok");
+  const duplicar = async (seg) => {
+    try {
+      await onCriar({ nome: `${seg.nome} (cópia)`, groups: JSON.parse(JSON.stringify(seg.groups)) });
+      showToast("Segmentação duplicada", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao duplicar segmentação", "warn");
+    }
+  };
+
+  const excluir = async (seg) => {
+    try {
+      await onExcluir(seg.id);
+      showToast("Removida", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao remover segmentação", "warn");
+    }
   };
 
   const criarTag = () => {
@@ -66,8 +84,9 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
       <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Suas segmentações</div>
-          <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: Date.now(), nome: "", groups: [novoGrupo()] })}>+ Nova segmentação</button>
+          <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: null, nome: "", groups: [novoGrupo()] })}>+ Nova segmentação</button>
         </div>
+        {!segmentos.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>Nenhuma segmentação ainda.</div></Card>}
         {segmentos.map((seg) => {
           const count = patients.filter((p) => matchSeg(p, seg)).length;
           return (
@@ -95,7 +114,7 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
                     items={[
                       { label: "Editar", onClick: () => setBuilder(JSON.parse(JSON.stringify(seg))) },
                       { label: "Duplicar", onClick: () => duplicar(seg) },
-                      { label: "Excluir", danger: true, onClick: () => { setSegmentos((s2) => s2.filter((x) => x.id !== seg.id)); showToast("Removida", "ok"); } },
+                      { label: "Excluir", danger: true, onClick: () => excluir(seg) },
                     ]}
                   />
                 </div>
@@ -155,12 +174,12 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
           </div>
         </Card>
       </div>
-      {builder && <SegBuilder builder={builder} setBuilder={setBuilder} tags={tags} patients={patients} onSave={salvar} onClose={() => setBuilder(null)} />}
+      {builder && <SegBuilder builder={builder} setBuilder={setBuilder} tags={tags} patients={patients} onSave={salvar} onClose={() => setBuilder(null)} salvando={salvando} />}
     </div>
   );
 }
 
-function SegBuilder({ builder, setBuilder, tags, patients, onSave, onClose }) {
+function SegBuilder({ builder, setBuilder, tags, patients, onSave, onClose, salvando }) {
   const set = (patch) => setBuilder({ ...builder, ...patch });
 
   const setCond = (gi, ci, patch) =>
@@ -186,7 +205,7 @@ function SegBuilder({ builder, setBuilder, tags, patients, onSave, onClose }) {
   const preview = patients.filter((p) => matchSeg(p, builder)).length;
 
   return (
-    <Modal title={builder.nome ? "Editar segmentação" : "Nova segmentação"} onClose={onClose} wide>
+    <Modal title={builder.id ? "Editar segmentação" : "Nova segmentação"} onClose={onClose} wide>
       <Field label="Nome"><input style={s.input} value={builder.nome} onChange={(e) => set({ nome: e.target.value })} placeholder="Ex: Reativação +120D" /></Field>
 
       {builder.groups.map((group, gi) => (
@@ -239,7 +258,7 @@ function SegBuilder({ builder, setBuilder, tags, patients, onSave, onClose }) {
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
         <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Cancelar</button>
-        <button style={{ ...s.btnPrimary, flex: 1 }} onClick={onSave}>Salvar</button>
+        <button style={{ ...s.btnPrimary, flex: 1, opacity: salvando ? .6 : 1 }} onClick={onSave} disabled={salvando}>{salvando ? "Salvando..." : "Salvar"}</button>
       </div>
     </Modal>
   );

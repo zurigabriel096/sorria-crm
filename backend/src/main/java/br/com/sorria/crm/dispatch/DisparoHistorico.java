@@ -22,6 +22,8 @@ public class DisparoHistorico {
 
     private String contatoNome;
 
+    private Long campanhaId;
+
     private String campanhaNome;
 
     private String status;

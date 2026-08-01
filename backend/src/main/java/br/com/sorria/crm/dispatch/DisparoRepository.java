@@ -9,4 +9,6 @@ public interface DisparoRepository extends JpaRepository<DisparoHistorico, Long>
     List<DisparoHistorico> findAllByOrderByHoraDesc();
 
     long countByStatus(String status);
+
+    boolean existsByCampanhaIdAndContatoId(Long campanhaId, Long contatoId);
 }

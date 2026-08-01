@@ -11,15 +11,18 @@ import { IconSend } from "../components/icons";
 
 // Dispara de verdade via backend (que fala com a Evolution API GO). Quando a campanha
 // tem uma segmentação associada, restringimos aqui os elegíveis a quem casa com ela e
-// mandamos os ids explicitamente; sem segmentação, dispara pra toda a base elegível/pendente.
-export function DisparoFlow({ campanha, patients, templates, segmentos, onFinish, onCancel, showToast }) {
+// mandamos os ids explicitamente; sem segmentação, dispara pra toda a base elegível.
+// "enviado" no contato é só o status do último disparo (exibição), não trava elegibilidade
+// pra sempre — o que impede reenvio é já ter disparo registrado PRA ESSA campanha.
+export function DisparoFlow({ campanha, patients, templates, segmentos, historico, onFinish, onCancel, showToast }) {
   const camp = campanha;
   const email = camp?.canal === "Email";
   const segmento = camp?.segmentoId ? segmentos?.find((sg) => sg.id === camp.segmentoId) : null;
   const elegiveis = useMemo(() => {
-    const base = patients.filter((p) => p.elegivel && p.enviado === "Pendente");
+    const jaDisparado = new Set((historico || []).filter((h) => h.campanha === camp?.nome).map((h) => h.contatoId));
+    const base = patients.filter((p) => p.elegivel && !jaDisparado.has(p.id));
     return segmento ? base.filter((p) => matchSeg(p, segmento)) : base;
-  }, [patients, segmento]);
+  }, [patients, segmento, historico, camp?.nome]);
   const [step, setStep] = useState("revisar");
   const [tpl, setTpl] = useState(() => templates.find((t) => t.id === camp?.templateId) || null);
   const [trocandoTpl, setTrocandoTpl] = useState(!camp?.templateId);
