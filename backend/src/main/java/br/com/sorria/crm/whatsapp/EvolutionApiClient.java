@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
@@ -94,9 +95,27 @@ public class EvolutionApiClient {
     }
 
     /**
-     * Solicita um codigo de pareamento (POST /instance/pair) para trocar o numero
-     * conectado a esta instancia, sem precisar escanear QR code. ATENCAO: isso
-     * substitui o numero atualmente pareado - so deve ser chamado deliberadamente.
+     * Desconecta o numero atualmente pareado (DELETE /instance/logout). A Evolution
+     * Go recusa gerar codigo de pareamento enquanto ha um numero logado ("instance is
+     * already authenticated") - esse passo e obrigatorio antes de trocar de numero.
+     */
+    public void desconectarInstancia() {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
+        }
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("apikey", apiKey);
+            restTemplate.exchange(baseUrl + "/instance/logout", HttpMethod.DELETE, new HttpEntity<>(headers), String.class);
+        } catch (RestClientException ex) {
+            log.warn("Falha ao desconectar instancia Evolution: {}", ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel desconectar o numero atual. Tente novamente.");
+        }
+    }
+
+    /**
+     * Solicita um codigo de pareamento (POST /instance/pair) para o numero informado.
+     * So funciona se a instancia ja estiver desconectada - ver desconectarInstancia().
      */
     @SuppressWarnings("unchecked")
     public String solicitarPareamento(String telefone) {
@@ -120,6 +139,13 @@ public class EvolutionApiClient {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "A Evolution API nao retornou um codigo de pareamento.");
             }
             return String.valueOf(codigo);
+        } catch (HttpStatusCodeException ex) {
+            String corpo = ex.getResponseBodyAsString();
+            log.warn("Falha ao solicitar pairing code para {}: {}", numero, corpo);
+            if (corpo != null && corpo.contains("already authenticated")) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "O numero atual ainda esta conectado. Desconecte-o primeiro.");
+            }
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel gerar o codigo de pareamento. Tente novamente.");
         } catch (RestClientException ex) {
             log.warn("Falha ao solicitar pairing code para {}: {}", numero, ex.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel gerar o codigo de pareamento. Tente novamente.");

@@ -5,13 +5,32 @@ import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { WhatsAppLogo } from "../components/icons";
-import { getWhatsAppStatus, solicitarCodigoPareamento } from "../api/whatsapp";
+import { getWhatsAppStatus, desconectarWhatsApp, solicitarCodigoPareamento } from "../api/whatsapp";
 
-function ConectarNumeroModal({ onClose, showToast, onConectado }) {
+// A Evolution recusa gerar codigo de pareamento com um numero ja logado
+// ("instance is already authenticated") - por isso a desconexao e um passo
+// explicito e confirmado, antes de liberar o campo de numero novo.
+function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial }) {
+  const [desconectado, setDesconectado] = useState(!(statusInicial?.connected && statusInicial?.loggedIn));
+  const [confirmarDesconexao, setConfirmarDesconexao] = useState(false);
+  const [desconectando, setDesconectando] = useState(false);
   const [telefone, setTelefone] = useState("");
   const [pairingCode, setPairingCode] = useState(null);
   const [carregando, setCarregando] = useState(false);
   const [verificando, setVerificando] = useState(false);
+
+  const desconectarAtual = async () => {
+    setDesconectando(true);
+    try {
+      await desconectarWhatsApp();
+      setDesconectado(true);
+      showToast("Número desconectado. Agora gere o código do novo número.", "ok");
+    } catch (e) {
+      showToast(e.message, "warn");
+    } finally {
+      setDesconectando(false);
+    }
+  };
 
   const gerarCodigo = async () => {
     setCarregando(true);
@@ -43,13 +62,39 @@ function ConectarNumeroModal({ onClose, showToast, onConectado }) {
     }
   };
 
+  if (!desconectado) {
+    return (
+      <Modal title="Conectar número por código" onClose={onClose}>
+        <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 16 }}>
+          Existe um número conectado agora (<strong>{statusInicial?.nome}</strong>). A Evolution só
+          gera o código do número novo depois que este for desconectado — e isso interrompe o
+          disparo de mensagens até o novo número ser pareado.
+        </p>
+        {!confirmarDesconexao ? (
+          <button style={{ ...s.btnGhostSm, width: "100%", justifyContent: "center" }} onClick={() => setConfirmarDesconexao(true)}>
+            Desconectar número atual
+          </button>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: T.coral, fontWeight: 600, marginBottom: 12 }}>
+              Confirma? Isso desconecta "{statusInicial?.nome}" agora mesmo.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={{ ...s.btnGhostSm, flex: 1, justifyContent: "center" }} onClick={() => setConfirmarDesconexao(false)}>
+                Cancelar
+              </button>
+              <button style={{ ...s.btnPrimarySm, flex: 1, justifyContent: "center" }} disabled={desconectando} onClick={desconectarAtual}>
+                {desconectando ? "Desconectando..." : "Sim, desconectar"}
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
+    );
+  }
+
   return (
     <Modal title="Conectar número por código" onClose={onClose}>
-      <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 16 }}>
-        Isso troca o número que dispara as mensagens desta clínica. O número conectado
-        atualmente será desconectado assim que o novo for pareado.
-      </p>
-
       {!pairingCode ? (
         <>
           <Field label="Número do WhatsApp (com DDD)">
@@ -146,6 +191,7 @@ export function Config({ showToast, usuario }) {
           onClose={() => setModalAberto(false)}
           showToast={showToast}
           onConectado={(s) => setStatus(s)}
+          statusInicial={status}
         />
       )}
     </div>

@@ -22,8 +22,15 @@ public class WhatsAppController {
         return evolutionApiClient.obterStatus();
     }
 
-    // Troca de numero e uma acao sensivel (derruba o numero atualmente conectado)
-    // - restrita a ADMIN de proposito.
+    // Desconectar e parear sao acoes sensiveis (mexem no numero real em uso) -
+    // restritas a ADMIN de proposito.
+    @PostMapping("/desconectar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Boolean> desconectar() {
+        evolutionApiClient.desconectarInstancia();
+        return Map.of("ok", true);
+    }
+
     @PostMapping("/pareamento")
     @PreAuthorize("hasRole('ADMIN')")
     public Map<String, String> solicitarPareamento(@RequestBody Map<String, String> body) {
