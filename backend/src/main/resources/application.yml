@@ -31,6 +31,10 @@ evolution:
   base-url: ${EVOLUTION_API_URL:}
   instance: ${EVOLUTION_INSTANCE:}
   api-key: ${EVOLUTION_API_KEY:}
+  # So usada pra GET /instance/all (descobrir o numero conectado, campo "Telefone"
+  # em Configuracoes) - o token de instancia acima nao tem permissao nesse endpoint.
+  # Sem essa env var, o telefone so nao aparece sincronizado (nao quebra nada).
+  global-api-key: ${EVOLUTION_GLOBAL_API_KEY:}
 
 # Storage do Supabase pra foto de perfil dos colaboradores. Sem essas duas env vars
 # configuradas no Render, o upload responde 400 com uma mensagem explicando o motivo

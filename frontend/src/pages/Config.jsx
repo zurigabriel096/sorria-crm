@@ -255,7 +255,7 @@ export function Config({ showToast, usuario }) {
   const carregarStatus = () => {
     getWhatsAppStatus()
       .then(setStatus)
-      .catch(() => setStatus({ connected: false, loggedIn: false, nome: "" }));
+      .catch(() => setStatus({ connected: false, loggedIn: false, nome: "", telefone: "" }));
   };
 
   useEffect(() => { carregarStatus(); }, []);
@@ -269,7 +269,15 @@ export function Config({ showToast, usuario }) {
           <Field label="Nome"><input style={s.input} defaultValue="Orthodontic SJC" /></Field>
           <Field label="Unidade"><input style={s.input} defaultValue="Vilaça" /></Field>
           <Field label="Email de contato"><input style={s.input} defaultValue="contato@orthodonticsjc.com.br" /></Field>
-          <Field label="Telefone"><input style={s.input} defaultValue="(12) 3000 0000" /></Field>
+          <Field label="Telefone">
+            <input
+              style={{ ...s.input, background: T.bg, color: T.inkSoft, cursor: "not-allowed" }}
+              value={status?.telefone || (conectado ? "Sincronizando..." : "Nenhum número conectado")}
+              disabled
+              readOnly
+              title="Sincronizado automaticamente com o número conectado no WhatsApp (aba Integração WhatsApp abaixo)"
+            />
+          </Field>
         </div>
         <button style={{ ...s.btnPrimarySm, marginTop: 6 }} onClick={() => showToast("Salvo", "ok")}>Salvar</button>
       </Card>

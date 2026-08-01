@@ -31,6 +31,9 @@ public class EvolutionApiClient {
     @Value("${evolution.api-key}")
     private String apiKey;
 
+    @Value("${evolution.global-api-key:}")
+    private String globalApiKey;
+
     /**
      * Envia uma mensagem via Evolution API. Quando evolution.base-url nao esta configurado
      * (ambiente demo/dev sem instancia de WhatsApp real), simula o envio e devolve um status
@@ -76,7 +79,7 @@ public class EvolutionApiClient {
     @SuppressWarnings("unchecked")
     public Map<String, Object> obterStatus() {
         if (baseUrl == null || baseUrl.isBlank()) {
-            return Map.of("connected", true, "loggedIn", true, "nome", "Simulado (modo demo)");
+            return Map.of("connected", true, "loggedIn", true, "nome", "Simulado (modo demo)", "telefone", "");
         }
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -87,11 +90,48 @@ public class EvolutionApiClient {
             return Map.of(
                     "connected", Boolean.TRUE.equals(data.get("Connected")),
                     "loggedIn", Boolean.TRUE.equals(data.get("LoggedIn")),
-                    "nome", String.valueOf(data.getOrDefault("Name", "")));
+                    "nome", String.valueOf(data.getOrDefault("Name", "")),
+                    "telefone", obterNumeroConectado());
         } catch (RestClientException ex) {
             log.warn("Falha ao consultar status da Evolution API: {}", ex.getMessage());
-            return Map.of("connected", false, "loggedIn", false, "nome", "");
+            return Map.of("connected", false, "loggedIn", false, "nome", "", "telefone", "");
         }
+    }
+
+    /**
+     * Descobre o numero (JID) do WhatsApp conectado via GET /instance/all - o unico
+     * endpoint que expoe isso, mas so aceita a GLOBAL_API_KEY (nao o token de instancia).
+     * Sem essa chave configurada, devolve "" e o campo Telefone so fica vazio - nao quebra nada.
+     */
+    @SuppressWarnings("unchecked")
+    private String obterNumeroConectado() {
+        if (globalApiKey == null || globalApiKey.isBlank()) return "";
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("apikey", globalApiKey);
+            ResponseEntity<Map> resp = restTemplate.exchange(
+                    baseUrl + "/instance/all", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            List<Map<String, Object>> lista = (List<Map<String, Object>>) resp.getBody().get("data");
+            if (lista == null) return "";
+            for (Map<String, Object> instancia : lista) {
+                String jid = String.valueOf(instancia.getOrDefault("jid", ""));
+                if (!jid.isBlank() && !"null".equals(jid)) {
+                    String numero = jid.split("[:@]")[0];
+                    return formatarTelefoneBr(numero);
+                }
+            }
+        } catch (RestClientException ex) {
+            log.warn("Falha ao consultar numero conectado (instance/all): {}", ex.getMessage());
+        }
+        return "";
+    }
+
+    private static String formatarTelefoneBr(String numero) {
+        String digitos = numero.replaceAll("\\D", "");
+        if (digitos.length() == 13 && digitos.startsWith("55")) {
+            return "+55 (" + digitos.substring(2, 4) + ") " + digitos.substring(4, 9) + "-" + digitos.substring(9);
+        }
+        return digitos.isBlank() ? "" : "+" + digitos;
     }
 
     /**
