@@ -42,7 +42,9 @@ public class Contato {
 
     private String enviado;
 
-    @ElementCollection
+    // FetchType.EAGER: garante que tags sempre venham carregadas junto com o contato,
+    // sem depender da sessao do Hibernate ainda estar aberta na hora de serializar pra JSON.
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "contato_tags", joinColumns = @JoinColumn(name = "contato_id"))
     @Column(name = "tag")
     private List<String> tags = new ArrayList<>();
