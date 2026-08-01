@@ -44,8 +44,13 @@ public class CampanhaController {
         return ResponseEntity.noContent().build();
     }
 
+    // contatoIds (opcional): quando o disparo é restrito a uma segmentação escolhida no
+    // frontend, ele manda aqui os ids dos contatos daquele grupo; sem isso, dispara pra
+    // toda a base elegivel/pendente, como antes.
     @PostMapping("/{id}/dispatch")
-    public DispatchResultDTO disparar(@PathVariable Long id, @RequestParam(required = false) Long templateId) {
-        return campanhaService.disparar(id, templateId);
+    public DispatchResultDTO disparar(@PathVariable Long id,
+                                       @RequestParam(required = false) Long templateId,
+                                       @RequestParam(required = false) List<Long> contatoIds) {
+        return campanhaService.disparar(id, templateId, contatoIds);
     }
 }

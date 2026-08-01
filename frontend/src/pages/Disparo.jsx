@@ -3,16 +3,22 @@ import { T } from "../theme";
 import { s } from "../styles/s";
 import { brl, num, pct } from "../utils/format";
 import { dispatchCampaign } from "../api/campaigns";
+import { matchSeg } from "../utils/patients";
 import { Card } from "../components/ui/Card";
 import { Metric } from "../components/ui/Metric";
 import { IconSend } from "../components/icons";
 
-// Dispara de verdade via backend (que fala com a Evolution API GO). O backend decide
-// quais contatos são elegíveis no momento do disparo; a contagem aqui é só uma prévia.
-export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel, showToast }) {
+// Dispara de verdade via backend (que fala com a Evolution API GO). Quando a campanha
+// tem uma segmentação associada, restringimos aqui os elegíveis a quem casa com ela e
+// mandamos os ids explicitamente; sem segmentação, dispara pra toda a base elegível/pendente.
+export function DisparoFlow({ campanha, patients, templates, segmentos, onFinish, onCancel, showToast }) {
   const camp = campanha;
   const email = camp?.canal === "Email";
-  const elegiveis = useMemo(() => patients.filter((p) => p.elegivel && p.enviado === "Pendente"), [patients]);
+  const segmento = camp?.segmentoId ? segmentos?.find((sg) => sg.id === camp.segmentoId) : null;
+  const elegiveis = useMemo(() => {
+    const base = patients.filter((p) => p.elegivel && p.enviado === "Pendente");
+    return segmento ? base.filter((p) => matchSeg(p, segmento)) : base;
+  }, [patients, segmento]);
   const [step, setStep] = useState("revisar");
   const [tpl, setTpl] = useState(null);
   const [resultado, setResultado] = useState(null);
@@ -22,7 +28,8 @@ export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel,
   const iniciar = async () => {
     setStep("enviando");
     try {
-      const res = await dispatchCampaign(camp.id, email ? null : tpl?.id);
+      const contatoIds = segmento ? elegiveis.map((p) => p.id) : null;
+      const res = await dispatchCampaign(camp.id, email ? null : tpl?.id, contatoIds);
       setResultado(res);
       setStep("resumo");
     } catch (e) {
@@ -41,6 +48,11 @@ export function DisparoFlow({ campanha, patients, templates, onFinish, onCancel,
       {step === "revisar" && (
         <>
           <Card title={`${camp.nome} · ${camp.canal}`}>
+            {segmento && (
+              <div style={{ fontSize: 12.5, color: T.primaryDark, fontWeight: 600, marginBottom: 10 }}>
+                Restrito à segmentação "{segmento.nome}"
+              </div>
+            )}
             <div style={s.summaryRow}>
               <Metric label="Destinatários elegíveis (prévia)" value={num(elegiveis.length)} />
               <Metric label="Canal" value={email ? "Email" : "WhatsApp oficial"} />

@@ -7,11 +7,18 @@ import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
+import { DotMenu } from "../components/ui/DotMenu";
+
+const novaCondicao = () => ({ field: "segmento", op: "é", value: "VIP" });
+const novoGrupo = () => [{ field: "recencia", op: "maior", value: 120 }];
+const contagemLabel = (n) => (n === 1 ? "1 paciente" : `${n} pacientes`);
 
 export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags, showToast }) {
   const [builder, setBuilder] = useState(null);
   const [novaTag, setNovaTag] = useState("");
   const [buscaTag, setBuscaTag] = useState("Todas");
+  const [tagEditando, setTagEditando] = useState(null);
+  const [tagEditValor, setTagEditValor] = useState("");
 
   const salvar = () => {
     if (!builder.nome.trim()) return showToast("Dê um nome", "warn");
@@ -23,6 +30,12 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
     showToast("Segmentação salva", "ok");
   };
 
+  const duplicar = (seg) => {
+    const copia = { ...JSON.parse(JSON.stringify(seg)), id: Date.now(), nome: `${seg.nome} (cópia)` };
+    setSegmentos((s2) => [copia, ...s2]);
+    showToast("Segmentação duplicada", "ok");
+  };
+
   const criarTag = () => {
     const t = novaTag.trim();
     if (!t) return;
@@ -32,6 +45,20 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
     showToast(`Tag "${t}" criada`, "ok");
   };
 
+  const salvarEdicaoTag = () => {
+    const novo = tagEditValor.trim();
+    if (!novo) return;
+    setTags((ts) => ts.map((t) => (t === tagEditando ? novo : t)));
+    setTagEditando(null);
+    showToast("Tag renomeada", "ok");
+  };
+
+  const excluirTag = (t) => {
+    setTags((ts) => ts.filter((x) => x !== t));
+    if (buscaTag === t) setBuscaTag("Todas");
+    showToast(`Tag "${t}" removida`, "ok");
+  };
+
   const busca = buscaTag === "Todas" ? [] : patients.filter((p) => (p.tags || []).includes(buscaTag));
 
   return (
@@ -39,7 +66,7 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
       <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Suas segmentações</div>
-          <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: Date.now(), nome: "", match: "E", conditions: [{ field: "recencia", op: "maior", value: 120 }] })}>+ Nova</button>
+          <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: Date.now(), nome: "", groups: [novoGrupo()] })}>+ Nova segmentação</button>
         </div>
         {segmentos.map((seg) => {
           const count = patients.filter((p) => matchSeg(p, seg)).length;
@@ -49,19 +76,29 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: T.ink }}>{seg.nome}</div>
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 3 }}>
-                    {seg.conditions.map((c, i) => (
-                      <span key={i}>
-                        {i > 0 && <b style={{ color: seg.match === "OU" ? T.coral : T.primary }}> {seg.match} </b>}
-                        {FIELD_META[c.field].label} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b>
+                    {seg.groups.map((group, gi) => (
+                      <span key={gi}>
+                        {gi > 0 && <b style={{ color: T.coral }}> OU </b>}
+                        {group.map((c, i) => (
+                          <span key={i}>
+                            {i > 0 && <b style={{ color: T.primary }}> E </b>}
+                            {FIELD_META[c.field].label} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b>
+                          </span>
+                        ))}
                       </span>
                     ))}
                   </div>
                 </div>
-                <span style={s.countPill}>{count}</span>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <button style={s.btnGhostSm} onClick={() => setBuilder(JSON.parse(JSON.stringify(seg)))}>Editar</button>
-                <button style={s.btnGhostSm} onClick={() => { setSegmentos((s2) => s2.filter((x) => x.id !== seg.id)); showToast("Removida", "ok"); }}>Excluir</button>
+                <div style={{ display: "flex", alignItems: "start", gap: 8 }}>
+                  <span style={s.countPill}>{contagemLabel(count)}</span>
+                  <DotMenu
+                    items={[
+                      { label: "Editar", onClick: () => setBuilder(JSON.parse(JSON.stringify(seg))) },
+                      { label: "Duplicar", onClick: () => duplicar(seg) },
+                      { label: "Excluir", danger: true, onClick: () => { setSegmentos((s2) => s2.filter((x) => x.id !== seg.id)); showToast("Removida", "ok"); } },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
           );
@@ -73,7 +110,32 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
             <input style={{ ...s.input, height: 38 }} placeholder="Nova tag..." value={novaTag} onChange={(e) => setNovaTag(e.target.value)} onKeyDown={(e) => e.key === "Enter" && criarTag()} />
             <button style={s.btnPrimarySm} onClick={criarTag}>Criar</button>
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{tags.map((t) => <span key={t} style={s.tagChipBig}># {t}</span>)}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {tags.map((t) =>
+              tagEditando === t ? (
+                <span key={t} style={{ display: "inline-flex", gap: 4 }}>
+                  <input
+                    autoFocus
+                    style={{ ...s.input, height: 28, width: 120, fontSize: 12.5 }}
+                    value={tagEditValor}
+                    onChange={(e) => setTagEditValor(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && salvarEdicaoTag()}
+                  />
+                  <button style={s.btnGhostSm} onClick={salvarEdicaoTag}>OK</button>
+                </span>
+              ) : (
+                <span key={t} style={{ ...s.tagChipBig, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  # {t}
+                  <DotMenu
+                    items={[
+                      { label: "Editar", onClick: () => { setTagEditando(t); setTagEditValor(t); } },
+                      { label: "Excluir", danger: true, onClick: () => excluirTag(t) },
+                    ]}
+                  />
+                </span>
+              )
+            )}
+          </div>
         </Card>
         <Card title="Buscar por tag">
           <Select block value={buscaTag} onChange={setBuscaTag} options={["Todas", ...tags]} />
@@ -100,53 +162,80 @@ export function Segmentacoes({ patients, segmentos, setSegmentos, tags, setTags,
 
 function SegBuilder({ builder, setBuilder, tags, patients, onSave, onClose }) {
   const set = (patch) => setBuilder({ ...builder, ...patch });
-  const setCond = (i, patch) => set({ conditions: builder.conditions.map((c, j) => (j === i ? { ...c, ...patch } : c)) });
-  const changeField = (i, field) => {
+
+  const setCond = (gi, ci, patch) =>
+    set({ groups: builder.groups.map((g, j) => (j === gi ? g.map((c, k) => (k === ci ? { ...c, ...patch } : c)) : g)) });
+
+  const changeField = (gi, ci, field) => {
     const m = FIELD_META[field];
-    setCond(i, { field, op: m.ops[0], value: m.value === "number" ? 0 : field === "tag" ? (tags[0] || "") : m.values[0] });
+    setCond(gi, ci, { field, op: m.ops[0], value: m.value === "number" ? 0 : field === "tag" ? (tags[0] || "") : m.values[0] });
   };
+
+  const addCondicao = (gi) => set({ groups: builder.groups.map((g, j) => (j === gi ? [...g, novaCondicao()] : g)) });
+
+  const removeCondicao = (gi, ci) =>
+    set({
+      groups: builder.groups
+        .map((g, j) => (j === gi ? g.filter((_, k) => k !== ci) : g))
+        .filter((g, j) => g.length > 0 || builder.groups.length === 1),
+    });
+
+  const addGrupo = () => set({ groups: [...builder.groups, novoGrupo()] });
+  const removeGrupo = (gi) => set({ groups: builder.groups.filter((_, j) => j !== gi) });
+
   const preview = patients.filter((p) => matchSeg(p, builder)).length;
 
   return (
     <Modal title={builder.nome ? "Editar segmentação" : "Nova segmentação"} onClose={onClose} wide>
       <Field label="Nome"><input style={s.input} value={builder.nome} onChange={(e) => set({ nome: e.target.value })} placeholder="Ex: Reativação +120D" /></Field>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 13, color: T.inkSoft }}>Combinar com</span>
-        <div style={s.toggle}>
-          {["E", "OU"].map((m) => (
-            <button key={m} onClick={() => set({ match: m })} style={{ ...s.toggleBtn, ...(builder.match === m ? { background: m === "OU" ? T.coral : T.primary, color: "#fff" } : {}) }}>{m}</button>
-          ))}
-        </div>
-        <span style={{ fontSize: 12, color: T.inkSoft }}>{builder.match === "E" ? "(todas)" : "(qualquer)"}</span>
-      </div>
-      <div style={{ display: "grid", gap: 8 }}>
-        {builder.conditions.map((c, i) => {
-          const m = FIELD_META[c.field];
-          return (
-            <div key={i} style={s.condRow}>
-              <span style={{ width: 24, fontSize: 12, fontWeight: 700, color: i > 0 ? (builder.match === "OU" ? T.coral : T.primary) : "transparent" }}>{i > 0 ? builder.match : ""}</span>
-              <select value={c.field} onChange={(e) => changeField(i, e.target.value)} style={s.condSelect}>
-                {Object.entries(FIELD_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
-              <select value={c.op} onChange={(e) => setCond(i, { op: e.target.value })} style={s.condSelect}>
-                {m.ops.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
-              </select>
-              {m.value === "number" ? (
-                <input type="number" value={c.value} onChange={(e) => setCond(i, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
-              ) : (
-                <select value={c.value} onChange={(e) => setCond(i, { value: e.target.value })} style={s.condSelect}>
-                  {(c.field === "tag" ? tags : m.values).map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              )}
-              <button onClick={() => set({ conditions: builder.conditions.filter((_, j) => j !== i) })} style={s.condRm}>×</button>
+
+      {builder.groups.map((group, gi) => (
+        <div key={gi} style={{ marginBottom: 10 }}>
+          {gi > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
+              <div style={{ flex: 1, height: 1, background: T.line }} />
+              <b style={{ fontSize: 12, color: T.coral }}>OU</b>
+              <div style={{ flex: 1, height: 1, background: T.line }} />
             </div>
-          );
-        })}
-      </div>
-      <button style={{ ...s.btnGhostSm, marginTop: 10 }} onClick={() => set({ conditions: [...builder.conditions, { field: "segmento", op: "é", value: "VIP" }] })}>+ Condição</button>
+          )}
+          <div style={{ border: `1.5px dashed ${T.line}`, borderRadius: 12, padding: 10 }}>
+            <div style={{ display: "grid", gap: 8 }}>
+              {group.map((c, ci) => {
+                const m = FIELD_META[c.field];
+                return (
+                  <div key={ci} style={s.condRow}>
+                    <span style={{ width: 24, fontSize: 12, fontWeight: 700, color: ci > 0 ? T.primary : "transparent" }}>{ci > 0 ? "E" : ""}</span>
+                    <select value={c.field} onChange={(e) => changeField(gi, ci, e.target.value)} style={s.condSelect}>
+                      {Object.entries(FIELD_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                    <select value={c.op} onChange={(e) => setCond(gi, ci, { op: e.target.value })} style={s.condSelect}>
+                      {m.ops.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
+                    </select>
+                    {m.value === "number" ? (
+                      <input type="number" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
+                    ) : (
+                      <select value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={s.condSelect}>
+                        {(c.field === "tag" ? tags : m.values).map((v) => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                    )}
+                    <button onClick={() => removeCondicao(gi, ci)} style={s.condRm}>×</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button style={s.btnGhostSm} onClick={() => addCondicao(gi)}>+ Condição (E)</button>
+              {builder.groups.length > 1 && <button style={s.btnGhostSm} onClick={() => removeGrupo(gi)}>Remover grupo</button>}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <button style={{ ...s.btnGhostSm, marginTop: 4 }} onClick={addGrupo}>+ Grupo (OU)</button>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 18, padding: "12px 14px", background: T.primarySoft, borderRadius: 12 }}>
         <span style={{ fontSize: 13, color: T.primaryDark, fontWeight: 600 }}>Captura agora:</span>
-        <b style={{ fontSize: 18, color: T.primaryDark }}>{preview} pacientes</b>
+        <b style={{ fontSize: 18, color: T.primaryDark }}>{contagemLabel(preview)}</b>
       </div>
       <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
         <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Cancelar</button>

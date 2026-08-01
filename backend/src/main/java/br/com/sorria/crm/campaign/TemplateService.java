@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -48,22 +47,10 @@ public class TemplateService {
         template.setCorpo(dto.corpo());
         template.setImagemUrl(dto.imagemUrl());
         template.setAtivo(dto.ativo());
-        List<TemplateBotao> botoes = new ArrayList<>();
-        if (dto.botoes() != null) {
-            for (TemplateDTO.BotaoDTO b : dto.botoes()) {
-                if (b.texto() != null && !b.texto().isBlank()) {
-                    botoes.add(new TemplateBotao(b.texto(), b.link()));
-                }
-            }
-        }
-        template.setBotoes(botoes);
     }
 
     private TemplateDTO toDTO(Template t) {
-        List<TemplateDTO.BotaoDTO> botoes = t.getBotoes().stream()
-                .map(b -> new TemplateDTO.BotaoDTO(b.getTexto(), b.getLink()))
-                .toList();
         return new TemplateDTO(t.getId(), t.getNome(), t.getCategoria(), t.getCampanhaObjetivo(),
-                t.getCorpo(), t.getImagemUrl(), t.isAtivo(), botoes);
+                t.getCorpo(), t.getImagemUrl(), t.isAtivo());
     }
 }

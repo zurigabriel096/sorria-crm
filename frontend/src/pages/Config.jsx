@@ -2,7 +2,7 @@ import { T } from "../theme";
 import { s } from "../styles/s";
 import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
-import { IconWa } from "../components/icons";
+import { WhatsAppLogo } from "../components/icons";
 
 export function Config({ showToast }) {
   return (
@@ -18,8 +18,8 @@ export function Config({ showToast }) {
       </Card>
       <Card title="Integração WhatsApp">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ ...s.channelIcon, background: T.wa + "1A" }}><IconWa color={T.wa} /></span>
-          <div><div style={{ fontWeight: 700, color: T.ink }}>API Oficial conectada</div><div style={{ fontSize: 12.5, color: T.inkSoft }}>Número verificado · qualidade alta</div></div>
+          <span style={{ ...s.channelIcon, background: T.wa + "1A" }}><WhatsAppLogo size={24} /></span>
+          <div><div style={{ fontWeight: 700, color: T.ink }}>API conectada</div><div style={{ fontSize: 12.5, color: T.inkSoft }}>Número verificado · qualidade alta</div></div>
           <span style={{ ...s.tagOk, marginLeft: "auto" }}>● Ativo</span>
         </div>
       </Card>

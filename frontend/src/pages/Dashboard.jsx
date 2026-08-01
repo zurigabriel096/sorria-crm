@@ -8,7 +8,7 @@ import { KpiCard } from "../components/ui/KpiCard";
 import { ImportBox } from "../components/ui/ImportBox";
 import { IconUsers, IconCheck, IconSend } from "../components/icons";
 
-export function Dashboard({ patients, historico, onImport, showToast, setView }) {
+export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes }) {
   const [kpis, setKpis] = useState(null);
 
   useEffect(() => {
@@ -34,10 +34,10 @@ export function Dashboard({ patients, historico, onImport, showToast, setView })
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <div style={s.kpiRow}>
-        <KpiCard label="Pacientes na base" value={num(kpis.totalContatos)} icon={<IconUsers color={T.primary} />} />
-        <KpiCard label="Elegíveis p/ disparo" value={num(kpis.elegiveis)} sub="telefone válido" icon={<IconCheck color={T.wa} />} />
-        <KpiCard label="Mensagens disparadas" value={num(kpis.disparados)} icon={<IconSend color={T.gold} />} />
-        <KpiCard label="Entregues" value={num(kpis.entregues)} highlight icon={<IconCheck color="#fff" />} />
+        <KpiCard label="Pacientes na base" value={num(kpis.totalContatos)} icon={<IconUsers color={T.primary} />} onClick={() => irParaPacientes()} />
+        <KpiCard label="Elegíveis p/ disparo" value={num(kpis.elegiveis)} sub="telefone válido" icon={<IconCheck color={T.wa} />} onClick={() => irParaPacientes("Elegíveis")} />
+        <KpiCard label="Mensagens disparadas" value={num(kpis.disparados)} icon={<IconSend color={T.gold} />} onClick={() => setView("disparos")} />
+        <KpiCard label="Entregues" value={num(kpis.entregues)} highlight icon={<IconCheck color="#fff" />} onClick={() => setView("disparos")} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18 }} className="dashGrid">
         <Card title="Base por segmento (RFMV)">

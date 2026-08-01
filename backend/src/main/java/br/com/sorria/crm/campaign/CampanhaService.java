@@ -61,34 +61,28 @@ public class CampanhaService {
     }
 
     @Transactional
-    public DispatchResultDTO disparar(Long id, Long templateIdEscolhido) {
+    public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos) {
         Campanha campanha = buscarEntidade(id);
         if (templateIdEscolhido != null && !templateIdEscolhido.equals(campanha.getTemplateId())) {
             campanha.setTemplateId(templateIdEscolhido);
         }
         List<Contato> elegiveis = contatoRepository.findByElegivelTrueAndEnviado(STATUS_PENDENTE);
+        if (contatoIdsEscolhidos != null && !contatoIdsEscolhidos.isEmpty()) {
+            elegiveis = elegiveis.stream().filter(c -> contatoIdsEscolhidos.contains(c.getId())).toList();
+        }
 
         boolean email = CANAL_EMAIL.equalsIgnoreCase(campanha.getCanal());
         Template template = (!email && campanha.getTemplateId() != null)
                 ? templateRepository.findById(campanha.getTemplateId()).orElse(null)
                 : null;
-        boolean comBotoes = template != null && !template.getBotoes().isEmpty();
         String corpoTemplate = resolverCorpoMensagem(campanha, template, email);
 
         int entregues = 0;
         int falhas = 0;
 
         for (Contato contato : elegiveis) {
-            String primeiroNome = primeiroNome(contato.getNome());
-            String status;
-            if (comBotoes) {
-                status = evolutionApiClient.enviarMensagemComBotoes(
-                        contato.getTelefone(), campanha.getNome(),
-                        corpoTemplate.replace("{nome}", primeiroNome), "Sorr.ia", template.getBotoes());
-            } else {
-                String mensagem = corpoTemplate.replace("{nome}", primeiroNome);
-                status = evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem);
-            }
+            String mensagem = corpoTemplate.replace("{nome}", primeiroNome(contato.getNome()));
+            String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem);
 
             contato.setEnviado(status);
             contatoRepository.save(contato);

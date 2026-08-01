@@ -12,7 +12,12 @@ export function evalCond(p, c) {
   }
 }
 
-export const matchSeg = (p, seg) => !seg.conditions.length ? false : seg.match === "OU" ? seg.conditions.some((c) => evalCond(p, c)) : seg.conditions.every((c) => evalCond(p, c));
+// seg.groups: grupos de condições combinadas com E; os grupos entre si são combinados com OU.
+// Ex.: groups=[[A,B],[C]] captura quem satisfaz (A E B) OU (C).
+export const matchSeg = (p, seg) => {
+  const groups = seg.groups || [];
+  return groups.some((group) => group.length > 0 && group.every((c) => evalCond(p, c)));
+};
 
 export const limparTel = (s) => {
   if (!s) return { tel: "", ok: false };

@@ -30,15 +30,17 @@ export const FIELD_META = {
 
 export const OP_LABEL = { "é": "é", "não é": "não é", maior: "maior que", menor: "menor que", contém: "contém" };
 
+// groups: lista de grupos "E" combinados entre si por "OU".
+// Ex.: [[A,B],[C]] = (A E B) OU (C)
 export const SEG_SEED = [
-  { id: 1, nome: "Reativação +120D", match: "E", conditions: [{ field: "recencia", op: "maior", value: 120 }, { field: "elegivel", op: "é", value: "Sim" }] },
-  { id: 2, nome: "Inadimplentes", match: "OU", conditions: [{ field: "tag", op: "contém", value: "Inadimplente" }] },
+  { id: 1, nome: "Reativação +120D", groups: [[{ field: "recencia", op: "maior", value: 120 }, { field: "elegivel", op: "é", value: "Sim" }]] },
+  { id: 2, nome: "Inadimplentes", groups: [[{ field: "tag", op: "contém", value: "Inadimplente" }]] },
 ];
 
 export const PERIODOS = {
-  "01/07/2026 até 01/08/2026": { contatos: 3912, mkt: 41300, util: 33870, auth: 0, cotaUtil: 25130 },
-  "01/06/2026 até 01/07/2026": { contatos: 3480, mkt: 38900, util: 29500, auth: 0, cotaUtil: 25130 },
-  "01/05/2026 até 01/06/2026": { contatos: 3110, mkt: 33100, util: 24800, auth: 0, cotaUtil: 25130 },
+  "01/07/2026 até 01/08/2026": { contatos: 392, mkt: 210, util: 340 },
+  "01/06/2026 até 01/07/2026": { contatos: 348, mkt: 180, util: 295 },
+  "01/05/2026 até 01/06/2026": { contatos: 311, mkt: 150, util: 248 },
 };
 
-export const PRECOS = { mensalidade: 12480, excedenteContato: 0.258, mkt: 0.341, util: 0.270, auth: 0.190, volumetria: 60000, desconto: 68 };
+export const PRECOS = { mensalidade: 599 };

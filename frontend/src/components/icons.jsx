@@ -11,7 +11,7 @@ export const IconSend = (p) => <svg {...I(p)}><path d="M22 2L11 13M22 2l-7 20-4-
 export const IconTeam = (p) => <svg {...I(p)}><circle cx="12" cy="7" r="3.2" /><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>;
 export const IconCard = (p) => <svg {...I(p)}><rect x="2" y="5" width="20" height="14" rx="2.5" /><path d="M2 10h20" /></svg>;
 export const IconLife = (p) => <svg {...I(p)}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /><path d="M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4" /></svg>;
-export const IconGear = (p) => <svg {...I(p)}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></svg>;
+export const IconGear = (p) => <svg {...I(p)}><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>;
 export const IconCheck = (p) => <svg {...I(p)}><path d="M20 6L9 17l-5-5" /></svg>;
 export const IconSearch = (p) => <svg {...I(p)}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>;
 export const IconWa = (p) => <svg {...I(p)}><path d="M3 21l1.6-5A8 8 0 1112 20a8 8 0 01-4.4-1.3L3 21z" /></svg>;
@@ -22,3 +22,15 @@ export const IconDownload = (p) => <svg {...I(p)} width="15" height="15"><path d
 export const IconPlus = (p) => <svg {...I(p)} width="13" height="13"><path d="M12 5v14M5 12h14" /></svg>;
 export const IconChevron = ({ color, dir }) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: dir === "right" ? "rotate(180deg)" : "none" }}><path d="M15 6l-6 6 6 6" /></svg>;
 export const Dot = ({ color }) => <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />;
+
+// Logo oficial do WhatsApp (badge verde + glifo do telefone), usado em vez do IconWa
+// genérico nos lugares que representam a integração/conexão real com o WhatsApp.
+export const WhatsAppLogo = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" role="img" aria-label="WhatsApp">
+    <rect x="0" y="0" width="24" height="24" rx="6" fill="#25D366" />
+    <path
+      fill="#fff"
+      d="M12.04 5.5c-3.7 0-6.7 3-6.7 6.68 0 1.18.31 2.33.9 3.34l-.96 3.48 3.57-.93a6.7 6.7 0 003.19.81h.01c3.7 0 6.7-3 6.7-6.68 0-1.78-.7-3.46-1.96-4.72a6.68 6.68 0 00-4.75-1.98zm3.93 9.46c-.17.47-.97.92-1.34.97-.34.06-.78.08-1.26-.08-.29-.09-.66-.22-1.14-.43-2-.87-3.31-2.9-3.41-3.03-.1-.14-.82-1.09-.82-2.08 0-1 .52-1.49.71-1.69.18-.2.4-.25.53-.25l.38.01c.12 0 .29-.05.45.34.17.4.57 1.4.62 1.5.05.1.08.22.02.36-.07.13-.1.22-.2.34-.1.12-.21.27-.3.36-.1.1-.2.21-.09.4.12.2.51.85 1.09 1.38.75.68 1.38.89 1.58.99.2.1.32.09.44-.05.12-.14.5-.59.64-.79.13-.2.27-.17.45-.1.18.07 1.14.54 1.34.64.19.1.32.15.37.23.05.09.05.5-.12.98z"
+    />
+  </svg>
+);

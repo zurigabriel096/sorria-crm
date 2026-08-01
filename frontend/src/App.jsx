@@ -6,6 +6,7 @@ import { SEG_SEED } from "./data/seed";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
 import { Toast } from "./components/ui/Toast";
+import { PatientDetailModal } from "./components/PatientDetailModal";
 
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
@@ -23,6 +24,7 @@ import { Config } from "./pages/Config";
 import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact } from "./api/contacts";
 import { listCampaigns, createCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
+import { checkHealth } from "./api/health";
 
 // Colaboradores e Segmentações ainda não têm endpoint no backend (fora do escopo
 // inicial: login, contatos, campanhas e dashboard) — continuam só em memória.
@@ -35,7 +37,9 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [angry, setAngry] = useState(false);
   const [avatarColor, setAvatarColor] = useState(T.primary);
-  const [waActive, setWaActive] = useState(true);
+  const [sistemaAtivo, setSistemaAtivo] = useState(true);
+  const [usuario, setUsuario] = useState(null);
+  const [filtroPacientesInicial, setFiltroPacientesInicial] = useState(null);
 
   const [patients, setPatients] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
@@ -49,6 +53,7 @@ export default function App() {
 
   const [toast, setToast] = useState(null);
   const [disparoCampanha, setDisparoCampanha] = useState(null);
+  const [pacienteAberto, setPacienteAberto] = useState(null);
 
   const showToast = (msg, kind = "ok") => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200); };
 
@@ -71,6 +76,21 @@ export default function App() {
 
   useEffect(() => { if (authed) carregarTudo(); else setCarregando(false); }, [authed]);
 
+  // Monitora a saúde real do backend. Uma falha isolada não conta: só marca "inativo"
+  // depois de uma segunda tentativa (evita alarme falso por causa do cold start do Render).
+  useEffect(() => {
+    if (!authed) return;
+    let cancelado = false;
+    const verificar = async () => {
+      let ok = await checkHealth();
+      if (!ok) ok = await checkHealth(20000);
+      if (!cancelado) setSistemaAtivo(ok);
+    };
+    verificar();
+    const intervalo = setInterval(verificar, 120000);
+    return () => { cancelado = true; clearInterval(intervalo); };
+  }, [authed]);
+
   const onImport = async (res) => {
     try {
       await Promise.all(res.pacientes.map((p) => createContact(p)));
@@ -85,12 +105,17 @@ export default function App() {
   const salvarPaciente = async (novo) => {
     const salvo = await updateContact(novo.id, novo);
     setPatients((ps) => ps.map((p) => (p.id === salvo.id ? salvo : p)));
+    setPacienteAberto(null);
+    showToast("Cadastro atualizado", "ok");
   };
 
-  const criarCampanha = async (dadosCampanha) => {
+  const abrirPaciente = (paciente, aba = "dados") => setPacienteAberto({ paciente, aba });
+
+  const criarCampanha = async (dadosCampanha, segmentoId) => {
     const criada = await createCampaign(dadosCampanha);
-    setCampanhas((c) => [criada, ...c]);
-    return criada;
+    const comSegmento = segmentoId ? { ...criada, segmentoId } : criada;
+    setCampanhas((c) => [comSegmento, ...c]);
+    return comSegmento;
   };
 
   const finalizarDisparo = async () => {
@@ -99,11 +124,23 @@ export default function App() {
     const [historicoRes, pacientesRes, campanhasRes] = await Promise.all([listDispatchHistory(), listContacts(), listCampaigns()]);
     setHistorico(historicoRes);
     setPatients(pacientesRes);
-    setCampanhas(campanhasRes);
+    // O backend não guarda a segmentação escolhida (é um conceito só do frontend), então
+    // preserva a associação local ao mesclar com a lista recém-carregada do servidor.
+    setCampanhas((atuais) =>
+      campanhasRes.map((c) => {
+        const local = atuais.find((a) => a.id === c.id);
+        return local?.segmentoId ? { ...c, segmentoId: local.segmentoId } : c;
+      })
+    );
   };
 
   const onLogout = () => { apiLogout(); setAuthed(false); setView("dashboard"); };
-  const onLoginOk = () => { setAuthed(true); };
+  const onLoginOk = (u) => { setUsuario(u); setAuthed(true); };
+
+  const irParaPacientes = (filtroEleg) => {
+    setFiltroPacientesInicial(filtroEleg ? { eleg: filtroEleg } : null);
+    setView("pacientes");
+  };
 
   if (!authed) {
     return <Login onEnter={onLoginOk} onSupport={() => { setAuthed(true); setView("suporte"); }} />;
@@ -121,15 +158,15 @@ export default function App() {
     <div style={s.root}>
       <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} angry={angry} setAngry={setAngry} />
       <div style={s.main}>
-        <Topbar view={view} avatarColor={avatarColor} setAvatarColor={setAvatarColor} waActive={waActive} setWaActive={setWaActive} onLogout={onLogout} />
+        <Topbar view={view} avatarColor={avatarColor} setAvatarColor={setAvatarColor} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} />
         <div style={s.content} key={view}>
-          {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} />}
-          {view === "pacientes" && <Pacientes patients={patients} onSalvarPaciente={salvarPaciente} tags={tags} onImport={onImport} showToast={showToast} />}
+          {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
+          {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} />}
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} setSegmentos={setSegmentos} tags={tags} setTags={setTags} showToast={showToast} />}
-          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
+          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
-          {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
-          {view === "disparos" && <HistoricoDisparos historico={historico} />}
+          {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
+          {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} />}
           {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} showToast={showToast} />}
           {view === "plano" && <Plano showToast={showToast} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
@@ -137,6 +174,16 @@ export default function App() {
         </div>
       </div>
       {toast && <Toast toast={toast} />}
+      {pacienteAberto && (
+        <PatientDetailModal
+          paciente={pacienteAberto.paciente}
+          abaInicial={pacienteAberto.aba}
+          tags={tags}
+          historico={historico}
+          onSave={salvarPaciente}
+          onClose={() => setPacienteAberto(null)}
+        />
+      )}
       <span style={s.protoTag}>Sorr.ia · dados salvos no servidor</span>
     </div>
   );

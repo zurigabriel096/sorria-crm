@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { T, AVATAR_COLORS, CLINICA } from "../../theme";
 import { s } from "../../styles/s";
-import { Dot, IconLogout, IconPlus } from "../icons";
+import { IconLogout, IconPlus, WhatsAppLogo } from "../icons";
 
 const TITLES = {
   dashboard: "Painel executivo", pacientes: "Pacientes", segmentacoes: "Segmentações",
@@ -10,7 +10,7 @@ const TITLES = {
   suporte: "Suporte", config: "Configurações",
 };
 
-export function Topbar({ view, avatarColor, setAvatarColor, waActive, setWaActive, onLogout }) {
+export function Topbar({ view, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -28,11 +28,11 @@ export function Topbar({ view, avatarColor, setAvatarColor, waActive, setWaActiv
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <button
-          onClick={() => setWaActive((w) => !w)}
-          title="Clique para simular conexão/desconexão"
-          style={{ ...s.waPill, background: waActive ? "#E1F4F0" : "#FDE9E6", color: waActive ? "#0E9484" : T.coral, cursor: "pointer" }}
+          onClick={() => { if (!sistemaAtivo) onReportarProblema(); }}
+          title={sistemaAtivo ? "Sistema operando normalmente" : "Clique para reportar o problema"}
+          style={{ ...s.waPill, background: sistemaAtivo ? "#E1F4F0" : "#FDE9E6", color: sistemaAtivo ? "#0E9484" : T.coral, cursor: sistemaAtivo ? "default" : "pointer" }}
         >
-          <Dot color={waActive ? T.wa : T.coral} /> {waActive ? "WhatsApp ativo" : "WhatsApp inativo"}
+          <WhatsAppLogo size={15} /> {sistemaAtivo ? "Sistema ativo" : "Sistema inativo"}
         </button>
         <div style={{ position: "relative" }} ref={ref}>
           <button style={{ ...s.avatar, background: avatarColor }} onClick={() => setOpen((o) => !o)}>RG</button>

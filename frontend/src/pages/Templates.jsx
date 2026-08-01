@@ -33,7 +33,7 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
       <div style={s.toolbar}>
         <Select value={fCat} onChange={setFCat} options={["Todas", "Utilidade", "Marketing", "Autenticação"]} />
         <div style={{ flex: 1 }} />
-        <button style={s.btnPrimarySm} onClick={() => setModal({ id: null, nome: "", categoria: "Utilidade", campanha: objetivos[0], corpo: "", botoes: [], imagem: "", ativo: true })}>+ Novo template</button>
+        <button style={s.btnPrimarySm} onClick={() => setModal({ id: null, nome: "", categoria: "Utilidade", campanha: objetivos[0], corpo: "", imagem: "", ativo: true })}>+ Novo template</button>
       </div>
       <div style={s.cardGrid}>
         {lista.map((t) => (
@@ -46,20 +46,18 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
             {t.imagem && <div style={{ height: 90, borderRadius: 8, background: `#eee url(${t.imagem}) center/cover`, marginBottom: 8 }} />}
             <div style={{ fontSize: 12.5, color: T.inkSoft, lineHeight: 1.45 }}>{t.corpo}</div>
             <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 6 }}>{t.corpo.length} caracteres</div>
-            {!!t.botoes.length && <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>{t.botoes.map((b, i) => <span key={i} style={s.btnPreview}>{b.texto}</span>)}</div>}
             <button style={{ ...s.btnGhostSm, marginTop: 12 }} onClick={() => setModal({ ...t })}>Editar</button>
           </div>
         ))}
       </div>
-      {modal && <TemplateEditor tpl={modal} objetivos={objetivos} onSave={salvar} onClose={() => setModal(null)} showToast={showToast} />}
+      {modal && <TemplateEditor tpl={modal} objetivos={objetivos} onSave={salvar} onClose={() => setModal(null)} />}
     </div>
   );
 }
 
-function TemplateEditor({ tpl, objetivos, onSave, onClose, showToast }) {
+function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
   const [t, setT] = useState(tpl);
   const set = (k, v) => setT((x) => ({ ...x, [k]: v }));
-  const setBtn = (i, k, v) => set("botoes", t.botoes.map((b, j) => (j === i ? { ...b, [k]: v } : b)));
   const imgFile = (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -85,18 +83,7 @@ function TemplateEditor({ tpl, objetivos, onSave, onClose, showToast }) {
           <label style={{ ...s.btnGhostSm, cursor: "pointer" }}>Upload<input type="file" accept="image/*" style={{ display: "none" }} onChange={imgFile} /></label>
         </div>
       </Field>
-      <Field label="Botões (com link)">
-        <div style={{ display: "grid", gap: 8 }}>
-          {t.botoes.map((b, i) => (
-            <div key={i} style={{ display: "flex", gap: 8 }}>
-              <input style={{ ...s.input, height: 38 }} placeholder="Texto do botão" value={b.texto} onChange={(e) => setBtn(i, "texto", e.target.value)} />
-              <input style={{ ...s.input, height: 38 }} placeholder="https://link (opcional)" value={b.link} onChange={(e) => setBtn(i, "link", e.target.value)} />
-              <button style={s.condRm} onClick={() => set("botoes", t.botoes.filter((_, j) => j !== i))}>×</button>
-            </div>
-          ))}
-        </div>
-        <button style={{ ...s.btnGhostSm, marginTop: 8 }} onClick={() => (t.botoes.length < 3 ? set("botoes", [...t.botoes, { texto: "", link: "" }]) : showToast("Máximo 3 botões", "warn"))}>+ Botão</button>
-      </Field>
+      <div style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>O WhatsApp não permite botões interativos em conexões como a nossa (só na API Business oficial) — por isso o template aqui é só texto.</div>
       <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
         <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...s.btnPrimary, flex: 1 }} onClick={() => onSave(t)}>Salvar template</button>
