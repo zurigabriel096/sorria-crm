@@ -14,11 +14,19 @@ export async function uploadAvatar(blob) {
   const form = new FormData();
   form.append("file", blob, "avatar.jpg");
   const token = localStorage.getItem("sorria_token");
-  const res = await fetch(`${BASE_URL}/api/me/avatar`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}/api/me/avatar`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+  } catch {
+    // fetch falhou antes de chegar no servidor - o erro nativo do navegador vem
+    // em ingles ("Failed to fetch"), por isso sempre trocamos por uma mensagem
+    // nossa, em portugues (ver client.js).
+    throw new Error("O sistema piscou por um instante. Tente novamente em alguns segundos — já deve estar de volta.");
+  }
   if (res.status === 401) {
     localStorage.removeItem("sorria_token");
     window.dispatchEvent(new Event("sorria:unauthorized"));

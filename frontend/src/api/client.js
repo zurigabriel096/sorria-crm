@@ -26,17 +26,28 @@ function extrairMensagem(texto, fallback) {
   }
 }
 
+// Mensagem usada sempre que o fetch falha ANTES de chegar no servidor (rede
+// instavel, backend fora do ar, CORS). O navegador gera um erro nativo em
+// ingles nesse caso ("Failed to fetch") - nunca deixamos isso aparecer pro
+// usuario, sempre trocamos por essa, em portugues.
+const MSG_SEM_CONEXAO = "O sistema piscou por um instante. Tente novamente em alguns segundos — já deve estar de volta.";
+
 async function request(path, { method = "GET", body, auth = true } = {}) {
   const headers = { "Content-Type": "application/json" };
   const token = getToken();
   const usouToken = auth && !!token;
   if (usouToken) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error(MSG_SEM_CONEXAO);
+  }
 
   if (res.status === 401) {
     // Só é "sessão expirada" quando a chamada realmente usou um token (ex: token
