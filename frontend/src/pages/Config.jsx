@@ -10,6 +10,8 @@ import { getWhatsAppStatus, desconectarWhatsApp, solicitarCodigoPareamento, obte
 // A Evolution recusa gerar codigo de pareamento com um numero ja logado
 // ("instance is already authenticated") - por isso a desconexao e um passo
 // explicito e confirmado, antes de liberar o campo de numero novo.
+const QR_DURACAO_SEGUNDOS = 25;
+
 function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial }) {
   const [desconectado, setDesconectado] = useState(!(statusInicial?.connected && statusInicial?.loggedIn));
   const [confirmarDesconexao, setConfirmarDesconexao] = useState(false);
@@ -18,8 +20,27 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
   const [telefone, setTelefone] = useState("");
   const [pairingCode, setPairingCode] = useState(null);
   const [qrCode, setQrCode] = useState(null);
+  const [segundosRestantes, setSegundosRestantes] = useState(QR_DURACAO_SEGUNDOS);
   const [carregando, setCarregando] = useState(false);
   const [verificando, setVerificando] = useState(false);
+
+  // O QR do WhatsApp expira rapido (parecido com o WhatsApp Web) - conta regressiva
+  // visual e, ao zerar, gera um novo automaticamente, sem exigir clique manual.
+  useEffect(() => {
+    if (metodo !== "qr" || !qrCode) return;
+    setSegundosRestantes(QR_DURACAO_SEGUNDOS);
+    const intervalo = setInterval(() => {
+      setSegundosRestantes((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => clearInterval(intervalo);
+  }, [qrCode, metodo]);
+
+  useEffect(() => {
+    if (metodo === "qr" && qrCode && segundosRestantes === 0 && !carregando) {
+      gerarQrCode();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segundosRestantes]);
 
   const desconectarAtual = async () => {
     setDesconectando(true);
@@ -146,12 +167,31 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
           </>
         ) : (
           <>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-              <img src={qrCode} alt="QR code de conexão do WhatsApp" style={{ width: 220, height: 220, borderRadius: 12, border: `1px solid ${T.line}` }} />
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+              <img
+                src={qrCode}
+                alt="QR code de conexão do WhatsApp"
+                style={{
+                  width: 220, height: 220, borderRadius: 12, border: `1px solid ${T.line}`,
+                  opacity: carregando ? 0.35 : 1, transition: "opacity .25s",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, marginBottom: 14 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: T.inkSoft }}>
+                {carregando ? "Atualizando código..." : `Atualiza em ${segundosRestantes}s`}
+              </span>
+              <div style={{ width: 140, height: 4, borderRadius: 4, background: T.line, overflow: "hidden" }}>
+                <div style={{
+                  width: carregando ? "100%" : `${(segundosRestantes / QR_DURACAO_SEGUNDOS) * 100}%`,
+                  height: "100%", background: T.primary,
+                  transition: carregando ? "none" : "width 1s linear",
+                }} />
+              </div>
             </div>
             <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 16, textAlign: "center" }}>
               Abra o WhatsApp do novo número → <strong>Aparelhos conectados</strong> → <strong>Conectar aparelho</strong> →{" "}
-              aponte a câmera pro código acima. Ele expira rápido — se der erro, gere um novo.
+              aponte a câmera pro código acima.
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={{ ...s.btnGhostSm, flex: 1, justifyContent: "center" }} onClick={gerarQrCode} disabled={carregando}>
