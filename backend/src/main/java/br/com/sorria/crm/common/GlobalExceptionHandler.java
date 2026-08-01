@@ -4,9 +4,11 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,6 +30,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({EntityNotFoundException.class, NoSuchElementException.class})
     public ResponseEntity<Map<String, Object>> handleNaoEncontrado(RuntimeException ex) {
         return corpo(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleStatus(ResponseStatusException ex) {
+        return corpo(HttpStatus.valueOf(ex.getStatusCode().value()), ex.getReason());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAcessoNegado(AccessDeniedException ex) {
+        return corpo(HttpStatus.FORBIDDEN, "Voce nao tem permissao pra fazer isso");
     }
 
     @ExceptionHandler(Exception.class)

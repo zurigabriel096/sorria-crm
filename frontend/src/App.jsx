@@ -25,11 +25,11 @@ import { Config } from "./pages/Config";
 import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact } from "./api/contacts";
 import { listCampaigns, createCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
+import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
 import { checkHealth } from "./api/health";
 
-// Colaboradores e Segmentações ainda não têm endpoint no backend (fora do escopo
-// inicial: login, contatos, campanhas e dashboard) — continuam só em memória.
-const COLAB_LOCAL_SEED = [];
+// Segmentações ainda não têm endpoint no backend (fora do escopo inicial) —
+// continuam só em memória.
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!localStorage.getItem("sorria_token"));
@@ -49,7 +49,7 @@ export default function App() {
 
   const [segmentos, setSegmentos] = useState(SEG_SEED);
   const [tags, setTags] = useState(["Inadimplente", "Sem agendamento", "Agenda Agosto", "Retorno"]);
-  const [colaboradores, setColaboradores] = useState(COLAB_LOCAL_SEED);
+  const [colaboradores, setColaboradores] = useState([]);
   const [objetivos, setObjetivos] = useState(["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"]);
 
   const [toast, setToast] = useState(null);
@@ -61,13 +61,14 @@ export default function App() {
   const carregarTudo = async () => {
     setCarregando(true);
     try {
-      const [pacientesRes, campanhasRes, templatesRes, historicoRes] = await Promise.all([
-        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(),
+      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes] = await Promise.all([
+        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(),
       ]);
       setPatients(pacientesRes);
       setCampanhas(campanhasRes);
       setTemplates(templatesRes);
       setHistorico(historicoRes);
+      setColaboradores(colaboradoresRes);
     } catch (e) {
       showToast(e.message || "Erro ao carregar dados do servidor", "warn");
     } finally {
@@ -135,6 +136,21 @@ export default function App() {
     );
   };
 
+  const criarColaborador = async (dados) => {
+    const criado = await createColaborador(dados);
+    setColaboradores((c) => [...c, criado]);
+  };
+
+  const atualizarColaborador = async (id, dados) => {
+    const atualizado = await updateColaborador(id, dados);
+    setColaboradores((c) => c.map((x) => (x.id === id ? atualizado : x)));
+  };
+
+  const excluirColaborador = async (id) => {
+    await deleteColaborador(id);
+    setColaboradores((c) => c.filter((x) => x.id !== id));
+  };
+
   const onLogout = () => { apiLogout(); setAuthed(false); setView("dashboard"); };
   const onLoginOk = (u) => { setUsuario(u); setAuthed(true); };
 
@@ -159,7 +175,7 @@ export default function App() {
     <div style={s.root}>
       <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} angry={angry} setAngry={setAngry} />
       <div style={s.main}>
-        <Topbar view={view} avatarColor={avatarColor} setAvatarColor={setAvatarColor} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} />
+        <Topbar view={view} usuario={usuario} avatarColor={avatarColor} setAvatarColor={setAvatarColor} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} />}
@@ -169,7 +185,7 @@ export default function App() {
           {view === "automacoes" && <Automacoes showToast={showToast} />}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} />}
-          {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} showToast={showToast} />}
+          {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} />}
           {view === "plano" && <Plano showToast={showToast} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
           {view === "config" && <Config showToast={showToast} />}

@@ -3,6 +3,7 @@ import { T, AVATAR_COLORS, CLINICA } from "../../theme";
 import { s } from "../../styles/s";
 import { IconLogout, GlowDot } from "../icons";
 import { ColorPicker } from "../ui/ColorPicker";
+import { PAPEL_LABEL, iniciais } from "../../utils/usuario";
 
 const TITLES = {
   dashboard: "Painel executivo", pacientes: "Pacientes", segmentacoes: "Segmentações",
@@ -11,9 +12,11 @@ const TITLES = {
   suporte: "Suporte", config: "Configurações",
 };
 
-export function Topbar({ view, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout }) {
+export function Topbar({ view, usuario, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const sigla = iniciais(usuario?.nome);
+  const papelLabel = PAPEL_LABEL[usuario?.papel] || usuario?.papel || "";
 
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -36,14 +39,14 @@ export function Topbar({ view, avatarColor, setAvatarColor, sistemaAtivo, onRepo
           <GlowDot color={sistemaAtivo ? T.wa : T.coral} /> {sistemaAtivo ? "Sistema ativo" : "Sistema inativo"}
         </button>
         <div style={{ position: "relative" }} ref={ref}>
-          <button style={{ ...s.avatar, background: avatarColor }} onClick={() => setOpen((o) => !o)}>RG</button>
+          <button style={{ ...s.avatar, background: avatarColor }} onClick={() => setOpen((o) => !o)}>{sigla}</button>
           {open && (
             <div style={s.profileMenu} className="pop">
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 6px 12px" }}>
-                <div style={{ ...s.avatar, background: avatarColor, width: 40, height: 40 }}>RG</div>
+                <div style={{ ...s.avatar, background: avatarColor, width: 40, height: 40 }}>{sigla}</div>
                 <div>
-                  <div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>Rithieli Gabriel</div>
-                  <div style={{ fontSize: 12, color: T.inkSoft }}>Administradora</div>
+                  <div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>{usuario?.nome || "—"}</div>
+                  <div style={{ fontSize: 12, color: T.inkSoft }}>{papelLabel}</div>
                 </div>
               </div>
               <div style={s.hr} />
