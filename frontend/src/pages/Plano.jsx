@@ -7,19 +7,13 @@ import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Metric } from "../components/ui/Metric";
-import { IconCheck } from "../components/icons";
-
-const BENEFICIOS = [
-  "Contatos e campanhas ilimitados",
-  "1 número de WhatsApp conectado",
-  "Disparo em massa com segmentação",
-  "Dashboard e histórico de disparos",
-  "Suporte via chat",
-];
 
 export function Plano({ showToast }) {
   const [per, setPer] = useState(Object.keys(PERIODOS)[0]);
   const d = PERIODOS[per];
+  const msgsWhats = d.mkt + d.util;
+  const custoMsgs = msgsWhats * PRECOS.msgWhats;
+  const total = PRECOS.mensalidade + custoMsgs;
 
   return (
     <div style={{ display: "grid", gap: 18, maxWidth: 780 }}>
@@ -32,28 +26,46 @@ export function Plano({ showToast }) {
         </div>
         <button style={s.planUpgrade} onClick={() => showToast("Abrindo planos...", "ok")}>Ver planos →</button>
       </div>
-      <Card title="O que está incluso">
-        <div style={{ display: "grid", gap: 10 }}>
-          {BENEFICIOS.map((b) => (
-            <div key={b} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13.5, color: T.ink }}>
-              <IconCheck color={T.wa} /> {b}
-            </div>
-          ))}
-        </div>
-      </Card>
+      <div style={s.volGrid}>
+        <PriceCard label="Mensalidade" value={brl(PRECOS.mensalidade)} />
+        <PriceCard label="Msg WhatsApp" value={brl(PRECOS.msgWhats)} />
+        <PriceCard label="Msg Email" value={brl(PRECOS.msgEmail)} />
+      </div>
       <Card title="Consumo do período">
         <Field label="Período"><Select block value={per} onChange={setPer} options={Object.keys(PERIODOS)} /></Field>
         <div style={{ ...s.summaryRow, marginTop: 6 }}>
           <Metric label="Contatos na base" value={num(d.contatos)} />
-          <Metric label="Mensagens enviadas" value={num(d.mkt + d.util)} />
+          <Metric label="Mensagens enviadas" value={num(msgsWhats)} />
         </div>
       </Card>
-      <Card title="Próxima fatura">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 14, color: T.inkSoft }}>Assinatura mensal Sorr.ia</span>
-          <b style={{ fontSize: 22, color: T.primary }}>{brl(PRECOS.mensalidade)}</b>
-        </div>
+      <Card title="Fatura do período">
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <tbody>
+            <FatRow label="Mensalidade" val={brl(PRECOS.mensalidade)} />
+            <FatRow label="Mensagens de WhatsApp" calc={`${num(msgsWhats)} × ${brl(PRECOS.msgWhats)}`} val={brl(custoMsgs)} />
+            <tr>
+              <td style={{ ...s.fatTd, fontWeight: 800, color: T.ink, fontSize: 16, borderTop: `2px solid ${T.primary}` }}>Total</td>
+              <td />
+              <td style={{ ...s.fatTd, textAlign: "right", fontWeight: 800, color: T.primary, fontSize: 18, borderTop: `2px solid ${T.primary}` }}>{brl(total)}</td>
+            </tr>
+          </tbody>
+        </table>
       </Card>
     </div>
   );
 }
+
+const PriceCard = ({ label, value }) => (
+  <div style={s.volCard}>
+    <div style={{ fontSize: 12, color: T.inkSoft }}>{label}</div>
+    <div style={{ fontSize: 20, fontWeight: 800, color: T.ink }}>{value}</div>
+  </div>
+);
+
+const FatRow = ({ label, calc, val }) => (
+  <tr>
+    <td style={s.fatTd}>{label}{calc && <div style={{ fontSize: 11.5, color: T.inkSoft }}>{calc}</div>}</td>
+    <td />
+    <td style={{ ...s.fatTd, textAlign: "right", fontWeight: 700, color: T.ink }}>{val}</td>
+  </tr>
+);

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { T, AVATAR_COLORS, CLINICA } from "../../theme";
 import { s } from "../../styles/s";
-import { IconLogout, IconPlus, WhatsAppLogo } from "../icons";
+import { IconLogout, GlowDot } from "../icons";
+import { ColorPicker } from "../ui/ColorPicker";
 
 const TITLES = {
   dashboard: "Painel executivo", pacientes: "Pacientes", segmentacoes: "Segmentações",
-  campanhas: "Campanhas", templates: "Templates de WhatsApp", disparo: "Novo disparo",
+  campanhas: "Campanhas", templates: "Templates de WhatsApp", automacoes: "Automação", disparo: "Novo disparo",
   disparos: "Histórico de disparos", colaboradores: "Colaboradores", plano: "Meu plano",
   suporte: "Suporte", config: "Configurações",
 };
@@ -32,7 +33,7 @@ export function Topbar({ view, avatarColor, setAvatarColor, sistemaAtivo, onRepo
           title={sistemaAtivo ? "Sistema operando normalmente" : "Clique para reportar o problema"}
           style={{ ...s.waPill, background: sistemaAtivo ? "#E1F4F0" : "#FDE9E6", color: sistemaAtivo ? "#0E9484" : T.coral, cursor: sistemaAtivo ? "default" : "pointer" }}
         >
-          <WhatsAppLogo size={15} /> {sistemaAtivo ? "Sistema ativo" : "Sistema inativo"}
+          <GlowDot color={sistemaAtivo ? T.wa : T.coral} /> {sistemaAtivo ? "Sistema ativo" : "Sistema inativo"}
         </button>
         <div style={{ position: "relative" }} ref={ref}>
           <button style={{ ...s.avatar, background: avatarColor }} onClick={() => setOpen((o) => !o)}>RG</button>
@@ -55,18 +56,7 @@ export function Topbar({ view, avatarColor, setAvatarColor, sistemaAtivo, onRepo
                     style={{ width: 26, height: 26, borderRadius: "50%", background: c, border: avatarColor === c ? `2.5px solid ${T.ink}` : "2.5px solid transparent", cursor: "pointer" }}
                   />
                 ))}
-                <label
-                  style={{ width: 26, height: 26, borderRadius: "50%", cursor: "pointer", position: "relative", overflow: "hidden", border: `1.5px dashed ${T.line}`, display: "flex", alignItems: "center", justifyContent: "center" }}
-                  title="Escolher outra cor (RGB)"
-                >
-                  <input
-                    type="color"
-                    value={avatarColor}
-                    onChange={(e) => setAvatarColor(e.target.value)}
-                    style={{ position: "absolute", inset: -4, width: 34, height: 34, border: "none", padding: 0, cursor: "pointer", opacity: 0 }}
-                  />
-                  <IconPlus color={T.inkSoft} />
-                </label>
+                <ColorPicker value={avatarColor} onChange={setAvatarColor} />
               </div>
               <div style={{ fontSize: 11, color: T.inkSoft, marginBottom: 12 }}>Upload de foto na versão completa.</div>
               <div style={s.hr} />

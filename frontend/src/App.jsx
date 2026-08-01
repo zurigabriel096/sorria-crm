@@ -15,6 +15,7 @@ import { Segmentacoes } from "./pages/Segmentacoes";
 import { Campanhas } from "./pages/Campanhas";
 import { Templates } from "./pages/Templates";
 import { DisparoFlow } from "./pages/Disparo";
+import { Automacoes } from "./pages/Automacoes";
 import { HistoricoDisparos } from "./pages/HistoricoDisparos";
 import { Colaboradores } from "./pages/Colaboradores";
 import { Plano } from "./pages/Plano";
@@ -165,6 +166,7 @@ export default function App() {
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} setSegmentos={setSegmentos} tags={tags} setTags={setTags} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
+          {view === "automacoes" && <Automacoes showToast={showToast} />}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} />}
           {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} showToast={showToast} />}

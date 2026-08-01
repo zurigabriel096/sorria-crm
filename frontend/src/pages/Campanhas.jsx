@@ -11,17 +11,19 @@ export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, se
   const responsavel = usuario?.nome || "Você";
   const [modal, setModal] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [f, setF] = useState({ nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "" });
+  const [f, setF] = useState({ nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "" });
   const [novoObj, setNovoObj] = useState("");
+  const ativos = templates.filter((t) => t.ativo);
 
   const criar = async () => {
     if (!f.nome.trim()) return showToast("Dê um nome", "warn");
+    if (f.canal === "WhatsApp" && !f.templateId) return showToast("Escolha um template", "warn");
     setSalvando(true);
     try {
       const { segmentoId, ...dadosApi } = f;
-      await onCriarCampanha({ ...dadosApi, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR") }, segmentoId || null);
+      await onCriarCampanha({ ...dadosApi, templateId: dadosApi.templateId || null, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR") }, segmentoId || null);
       setModal(false);
-      setF({ ...f, nome: "", segmentoId: "" });
+      setF({ ...f, nome: "", segmentoId: "", templateId: "" });
       showToast("Campanha criada", "ok");
     } catch (e) {
       showToast(e.message || "Erro ao criar campanha", "warn");
@@ -55,6 +57,7 @@ export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, se
             <div style={{ fontWeight: 700, fontSize: 16, color: T.ink, margin: "12px 0 4px" }}>{c.nome}</div>
             <div style={{ fontSize: 12.5, color: T.inkSoft, flex: 1 }}>{c.responsavel} · {c.inicio}</div>
             {c.segmentoId && <div style={{ fontSize: 11.5, color: T.primary, fontWeight: 600, marginTop: 2 }}>Segmentação: {segmentos.find((sg) => sg.id === c.segmentoId)?.nome || "—"}</div>}
+            {c.templateId && <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2 }}>Template: {templates.find((t) => t.id === c.templateId)?.nome || "—"}</div>}
             <button onClick={() => onDisparar(c)} style={{ ...s.btnWa, marginTop: 16, width: "100%", justifyContent: "center" }}><IconSend color="#fff" /> Disparar campanha</button>
           </div>
         ))}
@@ -91,7 +94,19 @@ export function Campanhas({ campanhas, onCriarCampanha, templates, objetivos, se
               <textarea style={s.textarea} rows={3} value={f.emailMsg} onChange={(e) => setF({ ...f, emailMsg: e.target.value })} placeholder="Texto simples do email..." />
             </Field>
           )}
-          {f.canal === "WhatsApp" && <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 12 }}>O template do WhatsApp você escolhe na hora do disparo, entre os templates ativos.</div>}
+          {f.canal === "WhatsApp" && (
+            <Field label="Template">
+              <select
+                style={{ ...s.select, width: "100%" }}
+                value={f.templateId || ""}
+                onChange={(e) => setF({ ...f, templateId: e.target.value ? Number(e.target.value) : "" })}
+              >
+                <option value="">Selecione um template ativo...</option>
+                {ativos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+              </select>
+              {!ativos.length && <div style={{ fontSize: 11.5, color: T.coral, marginTop: 6 }}>Nenhum template ativo — crie um na aba Templates.</div>}
+            </Field>
+          )}
           <div style={{ display: "flex", gap: 10 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setModal(false)}>Cancelar</button>
             <button style={{ ...s.btnPrimary, flex: 1, opacity: salvando ? .6 : 1 }} onClick={criar} disabled={salvando}>{salvando ? "Criando..." : "Criar campanha"}</button>

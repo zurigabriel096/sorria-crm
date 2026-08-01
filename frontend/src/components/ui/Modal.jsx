@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { s } from "../../styles/s";
 import { T } from "../../theme";
+import { IconX } from "../icons";
 
 // Fecha só no X (nunca no clique de fora). Guarda de alterações não salvas.
 export function Modal({ title, children, onClose, wide, dirty, onSave }) {
@@ -12,7 +13,7 @@ export function Modal({ title, children, onClose, wide, dirty, onSave }) {
   return (
     <div style={s.modalWrap}>
       <div style={{ ...s.modal, ...(wide ? { width: "min(640px,100%)" } : {}) }} className={closing ? "modalOut" : "modalIn"}>
-        <button style={s.modalX} onClick={tryClose} title="Fechar">×</button>
+        <button style={s.modalX} onClick={tryClose} title="Fechar"><IconX color={T.inkSoft} width={15} height={15} /></button>
         <div style={{ ...s.cardTitle, paddingRight: 28 }}>{title}</div>
         {children}
         {confirm && (

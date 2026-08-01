@@ -28,6 +28,10 @@ input:focus, select:focus, textarea:focus { border-color: #0FA895 !important; bo
 @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes modalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.97) translateY(6px); } }
 @keyframes popIn { from { opacity: 0; transform: scale(.95) translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes glowPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .55; transform: scale(.82); }
+}
 
 .modalIn { animation: modalIn .18s ease-out; }
 .modalOut { animation: modalOut .18s ease-in forwards; }

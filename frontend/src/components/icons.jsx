@@ -5,7 +5,28 @@ const I = (p) => ({ width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", s
 export const IconGrid = (p) => <svg {...I(p)}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>;
 export const IconUsers = (p) => <svg {...I(p)}><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5" /><path d="M16 4a3 3 0 010 6M21 20c0-2.5-1.3-4-3-4.6" /></svg>;
 export const IconFilter = (p) => <svg {...I(p)}><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z" /></svg>;
-export const IconMega = (p) => <svg {...I(p)}><path d="M3 11v2a1 1 0 001 1h2l6 4V6L6 10H4a1 1 0 00-1 1z" /><path d="M16 8a5 5 0 010 8" /></svg>;
+// Megafone (bullhorn) de verdade, no estilo do ícone de Campanhas da RD Station.
+export const IconMega = (p) => (
+  <svg {...I(p)}>
+    <path d="M3 10v4a1 1 0 001 1h2l1.2 4.4a1 1 0 00.96.6H10v-6" />
+    <path d="M7 10l9-5.2a1 1 0 011.5.87v12.66a1 1 0 01-1.5.87L7 14" />
+    <path d="M20 9.5a3 3 0 010 5" />
+  </svg>
+);
+export const IconBook = (p) => (
+  <svg {...I(p)}>
+    <path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5A1.5 1.5 0 014 18.5v-13z" />
+    <path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5a1.5 1.5 0 001.5-1.5v-13z" />
+    <path d="M11 4v16" />
+  </svg>
+);
+export const IconX = (p) => <svg {...I(p)} width={p.width || 18} height={p.height || 18}><path d="M18 6L6 18M6 6l12 12" /></svg>;
+export const IconPanelLeft = (p) => (
+  <svg {...I(p)}>
+    <rect x="3" y="4" width="18" height="16" rx="3.5" />
+    <path d="M9.5 4v16" />
+  </svg>
+);
 export const IconChat = (p) => <svg {...I(p)}><path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>;
 export const IconSend = (p) => <svg {...I(p)}><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>;
 export const IconTeam = (p) => <svg {...I(p)}><circle cx="12" cy="7" r="3.2" /><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>;
@@ -20,8 +41,20 @@ export const IconLogout = (p) => <svg {...I(p)}><path d="M9 21H5a2 2 0 01-2-2V5a
 export const IconUpload = (p) => <svg {...I(p)} width="26" height="26"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>;
 export const IconDownload = (p) => <svg {...I(p)} width="15" height="15"><path d="M12 4v12M6 10l6 6 6-6M4 20h16" /></svg>;
 export const IconPlus = (p) => <svg {...I(p)} width="13" height="13"><path d="M12 5v14M5 12h14" /></svg>;
-export const IconChevron = ({ color, dir }) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: dir === "right" ? "rotate(180deg)" : "none" }}><path d="M15 6l-6 6 6 6" /></svg>;
+const CHEVRON_DEG = { left: 0, right: 180, down: -90, up: 90 };
+export const IconChevron = ({ color, dir = "left" }) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: `rotate(${CHEVRON_DEG[dir]}deg)`, transition: "transform .15s" }}><path d="M15 6l-6 6 6 6" /></svg>;
+export const IconZap = (p) => <svg {...I(p)}><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" /></svg>;
 export const Dot = ({ color }) => <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />;
+
+// Bolinha de status com leve brilho pulsante (verde = ativo, vermelho = inativo).
+export const GlowDot = ({ color, size = 9 }) => (
+  <span
+    style={{
+      width: size, height: size, borderRadius: "50%", background: color, display: "inline-block",
+      boxShadow: `0 0 0 3px ${color}26`, animation: "glowPulse 2s ease-in-out infinite",
+    }}
+  />
+);
 
 // Logo oficial do WhatsApp (badge verde + glifo do telefone), usado em vez do IconWa
 // genérico nos lugares que representam a integração/conexão real com o WhatsApp.

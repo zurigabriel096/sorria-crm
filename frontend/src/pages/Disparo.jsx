@@ -4,6 +4,7 @@ import { s } from "../styles/s";
 import { brl, num, pct } from "../utils/format";
 import { dispatchCampaign } from "../api/campaigns";
 import { matchSeg } from "../utils/patients";
+import { PRECOS } from "../data/seed";
 import { Card } from "../components/ui/Card";
 import { Metric } from "../components/ui/Metric";
 import { IconSend } from "../components/icons";
@@ -20,9 +21,10 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, onFinish
     return segmento ? base.filter((p) => matchSeg(p, segmento)) : base;
   }, [patients, segmento]);
   const [step, setStep] = useState("revisar");
-  const [tpl, setTpl] = useState(null);
+  const [tpl, setTpl] = useState(() => templates.find((t) => t.id === camp?.templateId) || null);
+  const [trocandoTpl, setTrocandoTpl] = useState(!camp?.templateId);
   const [resultado, setResultado] = useState(null);
-  const custo = elegiveis.length * (email ? 0.001 : 0.31);
+  const custo = elegiveis.length * (email ? PRECOS.msgEmail : PRECOS.msgWhats);
   const ativos = templates.filter((t) => t.ativo);
 
   const iniciar = async () => {
@@ -64,6 +66,21 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, onFinish
               <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 8 }}>Nesta fase o email é simples (não personalizado). Leitor de HTML entra depois.</div>
               <textarea style={s.textarea} rows={4} defaultValue={camp.emailMsg || "Olá! Temos novidades na Orthodontic..."} />
             </Card>
+          ) : tpl && !trocandoTpl ? (
+            <Card title="Template da campanha">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <b style={{ fontSize: 13.5, color: T.ink }}>{tpl.nome}</b>
+                  <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 700, color: tpl.categoria === "Marketing" ? T.gold : "#0E9484" }}>{tpl.categoria}</span>
+                </div>
+                <button style={s.btnGhostSm} onClick={() => setTrocandoTpl(true)}>Trocar template</button>
+              </div>
+              <div style={{ ...s.waPreview, marginTop: 14 }}>
+                <div style={s.waBubble}>
+                  {tpl.corpo.replace(/\{nome\}/g, elegiveis[0]?.primeiro || "Maria").replace(/\{data\}/g, "05/08").replace(/\{hora\}/g, "14:30")}
+                </div>
+              </div>
+            </Card>
           ) : (
             <Card title="Escolha o template ativo">
               {!ativos.length ? (
@@ -71,7 +88,7 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, onFinish
               ) : (
                 <div style={s.tplGrid}>
                   {ativos.map((t) => (
-                    <button key={t.id} onClick={() => setTpl(t)} style={{ ...s.tplPick, ...(tpl?.id === t.id ? { outline: `2.5px solid ${T.primary}`, background: T.primarySoft } : {}) }}>
+                    <button key={t.id} onClick={() => { setTpl(t); setTrocandoTpl(false); }} style={{ ...s.tplPick, ...(tpl?.id === t.id ? { outline: `2.5px solid ${T.primary}`, background: T.primarySoft } : {}) }}>
                       <div style={{ display: "flex", justifyContent: "space-between" }}>
                         <b style={{ fontSize: 13, color: T.ink }}>{t.nome}</b>
                         <span style={{ fontSize: 10.5, fontWeight: 700, color: t.categoria === "Marketing" ? T.gold : "#0E9484" }}>{t.categoria}</span>
@@ -79,13 +96,6 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, onFinish
                       <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 6, lineHeight: 1.4 }}>{t.corpo.slice(0, 90)}{t.corpo.length > 90 ? "..." : ""}</div>
                     </button>
                   ))}
-                </div>
-              )}
-              {tpl && (
-                <div style={{ ...s.waPreview, marginTop: 14 }}>
-                  <div style={s.waBubble}>
-                    {tpl.corpo.replace(/\{nome\}/g, elegiveis[0]?.primeiro || "Maria").replace(/\{data\}/g, "05/08").replace(/\{hora\}/g, "14:30")}
-                  </div>
                 </div>
               )}
             </Card>

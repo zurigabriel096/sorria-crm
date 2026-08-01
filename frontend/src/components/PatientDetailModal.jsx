@@ -5,7 +5,7 @@ import { Field } from "./ui/Field";
 import { Select } from "./ui/Select";
 import { Modal } from "./ui/Modal";
 import { StatusBadge } from "./ui/StatusBadge";
-import { IconLife } from "./icons";
+import { IconBook } from "./icons";
 
 // Modal de detalhe do paciente, com duas abas: Dados (cadastro) e Histórico do cliente
 // (mensagens que ele recebeu). Usado tanto pela tela de Pacientes quanto pela de Disparos,
@@ -37,7 +37,7 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
           onClick={() => setAba("historico")}
           style={{ ...s.toggleBtn, background: aba === "historico" ? T.primary : T.lineSoft, color: aba === "historico" ? "#fff" : T.inkSoft, display: "inline-flex", alignItems: "center", gap: 6 }}
         >
-          <IconLife color={aba === "historico" ? "#fff" : T.inkSoft} /> Histórico do cliente
+          <IconBook color={aba === "historico" ? "#fff" : T.inkSoft} /> Histórico do cliente
         </button>
       </div>
 
@@ -77,7 +77,7 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
           {!mensagens.length && <div style={{ fontSize: 13.5, color: T.inkSoft, padding: "12px 0" }}>Nenhuma mensagem enviada pra esse paciente ainda.</div>}
           {mensagens.map((m, i) => (
             <div key={i} style={s.feedRow}>
-              <StatusBadge status={m.status} sm />
+              <span style={{ width: 74, flexShrink: 0, display: "inline-flex" }}><StatusBadge status={m.status} sm /></span>
               <span style={{ color: T.ink }}>{m.campanha}</span>
               <span style={{ marginLeft: "auto", color: T.inkSoft, fontSize: 12 }}>{m.hora}</span>
             </div>

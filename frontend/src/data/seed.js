@@ -43,4 +43,4 @@ export const PERIODOS = {
   "01/05/2026 até 01/06/2026": { contatos: 311, mkt: 150, util: 248 },
 };
 
-export const PRECOS = { mensalidade: 599 };
+export const PRECOS = { mensalidade: 599, msgWhats: 0.31, msgEmail: 0.001 };

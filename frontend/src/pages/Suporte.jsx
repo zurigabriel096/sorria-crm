@@ -4,7 +4,7 @@ import { s } from "../styles/s";
 import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
-import { Dot, IconWa, IconMail } from "../components/icons";
+import { Dot, WhatsAppLogo, IconMail } from "../components/icons";
 
 export function Suporte({ showToast }) {
   const [assunto, setAssunto] = useState("");
@@ -28,7 +28,7 @@ export function Suporte({ showToast }) {
       </Card>
       <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
         <a href={SUPORTE_WA} target="_blank" rel="noreferrer" className="channelCard" style={{ ...s.channelCard, textDecoration: "none" }}>
-          <span style={{ ...s.channelIcon, background: T.wa + "1A" }}><IconWa color={T.wa} /></span>
+          <span style={{ ...s.channelIcon, background: T.wa + "1A" }}><WhatsAppLogo size={26} /></span>
           <div style={{ textAlign: "left" }}><div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>WhatsApp</div><div style={{ fontSize: 12.5, color: T.inkSoft }}>Resposta em ~10 min</div></div>
           <span style={{ marginLeft: "auto", color: T.inkSoft }}>›</span>
         </a>
