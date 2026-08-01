@@ -100,7 +100,7 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
                 <button
                   onClick={() => setView(group)}
                   title={label}
-                  style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, padding: collapsed ? "11px 0" : "11px 0 11px 14px", color: "inherit", background: "transparent" }}
+                  style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0, padding: collapsed ? "11px 0" : "11px 0 11px 14px", color: "inherit", background: "transparent", fontWeight: 600, fontSize: 14, whiteSpace: "nowrap" }}
                 >
                   <Icon color={rowActive ? T.primary : T.inkSoft} /> {!collapsed && <span className="fadeItem">{label}</span>}
                 </button>
