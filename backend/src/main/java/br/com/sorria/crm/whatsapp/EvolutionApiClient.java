@@ -4,11 +4,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -60,6 +65,64 @@ public class EvolutionApiClient {
         } catch (RestClientException ex) {
             log.warn("Falha ao enviar mensagem via Evolution API para {}: {}", telefone, ex.getMessage());
             return "Falhou";
+        }
+    }
+
+    /**
+     * Consulta o estado real da conexao (GET /instance/status). Leitura pura,
+     * sem efeito colateral algum na sessao do WhatsApp.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> obterStatus() {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return Map.of("connected", true, "loggedIn", true, "nome", "Simulado (modo demo)");
+        }
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("apikey", apiKey);
+            ResponseEntity<Map> resp = restTemplate.exchange(
+                    baseUrl + "/instance/status", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
+            return Map.of(
+                    "connected", Boolean.TRUE.equals(data.get("Connected")),
+                    "loggedIn", Boolean.TRUE.equals(data.get("LoggedIn")),
+                    "nome", String.valueOf(data.getOrDefault("Name", "")));
+        } catch (RestClientException ex) {
+            log.warn("Falha ao consultar status da Evolution API: {}", ex.getMessage());
+            return Map.of("connected", false, "loggedIn", false, "nome", "");
+        }
+    }
+
+    /**
+     * Solicita um codigo de pareamento (POST /instance/pair) para trocar o numero
+     * conectado a esta instancia, sem precisar escanear QR code. ATENCAO: isso
+     * substitui o numero atualmente pareado - so deve ser chamado deliberadamente.
+     */
+    @SuppressWarnings("unchecked")
+    public String solicitarPareamento(String telefone) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
+        }
+        String numero = telefone == null ? "" : telefone.replaceAll("\\D", "");
+        if (numero.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um numero de telefone valido.");
+        }
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apikey", apiKey);
+            Map<String, Object> body = Map.of("phone", numero, "subscribe", List.of());
+            ResponseEntity<Map> resp = restTemplate.postForEntity(
+                    baseUrl + "/instance/pair", new HttpEntity<>(body, headers), Map.class);
+            Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
+            Object codigo = data.get("PairingCode");
+            if (codigo == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "A Evolution API nao retornou um codigo de pareamento.");
+            }
+            return String.valueOf(codigo);
+        } catch (RestClientException ex) {
+            log.warn("Falha ao solicitar pairing code para {}: {}", numero, ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel gerar o codigo de pareamento. Tente novamente.");
         }
     }
 

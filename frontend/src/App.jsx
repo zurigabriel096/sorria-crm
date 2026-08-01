@@ -281,7 +281,7 @@ export default function App() {
           {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} />}
           {view === "plano" && <Plano showToast={showToast} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
-          {view === "config" && <Config showToast={showToast} />}
+          {view === "config" && <Config showToast={showToast} usuario={usuario} />}
         </div>
       </div>
       {toast && <Toast toast={toast} />}
