@@ -8,18 +8,21 @@ import br.com.sorria.crm.dispatch.DisparoHistorico;
 import br.com.sorria.crm.dispatch.DisparoRepository;
 import br.com.sorria.crm.whatsapp.EvolutionApiClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CampanhaService {
 
     private static final String CANAL_EMAIL = "Email";
+    private static final int INTERVALO_PADRAO_SEGUNDOS = 3;
 
     private final CampanhaRepository campanhaRepository;
     private final TemplateRepository templateRepository;
@@ -65,7 +68,9 @@ public class CampanhaService {
         return toDTO(campanhaRepository.save(campanha));
     }
 
-    @Transactional
+    // Sem @Transactional de proposito: com a pausa entre mensagens (as vezes minutos
+    // pra campanhas grandes), uma transacao unica ficaria com a conexao do banco presa
+    // o tempo todo. Cada envio ja persiste (contato + historico) de forma independente.
     public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos) {
         Campanha campanha = buscarEntidade(id);
         if (templateIdEscolhido != null && !templateIdEscolhido.equals(campanha.getTemplateId())) {
@@ -90,10 +95,13 @@ public class CampanhaService {
 
         int entregues = 0;
         int falhas = 0;
+        int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
+                ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
 
-        for (Contato contato : elegiveis) {
+        for (int i = 0; i < elegiveis.size(); i++) {
+            Contato contato = elegiveis.get(i);
             String mensagem = corpoTemplate.replace("{nome}", primeiroNome(contato.getNome()));
-            String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem);
+            String status = !email ? evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem) : "Entregue";
 
             contato.setEnviado(status);
             contatoRepository.save(contato);
@@ -111,6 +119,20 @@ public class CampanhaService {
                 entregues++;
             } else if ("Falhou".equals(status)) {
                 falhas++;
+            }
+
+            // Pausa so entre mensagens do WhatsApp (nao apos a ultima) - anti-spam do
+            // WhatsApp sinaliza rajadas sem intervalo como envio automatizado. Um
+            // jitter aleatorio (+0-40%) evita um padrao perfeitamente uniforme.
+            if (!email && i < elegiveis.size() - 1) {
+                int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (intervaloBaseMs * 0.4) + 1);
+                try {
+                    Thread.sleep(intervaloBaseMs + jitterMs);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Disparo da campanha {} interrompido no meio do envio ({}/{})", campanha.getId(), i + 1, elegiveis.size());
+                    break;
+                }
             }
         }
 
@@ -144,11 +166,13 @@ public class CampanhaService {
         campanha.setInicio(dto.inicio());
         campanha.setEmailMsg(dto.emailMsg());
         campanha.setTemplateId(dto.templateId());
+        campanha.setIntervaloSegundos(dto.intervaloSegundos());
     }
 
     private CampanhaDTO toDTO(Campanha c) {
         return new CampanhaDTO(c.getId(), c.getNome(), c.getObjetivo(), c.getCanal(), c.getResponsavel(),
                 c.getStatus(), c.getInicio(), c.getEmailMsg(), c.getTemplateId(),
-                Boolean.TRUE.equals(c.getArquivado()), c.getAtualizadoEm());
+                Boolean.TRUE.equals(c.getArquivado()), c.getAtualizadoEm(),
+                c.getIntervaloSegundos() != null ? c.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
     }
 }

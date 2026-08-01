@@ -15,6 +15,7 @@ public record CampanhaDTO(
         String emailMsg,
         Long templateId,
         Boolean arquivado,
-        LocalDateTime atualizadoEm
+        LocalDateTime atualizadoEm,
+        Integer intervaloSegundos
 ) {
 }

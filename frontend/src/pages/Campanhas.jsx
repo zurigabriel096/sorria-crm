@@ -9,7 +9,7 @@ import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { IconSend } from "../components/icons";
 
-const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "" });
+const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3 });
 
 export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
@@ -23,7 +23,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
 
   const abrirNovo = () => { setF(vazio()); setModal("novo"); };
   const abrirEdicao = (c) => {
-    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "" });
+    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 3 });
     setModal("editar");
   };
 
@@ -54,6 +54,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
       await onCriarCampanha({
         nome: `${c.nome} (cópia)`, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "",
         templateId: c.templateId || null, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR"),
+        intervaloSegundos: c.intervaloSegundos || 3,
       }, c.segmentoId || null);
       showToast("Campanha duplicada", "ok");
     } catch (e) {
@@ -175,6 +176,19 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
                 {ativos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
               {!ativos.length && <div style={{ fontSize: 11.5, color: T.coral, marginTop: 6 }}>Nenhum template ativo — crie um na aba Templates.</div>}
+            </Field>
+          )}
+          {f.canal === "WhatsApp" && (
+            <Field label="Intervalo entre envios (segundos)">
+              <input
+                type="number" min={1} max={30} style={{ ...s.input, maxWidth: 120 }}
+                value={f.intervaloSegundos}
+                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(1, Math.min(30, Number(e.target.value) || 1)) })}
+              />
+              <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
+                Pausa entre uma mensagem e outra. Recomendado: 3s ou mais — rajadas sem
+                intervalo aumentam o risco do número ser marcado como spam pelo WhatsApp.
+              </div>
             </Field>
           )}
           <div style={{ display: "flex", gap: 10 }}>
