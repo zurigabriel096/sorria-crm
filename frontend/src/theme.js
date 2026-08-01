@@ -12,7 +12,16 @@ export const T = {
     Risco: { fg: "#C6761C", bg: "#FBEDDA" },
     Inativo: { fg: "#7A8791", bg: "#EEF1F2" },
   },
+  // Estagio do funil de Lead - mesma paleta em progressao usada no restante do
+  // app (mais neutro no inicio, mais forte/positivo perto de virar Cliente).
+  estagio: {
+    "Lead": { fg: "#5A7089", bg: "#EDF1F6" },
+    "Lead Qualificado": { fg: "#B07C1E", bg: "#FBF1D8" },
+    "Cliente": { fg: "#0E9484", bg: "#E1F4F0" },
+  },
 };
+
+export const ESTAGIOS_LEAD = ["Lead", "Lead Qualificado", "Cliente"];
 
 export const AVATAR_COLORS = ["#0FA895", "#4C6FFF", "#FF6B5B", "#C8912A", "#8B5CF6", "#EC4899", "#16263B"];
 

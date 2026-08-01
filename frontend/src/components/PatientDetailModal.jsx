@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { T } from "../theme";
+import { T, ESTAGIOS_LEAD } from "../theme";
 import { s } from "../styles/s";
 import { Field } from "./ui/Field";
 import { Select } from "./ui/Select";
@@ -49,6 +49,7 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
             <Field label="Telefone"><input style={s.input} value={p.tel} onChange={(e) => set("tel", e.target.value)} /></Field>
             <Field label="Email"><input style={s.input} value={p.email} onChange={(e) => set("email", e.target.value)} placeholder="email@paciente.com" /></Field>
             <Field label="Segmento"><Select block value={p.segmento} onChange={(v) => set("segmento", v)} options={["VIP", "Fidelizado", "Regular", "Risco", "Inativo"]} /></Field>
+            <Field label="Estágio"><Select block value={p.estagio || "Lead"} onChange={(v) => set("estagio", v)} options={ESTAGIOS_LEAD} /></Field>
             <Field label="Financeiro"><Select block value={p.financ} onChange={(v) => set("financ", v)} options={["Adimplente", "Inadimplente", "—"]} /></Field>
             <Field label="Dentista"><input style={s.input} value={p.dentista} onChange={(e) => set("dentista", e.target.value)} /></Field>
             <Field label="Elegível p/ disparo"><Select block value={p.elegivel ? "Sim" : "Não"} onChange={(v) => set("elegivel", v === "Sim")} options={["Sim", "Não"]} /></Field>

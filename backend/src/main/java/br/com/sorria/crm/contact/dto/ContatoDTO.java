@@ -15,6 +15,7 @@ public record ContatoDTO(
         String ultAtendimento,
         Integer recencia,
         String segmento,
+        String estagio,
         boolean elegivel,
         String enviado,
         List<String> tags,

@@ -61,6 +61,7 @@ public class ContatoService {
         contato.setUltAtendimento(dto.ultAtendimento());
         contato.setRecencia(dto.recencia());
         contato.setSegmento(dto.segmento());
+        contato.setEstagio(dto.estagio());
         contato.setElegivel(dto.elegivel());
         contato.setEnviado(dto.enviado() != null ? dto.enviado() : "Pendente");
         contato.setTags(dto.tags() != null ? new ArrayList<>(dto.tags()) : new ArrayList<>());
@@ -70,7 +71,7 @@ public class ContatoService {
     private ContatoDTO toDTO(Contato c) {
         return new ContatoDTO(
                 c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(),
-                c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getSegmento(), c.isElegivel(),
+                c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getSegmento(), c.getEstagio(), c.isElegivel(),
                 c.getEnviado(), c.getTags(), c.getOrigem()
         );
     }
