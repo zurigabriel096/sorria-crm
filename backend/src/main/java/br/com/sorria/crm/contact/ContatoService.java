@@ -3,13 +3,18 @@ package br.com.sorria.crm.contact;
 import br.com.sorria.crm.contact.dto.ContatoDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+// @Transactional na classe: sem isso, a colecao lazy `tags` (@ElementCollection) e
+// acessada em toDTO() depois que a sessao do Hibernate ja fechou (open-in-view=false),
+// e a serializacao para JSON falha com LazyInitializationException.
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ContatoService {
 
     private final ContatoRepository contatoRepository;
