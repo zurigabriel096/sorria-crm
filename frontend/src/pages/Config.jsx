@@ -5,7 +5,7 @@ import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { WhatsAppLogo } from "../components/icons";
-import { getWhatsAppStatus, desconectarWhatsApp, solicitarCodigoPareamento } from "../api/whatsapp";
+import { getWhatsAppStatus, desconectarWhatsApp, solicitarCodigoPareamento, obterQrCodeWhatsApp } from "../api/whatsapp";
 
 // A Evolution recusa gerar codigo de pareamento com um numero ja logado
 // ("instance is already authenticated") - por isso a desconexao e um passo
@@ -14,8 +14,10 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
   const [desconectado, setDesconectado] = useState(!(statusInicial?.connected && statusInicial?.loggedIn));
   const [confirmarDesconexao, setConfirmarDesconexao] = useState(false);
   const [desconectando, setDesconectando] = useState(false);
+  const [metodo, setMetodo] = useState("qr");
   const [telefone, setTelefone] = useState("");
   const [pairingCode, setPairingCode] = useState(null);
+  const [qrCode, setQrCode] = useState(null);
   const [carregando, setCarregando] = useState(false);
   const [verificando, setVerificando] = useState(false);
 
@@ -37,6 +39,18 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
     try {
       const { pairingCode } = await solicitarCodigoPareamento(telefone);
       setPairingCode(pairingCode);
+    } catch (e) {
+      showToast(e.message, "warn");
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const gerarQrCode = async () => {
+    setCarregando(true);
+    try {
+      const { qrcode } = await obterQrCodeWhatsApp();
+      setQrCode(qrcode);
     } catch (e) {
       showToast(e.message, "warn");
     } finally {
@@ -93,9 +107,63 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
     );
   }
 
+  const semCodigoAinda = metodo === "qr" ? !qrCode : !pairingCode;
+
   return (
     <Modal title="Conectar número por código" onClose={onClose}>
-      {!pairingCode ? (
+      {semCodigoAinda && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 16, background: T.bg, padding: 4, borderRadius: 10 }}>
+          {[["qr", "QR code (recomendado)"], ["codigo", "Código por telefone"]].map(([valor, rotulo]) => (
+            <button
+              key={valor}
+              onClick={() => setMetodo(valor)}
+              style={{
+                flex: 1, padding: "8px 6px", borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+                background: metodo === valor ? "#fff" : "transparent",
+                color: metodo === valor ? T.ink : T.inkSoft,
+                boxShadow: metodo === valor ? "0 1px 4px rgba(20,40,55,.12)" : "none",
+              }}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {metodo === "qr" ? (
+        !qrCode ? (
+          <>
+            <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 16 }}>
+              Gere o QR code e escaneie com o WhatsApp do número que vai passar a disparar as mensagens.
+            </p>
+            <button
+              style={{ ...s.btnPrimarySm, width: "100%", justifyContent: "center" }}
+              disabled={carregando}
+              onClick={gerarQrCode}
+            >
+              {carregando ? "Gerando QR code... (leva alguns segundos)" : "Gerar QR code"}
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+              <img src={qrCode} alt="QR code de conexão do WhatsApp" style={{ width: 220, height: 220, borderRadius: 12, border: `1px solid ${T.line}` }} />
+            </div>
+            <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 16, textAlign: "center" }}>
+              Abra o WhatsApp do novo número → <strong>Aparelhos conectados</strong> → <strong>Conectar aparelho</strong> →{" "}
+              aponte a câmera pro código acima. Ele expira rápido — se der erro, gere um novo.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={{ ...s.btnGhostSm, flex: 1, justifyContent: "center" }} onClick={gerarQrCode} disabled={carregando}>
+                Gerar novo
+              </button>
+              <button style={{ ...s.btnPrimarySm, flex: 1, justifyContent: "center" }} disabled={verificando} onClick={jaConectei}>
+                {verificando ? "Verificando..." : "Já conectei"}
+              </button>
+            </div>
+          </>
+        )
+      ) : !pairingCode ? (
         <>
           <Field label="Número do WhatsApp (com DDD)">
             <input

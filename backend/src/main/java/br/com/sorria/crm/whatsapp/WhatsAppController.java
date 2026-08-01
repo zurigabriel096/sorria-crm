@@ -36,4 +36,10 @@ public class WhatsAppController {
     public Map<String, String> solicitarPareamento(@RequestBody Map<String, String> body) {
         return Map.of("pairingCode", evolutionApiClient.solicitarPareamento(body.get("telefone")));
     }
+
+    @PostMapping("/qrcode")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, String> qrCode() {
+        return Map.of("qrcode", evolutionApiClient.obterQrCode());
+    }
 }

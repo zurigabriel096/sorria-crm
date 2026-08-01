@@ -114,6 +114,52 @@ public class EvolutionApiClient {
     }
 
     /**
+     * Inicia a conexao e devolve o QR code (data URI base64) para escanear. Mais
+     * confiavel que o pairing code por texto, que tem bug conhecido na Evolution/Baileys
+     * (a WhatsApp as vezes recusa o codigo como invalido). So funciona com a instancia
+     * ja desconectada - ver desconectarInstancia().
+     */
+    @SuppressWarnings("unchecked")
+    public String obterQrCode() {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("apikey", apiKey);
+        try {
+            HttpHeaders headersConnect = new HttpHeaders();
+            headersConnect.setContentType(MediaType.APPLICATION_JSON);
+            headersConnect.set("apikey", apiKey);
+            Map<String, Object> body = Map.of("immediate", true, "subscribe", List.of("QRCODE"));
+            restTemplate.postForEntity(baseUrl + "/instance/connect", new HttpEntity<>(body, headersConnect), String.class);
+        } catch (RestClientException ex) {
+            log.warn("Falha ao iniciar conexao para gerar QR code: {}", ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel iniciar a conexao. Tente novamente.");
+        }
+
+        // O QR so fica pronto alguns segundos depois do /instance/connect - tenta
+        // por ate ~15s antes de desistir.
+        for (int tentativa = 0; tentativa < 7; tentativa++) {
+            try {
+                Thread.sleep(2000);
+                ResponseEntity<Map> resp = restTemplate.exchange(
+                        baseUrl + "/instance/qr", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+                Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
+                Object qrcode = data != null ? data.get("qrcode") : null;
+                if (qrcode != null) return String.valueOf(qrcode);
+            } catch (HttpStatusCodeException ex) {
+                // "no QR code available" enquanto o handshake nao termina - tenta de novo.
+            } catch (RestClientException ex) {
+                log.warn("Falha ao consultar QR code: {}", ex.getMessage());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "O QR code demorou demais para ficar pronto. Tente novamente.");
+    }
+
+    /**
      * Solicita um codigo de pareamento (POST /instance/pair) para o numero informado.
      * So funciona se a instancia ja estiver desconectada - ver desconectarInstancia().
      */
