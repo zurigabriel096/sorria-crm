@@ -10,10 +10,31 @@ import { listMensagens, enviarMensagem, carregarMidiaBlobUrl } from "../api/mens
 import { getWhatsAppStatus } from "../api/whatsapp";
 import { listEtapas, createEtapa, renameEtapa, deleteEtapa } from "../api/etapas";
 import { listColaboradores } from "../api/colaboradores";
+import { iniciais } from "../utils/usuario";
 import { dataHora } from "../utils/format";
 
 const POLL_MENSAGENS_MS = 4000;
 const EMOJIS = ["😀", "😂", "😍", "🙏", "👍", "👋", "❤️", "😢", "😮", "🎉", "✅", "❌", "🔥", "💬", "📅", "😅", "🤔", "👏"];
+
+// Avatar do responsavel no card - foto de perfil, ou iniciais numa bolinha
+// com a cor de perfil da pessoa (mesmo padrao do Topbar), estilo Trello.
+function AvatarResponsavel({ colaborador, size = 24 }) {
+  if (!colaborador) return null;
+  const estiloBase = {
+    width: size, height: size, borderRadius: "50%", border: "2px solid #fff",
+    boxShadow: "0 1px 3px rgba(20,40,55,.3)", flexShrink: 0,
+  };
+  return colaborador.avatarUrl ? (
+    <img src={colaborador.avatarUrl} alt={colaborador.nome} title={colaborador.nome} style={{ ...estiloBase, objectFit: "cover" }} />
+  ) : (
+    <div title={colaborador.nome} style={{
+      ...estiloBase, background: colaborador.corPerfil || T.inkSoft, color: "#fff",
+      display: "grid", placeItems: "center", fontSize: size * 0.42, fontWeight: 700,
+    }}>
+      {iniciais(colaborador.nome)}
+    </div>
+  );
+}
 
 // Kanban de conversas: escolhe um numero de WhatsApp, ve so os leads que ja
 // trocaram mensagem por ELE (posicionados por Estagio), e responde direto
@@ -381,7 +402,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                     key={p.id}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", String(p.id))}
-                    style={{ ...s.campCard, cursor: "grab" }}
+                    style={{ ...s.campCard, cursor: "grab", position: "relative", paddingBottom: 22 }}
                     onClick={() => setChatAberto(p)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -391,8 +412,8 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                       )}
                     </div>
                     <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 4 }}>{p.tel || "Sem telefone"}</div>
-                    <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 3 }}>
-                      👤 {colaboradores.find((c) => c.id === p.responsavelId)?.nome || "Sem responsável"}
+                    <div style={{ position: "absolute", bottom: 8, right: 8 }}>
+                      <AvatarResponsavel colaborador={colaboradores.find((c) => c.id === p.responsavelId)} />
                     </div>
                   </div>
                 ))}
