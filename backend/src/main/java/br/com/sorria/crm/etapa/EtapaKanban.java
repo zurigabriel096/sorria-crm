@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -35,6 +36,7 @@ public class EtapaKanban {
     // Trabalho (F4) poder esconder por padrao quem esta aqui, sem
     // proximaAcaoEm futura e sem mensagem recente - nao afeta o Kanban nem
     // o Painel Executivo, so o filtro padrao da fila operacional.
+    @ColumnDefault("false")
     private boolean etapaFinal;
 
     @PrePersist
