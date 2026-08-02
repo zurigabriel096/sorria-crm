@@ -61,15 +61,19 @@ export const s = {
   tagChip: { fontSize: 10.5, fontWeight: 600, color: T.primaryDark, background: T.primarySoft, padding: "2px 7px", borderRadius: 6, whiteSpace: "nowrap" },
   tagChipBig: { fontSize: 12.5, fontWeight: 600, color: T.primaryDark, background: T.primarySoft, padding: "5px 11px", borderRadius: 8, border: "none" },
   statusBadge: { fontWeight: 700, borderRadius: 20, whiteSpace: "nowrap" },
-  objTag: { fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 7, background: T.lineSoft, color: T.inkSoft },
+  // borderRadius 20 (pill) igual ao resto da familia de selos (tagOk/tagBad/tagMuted) -
+  // antes era 7 (retangulo arredondado), inconsistente do lado do selo de canal na campanha.
+  objTag: { fontSize: 11.5, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: T.lineSoft, color: T.inkSoft },
   btnPreview: { fontSize: 11, fontWeight: 600, color: T.primaryDark, background: "#fff", border: `1px solid ${T.primary}55`, padding: "3px 9px", borderRadius: 6 },
 
   segCard: { background: "#fff", border: `1px solid ${T.line}`, borderRadius: 16, padding: 18 },
   countPill: { fontSize: 12, fontWeight: 700, color: T.primaryDark, background: T.primarySoft, padding: "5px 11px", borderRadius: 20, whiteSpace: "nowrap", height: "fit-content" },
   tagResult: { display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: T.lineSoft, borderRadius: 9, fontSize: 13.5 },
 
-  toggle: { display: "flex", background: T.lineSoft, borderRadius: 9, padding: 3, gap: 3 },
-  toggleBtn: { padding: "5px 16px", borderRadius: 7, fontSize: 13, fontWeight: 700, color: T.inkSoft },
+  // height:40 pra bater com s.select - senao o toggle fica uns 8px mais baixo
+  // que o dropdown do lado quando os dois ficam juntos numa toolbar.
+  toggle: { display: "flex", alignItems: "center", height: 40, background: T.lineSoft, borderRadius: 9, padding: 3, gap: 3 },
+  toggleBtn: { height: 34, padding: "0 16px", display: "flex", alignItems: "center", borderRadius: 7, fontSize: 13, fontWeight: 700, color: T.inkSoft },
   condRow: { display: "flex", alignItems: "center", gap: 8, background: T.lineSoft, padding: "8px 10px", borderRadius: 10 },
   condSelect: { flex: 1, minWidth: 0, height: 36, border: `1px solid ${T.line}`, borderRadius: 8, padding: "0 8px", fontSize: 13, background: "#fff", color: T.ink },
   condRm: { width: 30, height: 30, borderRadius: 8, background: "#fff", border: `1px solid ${T.line}`, color: T.coral, fontSize: 18, fontWeight: 700, flexShrink: 0 },

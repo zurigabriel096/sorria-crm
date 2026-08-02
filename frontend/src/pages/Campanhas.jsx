@@ -110,7 +110,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
       <div style={s.cardGrid}>
         {lista.map((c) => (
           <div key={c.id} style={{ ...s.campCard, display: "flex", flexDirection: "column", opacity: c.arquivado ? .7 : 1 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ ...s.objTag, background: T.primarySoft, color: T.primaryDark }}>{c.objetivo}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ ...s.tagOk, background: c.canal === "Email" ? "#EDEBFF" : "#E1F4F0", color: c.canal === "Email" ? "#5B4CE0" : "#0E9484" }}>{c.canal}</span>
@@ -125,11 +125,13 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
               </div>
             </div>
             <div style={{ fontWeight: 700, fontSize: 16, color: T.ink, margin: "12px 0 4px" }}>{c.nome}</div>
-            <div style={{ fontSize: 12.5, color: T.inkSoft, flex: 1 }}>{c.responsavel} · {c.inicio}</div>
-            {c.segmentoId && <div style={{ fontSize: 11.5, color: T.primary, fontWeight: 600, marginTop: 2 }}>Segmentação: {segmentos.find((sg) => sg.id === c.segmentoId)?.nome || "—"}</div>}
-            {c.templateId && <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2 }}>Template: {templates.find((t) => t.id === c.templateId)?.nome || "—"}</div>}
-            {c.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 6 }}>Editado em {dataHora(c.atualizadoEm)}</div>}
-            <button onClick={() => onDisparar(c)} style={{ ...s.btnWa, marginTop: 16, width: "100%", justifyContent: "center" }}><IconSend color="#fff" /> Disparar campanha</button>
+            <div style={{ fontSize: 12.5, color: T.inkSoft }}>{c.responsavel} · {c.inicio}</div>
+            <div style={{ display: "grid", gap: 4, marginTop: 4, flex: 1 }}>
+              {c.segmentoId && <div style={{ fontSize: 11.5, color: T.primary, fontWeight: 600 }}>Segmentação: {segmentos.find((sg) => sg.id === c.segmentoId)?.nome || "—"}</div>}
+              {c.templateId && <div style={{ fontSize: 11.5, color: T.inkSoft }}>Template: {templates.find((t) => t.id === c.templateId)?.nome || "—"}</div>}
+              {c.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft }}>Editado em {dataHora(c.atualizadoEm)}</div>}
+            </div>
+            <button onClick={() => onDisparar(c)} style={{ ...s.btnWa, marginTop: 14, width: "100%", justifyContent: "center" }}><IconSend color="#fff" /> Disparar campanha</button>
           </div>
         ))}
       </div>
