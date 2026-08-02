@@ -76,3 +76,12 @@ export const api = {
   patch: (path, body) => request(path, { method: "PATCH", body }),
   del: (path) => request(path, { method: "DELETE" }),
 };
+
+// Pra respostas binarias (midia de mensagem) - <img src> não manda o header de
+// autenticação sozinho, então tem que buscar com fetch e virar um blob local.
+export async function fetchBlobUrl(path) {
+  const res = await fetch(`${BASE_URL}${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!res.ok) throw new Error("Não consegui carregar essa mídia.");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}

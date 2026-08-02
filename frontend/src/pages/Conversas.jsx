@@ -5,7 +5,7 @@ import { Card } from "../components/ui/Card";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { listNumeros, contatosPorNumero } from "../api/whatsappNumeros";
-import { listMensagens, enviarMensagem } from "../api/mensagens";
+import { listMensagens, enviarMensagem, carregarMidiaBlobUrl } from "../api/mensagens";
 import { getWhatsAppStatus } from "../api/whatsapp";
 import { listEtapas, createEtapa, renameEtapa, deleteEtapa } from "../api/etapas";
 import { dataHora } from "../utils/format";
@@ -18,6 +18,28 @@ const EMOJIS = ["😀", "😂", "😍", "🙏", "👍", "👋", "❤️", "😢"
 // pelo card - a resposta sai pelo numero selecionado aqui. Colunas vem do
 // cadastro EtapaKanban (editavel por ADMIN: criar/renomear/excluir), nao mais
 // de um array fixo. Arrastar um card muda o Estagio do lead de verdade.
+// Baixa e descriptografa a foto sob demanda (o link cru do WhatsApp é
+// cifrado - não dá pra usar <img src> direto nele nem sem o header de auth).
+function FotoMensagem({ mensagemId }) {
+  const [url, setUrl] = useState(null);
+  const [erro, setErro] = useState(false);
+  useEffect(() => {
+    let blobUrl;
+    carregarMidiaBlobUrl(mensagemId)
+      .then((u) => { blobUrl = u; setUrl(u); })
+      .catch(() => setErro(true));
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  }, [mensagemId]);
+
+  if (erro) return <div style={{ fontSize: 12.5, color: T.inkSoft, fontStyle: "italic" }}>Não consegui carregar essa foto (o link pode ter expirado).</div>;
+  if (!url) return <div style={{ fontSize: 12.5, color: T.inkSoft }}>Carregando foto...</div>;
+  return (
+    <a href={url} target="_blank" rel="noreferrer">
+      <img src={url} alt="Foto recebida" style={{ maxWidth: 220, maxHeight: 220, borderRadius: 10, display: "block" }} />
+    </a>
+  );
+}
+
 function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onAbrirPaciente }) {
   const [mensagens, setMensagens] = useState(null);
   const [texto, setTexto] = useState("");
@@ -65,30 +87,39 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
           {contato.tags.map((t) => <span key={t} style={{ ...s.tagOk, background: T.lineSoft, color: T.inkSoft }}>{t}</span>)}
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflowY: "auto", padding: "4px 2px", marginBottom: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflowY: "auto", padding: 10, marginBottom: 12, background: T.bg, borderRadius: 12 }}>
         {mensagens === null ? (
           <div style={{ fontSize: 13, color: T.inkSoft }}>Carregando...</div>
         ) : !mensagens.length ? (
           <div style={{ fontSize: 13, color: T.inkSoft }}>Nenhuma mensagem ainda — comece a conversa abaixo.</div>
         ) : (
-          mensagens.map((m) => (
-            <div key={m.id} style={{ alignSelf: m.direcao === "SAIDA" ? "flex-end" : "flex-start", maxWidth: "75%" }}>
-              <div style={{
-                background: m.direcao === "SAIDA" ? T.primary : T.bg, color: m.direcao === "SAIDA" ? "#fff" : T.ink,
-                padding: "8px 12px", borderRadius: 12, fontSize: 13.5, lineHeight: 1.4,
-              }}>
-                {m.texto}
+          mensagens.map((m) => {
+            const saida = m.direcao === "SAIDA";
+            let midia = null;
+            try { midia = m.payloadBrutoMidia ? JSON.parse(m.payloadBrutoMidia) : null; } catch { /* ignora */ }
+            const ehFoto = midia?.mimetype?.startsWith("image/");
+            return (
+              <div key={m.id} style={{ alignSelf: saida ? "flex-end" : "flex-start", maxWidth: "75%" }}>
+                <div style={{
+                  background: saida ? T.primary : "#fff", color: saida ? "#fff" : T.ink,
+                  padding: ehFoto ? 4 : "8px 12px", fontSize: 13.5, lineHeight: 1.4,
+                  boxShadow: saida ? "none" : "0 1px 2px rgba(20,40,55,.08)",
+                  borderRadius: saida ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
+                }}>
+                  {ehFoto ? <FotoMensagem mensagemId={m.id} /> : m.texto}
+                </div>
+                <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 3, textAlign: saida ? "right" : "left" }}>
+                  {saida ? (m.enviadoPorNome || "Você") : "Lead"} · {dataHora(m.criadoEm)}
+                  {saida && <span style={{ color: T.primary, marginLeft: 3 }}>✓✓</span>}
+                  {m.numeroAlternativo && (
+                    <span style={{ color: T.coral, fontWeight: 700 }}>
+                      {" "}· enviado via número de {numeros.find((n) => n.id === m.whatsappNumeroId)?.nome || "outro atendente"}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 3, textAlign: m.direcao === "SAIDA" ? "right" : "left" }}>
-                {m.direcao === "SAIDA" ? (m.enviadoPorNome || "Você") : "Lead"} · {dataHora(m.criadoEm)}
-                {m.numeroAlternativo && (
-                  <span style={{ color: T.coral, fontWeight: 700 }}>
-                    {" "}· enviado via número de {numeros.find((n) => n.id === m.whatsappNumeroId)?.nome || "outro atendente"}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
       <div style={{ display: "flex", gap: 8, position: "relative" }}>
