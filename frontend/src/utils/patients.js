@@ -3,7 +3,6 @@ import { HOJE } from "../theme";
 
 export function evalCond(p, c) {
   switch (c.field) {
-    case "segmento": return c.op === "é" ? p.segmento === c.value : p.segmento !== c.value;
     case "financ": return c.op === "é" ? p.financ === c.value : p.financ !== c.value;
     case "recencia": return c.op === "maior" ? (p.recencia || 0) > +c.value : (p.recencia || 0) < +c.value;
     case "elegivel": { const y = c.value === "Sim"; return c.op === "é" ? p.elegivel === y : p.elegivel !== y; }
@@ -40,7 +39,6 @@ export const CAMPOS_IMPORTACAO = [
   { chave: "tel", rotulo: "Telefone" },
   { chave: "email", rotulo: "Email" },
   { chave: "estagio", rotulo: "Estágio" },
-  { chave: "segmento", rotulo: "Segmento" },
   { chave: "financ", rotulo: "Situação financeira" },
   { chave: "dentista", rotulo: "Dentista" },
   { chave: "cod", rotulo: "Código" },
@@ -52,7 +50,6 @@ const PISTAS_SUGESTAO = {
   tel: ["telefone", "celular", "whatsapp", "fone"],
   email: ["email", "e-mail"],
   estagio: ["estágio", "estagio", "etapa"],
-  segmento: ["segmento"],
   financ: ["financ", "situaç", "situac"],
   dentista: ["dentista"],
   cod: ["cód", "codigo", "código"],
@@ -117,8 +114,6 @@ export function montarPacientes(rows, hi, mapeamento) {
     const inadimpl = /INADIMPL|PROTESTAR/.test(financRaw);
     const ultAtend = pega(r, "ultAtend");
     const recencia = diasDesde(parseData(ultAtend));
-    const segmentoManual = pega(r, "segmento");
-    const segmento = segmentoManual || (inadimpl ? "Risco" : (recencia != null && recencia > 180 ? "Inativo" : "Regular"));
 
     pacientes.push({
       cod: pega(r, "cod"),
@@ -128,7 +123,7 @@ export function montarPacientes(rows, hi, mapeamento) {
       financ: financRaw ? (inadimpl ? "Inadimplente" : "Adimplente") : "—",
       dentista: pega(r, "dentista"),
       ultAtend: ultAtend.slice(0, 16),
-      recencia, segmento,
+      recencia,
       estagio: pega(r, "estagio") || "Lead",
       elegivel: ok, enviado: "Pendente", tags: [], origem: "Importação",
     });
@@ -137,7 +132,7 @@ export function montarPacientes(rows, hi, mapeamento) {
 }
 
 export function exportarXlsx(patients) {
-  const data = patients.map((p) => ({ Cód: p.cod, Lead: p.nome, Telefone: p.tel, Email: p.email, "Sit.Financ.": p.financ, Dentista: p.dentista, "Últ. Atend": p.ultAtend, Segmento: p.segmento, Elegível: p.elegivel ? "Sim" : "Não", Tags: (p.tags || []).join(", "), Status: p.enviado }));
+  const data = patients.map((p) => ({ Cód: p.cod, Lead: p.nome, Telefone: p.tel, Email: p.email, "Sit.Financ.": p.financ, Dentista: p.dentista, "Últ. Atend": p.ultAtend, Estágio: p.estagio, Elegível: p.elegivel ? "Sim" : "Não", Tags: (p.tags || []).join(", "), Status: p.enviado }));
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Leads");
   XLSX.writeFile(wb, "sorria_leads_atualizado.xlsx");

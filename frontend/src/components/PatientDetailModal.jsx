@@ -54,7 +54,6 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
             <Field label="Código"><input style={s.input} value={p.cod} onChange={(e) => set("cod", e.target.value)} /></Field>
             <Field label="Telefone"><input style={s.input} value={p.tel} onChange={(e) => set("tel", e.target.value)} /></Field>
             <Field label="Email"><input style={s.input} value={p.email} onChange={(e) => set("email", e.target.value)} placeholder="email@paciente.com" /></Field>
-            <Field label="Segmento"><Select block value={p.segmento} onChange={(v) => set("segmento", v)} options={["VIP", "Fidelizado", "Regular", "Risco", "Inativo"]} /></Field>
             <Field label="Estágio"><Select block value={p.estagio || "Lead"} onChange={(v) => set("estagio", v)} options={etapas} /></Field>
             <Field label="Responsável pelo Lead">
               <Select

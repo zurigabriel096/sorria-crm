@@ -5,13 +5,6 @@ export const T = {
   ink: "#16263B", inkSoft: "#5C6E7E", bg: "#F3F7F6", primary: "#0FA895",
   primaryDark: "#0B8375", primarySoft: "#E3F5F1", coral: "#FF6B5B", angry: "#FF6500",
   wa: "#25D366", line: "#E6EDEC", lineSoft: "#F0F4F3", gold: "#C8912A",
-  seg: {
-    VIP: { fg: "#B07C1E", bg: "#FBF1D8" },
-    Fidelizado: { fg: "#0E9484", bg: "#E1F4F0" },
-    Regular: { fg: "#5A7089", bg: "#EDF1F6" },
-    Risco: { fg: "#C6761C", bg: "#FBEDDA" },
-    Inativo: { fg: "#7A8791", bg: "#EEF1F2" },
-  },
   // Estagio do funil de Lead - mesma paleta em progressao usada no restante do
   // app (mais neutro no inicio, mais forte/positivo perto de virar Cliente).
   estagio: {

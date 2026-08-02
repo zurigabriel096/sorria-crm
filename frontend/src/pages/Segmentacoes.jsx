@@ -10,7 +10,7 @@ import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 
-const novaCondicao = () => ({ field: "segmento", op: "é", value: "VIP" });
+const novaCondicao = () => ({ field: "financ", op: "é", value: "Adimplente" });
 const novoGrupo = () => [{ field: "recencia", op: "maior", value: 120 }];
 const contagemLabel = (n) => (n === 1 ? "1 lead" : `${n} leads`);
 
@@ -186,7 +186,7 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
               busca.slice(0, 40).map((p) => (
                 <div key={p.id} style={s.tagResult}>
                   <b style={{ color: T.ink }}>{p.nome}</b>
-                  <span style={{ marginLeft: "auto", fontSize: 12, color: T.inkSoft }}>{p.segmento}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 12, color: T.inkSoft }}>{p.estagio || "Lead"}</span>
                 </div>
               ))
             ) : (

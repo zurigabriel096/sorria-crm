@@ -15,8 +15,6 @@ public interface ContatoRepository extends JpaRepository<Contato, Long> {
     // (responsavelId nulo) - ver ContatoService.listarVisiveisPara.
     List<Contato> findByResponsavelIdOrResponsavelIdIsNull(Long responsavelId);
 
-    List<Contato> findBySegmento(String segmento);
-
     List<Contato> findByTagsContaining(String tag);
 
     List<Contato> findByElegivelTrueAndEnviado(String enviado);
@@ -27,5 +25,5 @@ public interface ContatoRepository extends JpaRepository<Contato, Long> {
 
     long countByEnviado(String enviado);
 
-    long countBySegmento(String segmento);
+    long countByEstagio(String estagio);
 }

@@ -36,8 +36,6 @@ public class Contato {
 
     private Integer recencia;
 
-    private String segmento;
-
     // Estagio do funil de Lead: "Lead" | "Lead Qualificado" | "Cliente". Sem
     // enum/constraint no JPA de proposito - mesmo padrao ja usado em Campanha.canal,
     // validado so no Select do frontend.

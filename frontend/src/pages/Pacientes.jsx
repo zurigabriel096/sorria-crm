@@ -10,7 +10,6 @@ import { IconSearch, IconDownload } from "../components/icons";
 
 export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, onAbrirPaciente, onUnificarDuplicados, usuario }) {
   const souAdmin = usuario?.papel === "ADMIN";
-  const [fSeg, setFSeg] = useState("Todos");
   const [fEstagio, setFEstagio] = useState("Todos");
   const [fEleg, setFEleg] = useState(filtroInicial?.eleg || "Todos");
   const [fTag, setFTag] = useState("Todas");
@@ -31,10 +30,9 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
 
   useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
 
-  const limpar = () => { setFSeg("Todos"); setFEstagio("Todos"); setFEleg("Todos"); setFTag("Todas"); setQ(""); };
+  const limpar = () => { setFEstagio("Todos"); setFEleg("Todos"); setFTag("Todas"); setQ(""); };
 
   const filtered = patients.filter((p) => {
-    if (fSeg !== "Todos" && p.segmento !== fSeg) return false;
     if (fEstagio !== "Todos" && p.estagio !== fEstagio) return false;
     if (fEleg === "Elegíveis" && !p.elegivel) return false;
     if (fEleg === "A corrigir" && p.elegivel) return false;
@@ -54,7 +52,6 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
           <div style={s.fieldLabel}>Buscar</div>
           <div style={s.search}><IconSearch /><input placeholder="Nome do lead..." style={s.searchInput} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         </div>
-        <div><div style={s.fieldLabel}>Segmento</div><Select value={fSeg} onChange={setFSeg} options={["Todos", "VIP", "Fidelizado", "Regular", "Risco", "Inativo"]} /></div>
         <div><div style={s.fieldLabel}>Estágio</div><Select value={fEstagio} onChange={setFEstagio} options={["Todos", ...etapas.map((e) => e.nome)]} /></div>
         <div><div style={s.fieldLabel}>Elegibilidade</div><Select value={fEleg} onChange={setFEleg} options={["Todos", "Elegíveis", "A corrigir"]} /></div>
         <div><div style={s.fieldLabel}>Tag</div><Select value={fTag} onChange={setFTag} options={["Todas", ...tags]} /></div>
@@ -73,13 +70,12 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.thL}>Lead</th><th style={s.th}>Segmento</th><th style={s.th}>Estágio</th><th style={s.th}>Financeiro</th>
+                <th style={s.thL}>Lead</th><th style={s.th}>Estágio</th><th style={s.th}>Financeiro</th>
                 <th style={s.th}>Dentista</th><th style={s.th}>Recência</th><th style={s.th}>Elegível</th>
               </tr>
             </thead>
             <tbody>
               {filtered.slice(0, 200).map((p) => {
-                const col = T.seg[p.segmento] || T.seg.Regular;
                 const colEstagio = T.estagio[p.estagio] || T.estagio.Lead;
                 return (
                   <tr key={p.id} className="prow" onClick={() => onAbrirPaciente(p, "dados")}>
@@ -87,7 +83,6 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
                       <div style={{ fontWeight: 600, color: T.primary }}>{p.nome}</div>
                       <div style={{ fontSize: 11.5, color: T.inkSoft }}>{p.cod} · {p.tel || "sem telefone"}</div>
                     </td>
-                    <td style={s.td}><span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{p.segmento}</span></td>
                     <td style={s.td}><span style={{ ...s.segBadge, color: colEstagio.fg, background: colEstagio.bg }}>{p.estagio || "Lead"}</span></td>
                     <td style={s.td}><span style={{ fontSize: 12.5, color: p.financ === "Inadimplente" ? T.coral : T.inkSoft, fontWeight: 600 }}>{p.financ}</span></td>
                     <td style={s.tdNum}>{p.dentista || "—"}</td>

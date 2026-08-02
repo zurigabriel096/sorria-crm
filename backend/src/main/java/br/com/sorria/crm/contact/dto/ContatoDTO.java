@@ -14,7 +14,6 @@ public record ContatoDTO(
         String dentista,
         String ultAtendimento,
         Integer recencia,
-        String segmento,
         String estagio,
         Long responsavelId,
         boolean elegivel,

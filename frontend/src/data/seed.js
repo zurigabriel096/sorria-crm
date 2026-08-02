@@ -21,7 +21,6 @@ export const TEMPLATES_SEED = [
 export const OBJETIVOS_BASE = ["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"];
 
 export const FIELD_META = {
-  segmento: { label: "Segmento", ops: ["é", "não é"], values: ["VIP", "Fidelizado", "Regular", "Risco", "Inativo"] },
   financ: { label: "Financeiro", ops: ["é", "não é"], values: ["Adimplente", "Inadimplente"] },
   recencia: { label: "Recência (dias)", ops: ["maior", "menor"], value: "number" },
   elegivel: { label: "Elegível", ops: ["é", "não é"], values: ["Sim", "Não"] },

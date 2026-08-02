@@ -157,7 +157,6 @@ public class ContatoService {
         if (vazio(existente.getDentista())) existente.setDentista(novo.dentista());
         if (vazio(existente.getUltAtendimento())) existente.setUltAtendimento(novo.ultAtendimento());
         if (existente.getRecencia() == null) existente.setRecencia(novo.recencia());
-        if (vazio(existente.getSegmento())) existente.setSegmento(novo.segmento());
         if (vazio(existente.getEstagio())) existente.setEstagio(novo.estagio());
         if (existente.getResponsavelId() == null) existente.setResponsavelId(novo.responsavelId());
         if (vazio(existente.getOrigem())) existente.setOrigem(novo.origem());
@@ -175,7 +174,6 @@ public class ContatoService {
         if (vazio(principal.getDentista())) principal.setDentista(duplicado.getDentista());
         if (vazio(principal.getUltAtendimento())) principal.setUltAtendimento(duplicado.getUltAtendimento());
         if (principal.getRecencia() == null) principal.setRecencia(duplicado.getRecencia());
-        if (vazio(principal.getSegmento())) principal.setSegmento(duplicado.getSegmento());
         if (vazio(principal.getEstagio())) principal.setEstagio(duplicado.getEstagio());
         if (principal.getResponsavelId() == null) principal.setResponsavelId(duplicado.getResponsavelId());
         if (vazio(principal.getOrigem())) principal.setOrigem(duplicado.getOrigem());
@@ -197,7 +195,6 @@ public class ContatoService {
         contato.setDentista(dto.dentista());
         contato.setUltAtendimento(dto.ultAtendimento());
         contato.setRecencia(dto.recencia());
-        contato.setSegmento(dto.segmento());
         contato.setEstagio(dto.estagio());
         contato.setResponsavelId(dto.responsavelId());
         contato.setElegivel(dto.elegivel());
@@ -210,7 +207,7 @@ public class ContatoService {
     private ContatoDTO toDTO(Contato c) {
         return new ContatoDTO(
                 c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(),
-                c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getSegmento(), c.getEstagio(),
+                c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getEstagio(),
                 c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban()
         );
     }

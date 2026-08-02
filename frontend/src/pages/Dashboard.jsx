@@ -40,16 +40,19 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
         <KpiCard label="Entregues" value={num(kpis.entregues)} highlight icon={<IconCheck color="#fff" />} onClick={() => setView("disparos")} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18 }} className="dashGrid">
-        <Card title="Base por segmento (RFMV)">
-          {Object.entries(T.seg).map(([seg, col]) => (
-            <div key={seg} style={s.segRow}>
-              <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{seg}</span>
-              <div style={s.segBarTrack}>
-                <div style={{ ...s.segBarFill, width: `${((kpis.porSegmento[seg] || 0) / (kpis.totalContatos || 1)) * 100}%`, background: col.fg }} />
+        <Card title="Base por estágio">
+          {Object.entries(kpis.porEstagio || {}).map(([etapa, qtd]) => {
+            const col = T.estagio[etapa] || T.estagio.Lead;
+            return (
+              <div key={etapa} style={s.segRow}>
+                <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{etapa}</span>
+                <div style={s.segBarTrack}>
+                  <div style={{ ...s.segBarFill, width: `${(qtd / (kpis.totalContatos || 1)) * 100}%`, background: col.fg }} />
+                </div>
+                <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{qtd}</b>
               </div>
-              <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{kpis.porSegmento[seg] || 0}</b>
-            </div>
-          ))}
+            );
+          })}
           <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
         </Card>
         <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
