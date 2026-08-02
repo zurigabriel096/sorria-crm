@@ -11,6 +11,7 @@ import { listEtapas, createEtapa, renameEtapa, deleteEtapa } from "../api/etapas
 import { dataHora } from "../utils/format";
 
 const POLL_MENSAGENS_MS = 4000;
+const EMOJIS = ["😀", "😂", "😍", "🙏", "👍", "👋", "❤️", "😢", "😮", "🎉", "✅", "❌", "🔥", "💬", "📅", "😅", "🤔", "👏"];
 
 // Kanban de conversas: escolhe um numero de WhatsApp, ve so os leads que ja
 // trocaram mensagem por ELE (posicionados por Estagio), e responde direto
@@ -21,6 +22,7 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
   const [mensagens, setMensagens] = useState(null);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [emojiAberto, setEmojiAberto] = useState(false);
 
   const carregar = () => listMensagens(contato.id).then(setMensagens).catch(() => setMensagens([]));
   useEffect(() => { carregar(); }, [contato.id]);
@@ -89,7 +91,32 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
           ))
         )}
       </div>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, position: "relative" }}>
+        {emojiAberto && (
+          <div style={{
+            position: "absolute", bottom: 44, left: 0, background: "#fff", border: `1px solid ${T.line}`,
+            borderRadius: 10, boxShadow: "0 10px 30px rgba(20,40,55,.14)", padding: 8,
+            display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4, zIndex: 10,
+          }}>
+            {EMOJIS.map((e) => (
+              <button
+                key={e}
+                style={{ fontSize: 18, padding: 4, borderRadius: 6 }}
+                onClick={() => { setTexto((t) => t + e); setEmojiAberto(false); }}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          title="Inserir emoji"
+          style={{ ...s.btnGhostSm, padding: "0 12px", fontSize: 17 }}
+          onClick={() => setEmojiAberto((o) => !o)}
+        >
+          😊
+        </button>
         <input
           style={{ ...s.input, flex: 1 }}
           placeholder="Digite uma resposta..."

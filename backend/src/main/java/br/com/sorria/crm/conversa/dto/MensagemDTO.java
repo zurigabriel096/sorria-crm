@@ -11,6 +11,7 @@ public record MensagemDTO(
         Long enviadoPorUsuarioId,
         String enviadoPorNome,
         boolean numeroAlternativo,
-        LocalDateTime criadoEm
+        LocalDateTime criadoEm,
+        String payloadBrutoMidia
 ) {
 }

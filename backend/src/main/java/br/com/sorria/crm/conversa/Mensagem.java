@@ -43,6 +43,13 @@ public class Mensagem {
     // que nao e o principal - so um sinalizador, nao bloqueia nada.
     private boolean numeroAlternativo;
 
+    // Payload bruto do sub-objeto de midia (imageMessage/videoMessage/etc) do
+    // webhook, quando a mensagem ENTRADA nao e texto simples - guardado so pra
+    // investigar o formato real da Evolution e depois exibir a midia de verdade.
+    // Nao aparece no chat (so o texto/placeholder aparece).
+    @Column(length = 4000)
+    private String payloadBrutoMidia;
+
     private LocalDateTime criadoEm;
 
     @PrePersist

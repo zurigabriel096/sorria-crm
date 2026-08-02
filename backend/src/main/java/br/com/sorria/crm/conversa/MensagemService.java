@@ -9,6 +9,7 @@ import br.com.sorria.crm.user.UsuarioRepository;
 import br.com.sorria.crm.whatsapp.EvolutionApiClient;
 import br.com.sorria.crm.whatsapp.WhatsAppNumero;
 import br.com.sorria.crm.whatsapp.WhatsAppNumeroRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,18 @@ public class MensagemService {
     private final UsuarioRepository usuarioRepository;
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final EvolutionApiClient evolutionApiClient;
+    private final ObjectMapper objectMapper;
+
+    // Rotulo amigavel pra cada tipo de midia que a Evolution manda no lugar de
+    // "conversation" - so mostra um aviso por enquanto (visualizacao de verdade
+    // depende de ver o formato real do payload, ainda nao confirmado).
+    private static final Map<String, String> TIPOS_MIDIA = Map.of(
+            "imageMessage", "📷 Imagem",
+            "videoMessage", "🎥 Vídeo",
+            "audioMessage", "🎤 Áudio",
+            "documentMessage", "📄 Documento",
+            "stickerMessage", "🩹 Figurinha"
+    );
 
     public List<MensagemDTO> listar(Long contatoId) {
         return mensagemRepository.findByContatoIdOrderByCriadoEmAsc(contatoId).stream().map(this::toDTO).toList();
@@ -82,10 +95,11 @@ public class MensagemService {
         Map<String, Object> msg = (Map<String, Object>) msgObj;
 
         String sender = String.valueOf(info.getOrDefault("Sender", ""));
-        Object textoObj = msg.get("conversation");
-        String texto = textoObj == null ? "" : String.valueOf(textoObj);
-        if (sender.isBlank() || texto.isBlank()) {
-            log.info("Webhook Evolution ignorado (sem texto simples ou sem remetente): {}", payload);
+        String[] extraido = extrairTexto(msg);
+        String texto = extraido[0];
+        String payloadBrutoMidia = extraido[1];
+        if (sender.isBlank() || texto == null || texto.isBlank()) {
+            log.info("Webhook Evolution ignorado (tipo de mensagem nao reconhecido ou sem remetente): {}", payload);
             return;
         }
 
@@ -106,7 +120,50 @@ public class MensagemService {
         mensagem.setWhatsappNumeroId(whatsappNumeroId);
         mensagem.setDirecao(ENTRADA);
         mensagem.setTexto(texto);
+        mensagem.setPayloadBrutoMidia(payloadBrutoMidia);
         mensagemRepository.save(mensagem);
+    }
+
+    // Devolve [texto, payloadBrutoDaMidiaOuNull]. Mensagem de texto simples (o
+    // caso comum) so preenche o texto. Midia (imagem/video/audio/documento/
+    // figurinha) vira um rotulo amigavel + o payload bruto guardado (nao
+    // exibido no chat) pra investigar o formato real depois e exibir a midia
+    // de verdade - hoje so avisa que chegou, sem mostrar a midia em si.
+    @SuppressWarnings("unchecked")
+    private String[] extrairTexto(Map<String, Object> msg) {
+        Object conversation = msg.get("conversation");
+        if (conversation != null) return new String[]{String.valueOf(conversation), null};
+
+        Object extended = msg.get("extendedTextMessage");
+        if (extended instanceof Map) {
+            Object texto = ((Map<String, Object>) extended).get("text");
+            if (texto != null) return new String[]{String.valueOf(texto), null};
+        }
+
+        for (Map.Entry<String, String> tipo : TIPOS_MIDIA.entrySet()) {
+            Object midia = msg.get(tipo.getKey());
+            if (midia instanceof Map) {
+                Object caption = ((Map<String, Object>) midia).get("caption");
+                String rotulo = tipo.getValue() + (caption != null ? ": " + caption : " (visualização ainda não suportada)");
+                String bruto = serializar(midia);
+                log.info("Webhook Evolution: mensagem de midia recebida ({}): {}", tipo.getKey(), bruto);
+                return new String[]{rotulo, bruto};
+            }
+        }
+        return new String[]{null, null};
+    }
+
+    // Truncado de proposito: midia costuma vir com thumbnail em base64 embutido
+    // (bem maior que a coluna de 4000 chars) - aqui e so diagnostico, nao
+    // precisa do payload inteiro pra descobrir o formato.
+    private String serializar(Object o) {
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(o);
+        } catch (Exception ex) {
+            json = String.valueOf(o);
+        }
+        return json.length() > 3900 ? json.substring(0, 3900) : json;
     }
 
     private MensagemDTO toDTO(Mensagem m) {
@@ -115,6 +172,6 @@ public class MensagemService {
                 .map(Usuario::getNome)
                 .orElse(null);
         return new MensagemDTO(m.getId(), m.getContatoId(), m.getWhatsappNumeroId(), m.getDirecao(), m.getTexto(),
-                m.getEnviadoPorUsuarioId(), enviadoPorNome, m.isNumeroAlternativo(), m.getCriadoEm());
+                m.getEnviadoPorUsuarioId(), enviadoPorNome, m.isNumeroAlternativo(), m.getCriadoEm(), m.getPayloadBrutoMidia());
     }
 }
