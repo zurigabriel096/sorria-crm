@@ -16,6 +16,7 @@ public record CampanhaDTO(
         Long templateId,
         Boolean arquivado,
         LocalDateTime atualizadoEm,
-        Integer intervaloSegundos
+        Integer intervaloSegundos,
+        Long whatsappNumeroId
 ) {
 }

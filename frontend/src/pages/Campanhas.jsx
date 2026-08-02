@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { dataHora } from "../utils/format";
@@ -8,8 +8,9 @@ import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { IconSend } from "../components/icons";
+import { listNumeros } from "../api/whatsappNumeros";
 
-const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3 });
+const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3, whatsappNumeroId: "" });
 
 export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
@@ -19,11 +20,14 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
   const [novoObj, setNovoObj] = useState("");
   const [fObjetivo, setFObjetivo] = useState("Todos");
   const [verArquivadas, setVerArquivadas] = useState(false);
+  const [numeros, setNumeros] = useState([]);
   const ativos = templates.filter((t) => t.ativo && !t.arquivado);
+
+  useEffect(() => { listNumeros().then(setNumeros).catch(() => setNumeros([])); }, []);
 
   const abrirNovo = () => { setF(vazio()); setModal("novo"); };
   const abrirEdicao = (c) => {
-    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 3 });
+    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 3, whatsappNumeroId: c.whatsappNumeroId || "" });
     setModal("editar");
   };
 
@@ -33,7 +37,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
     setSalvando(true);
     try {
       const { id, segmentoId, ...dadosApi } = f;
-      const payload = { ...dadosApi, templateId: dadosApi.templateId || null, responsavel };
+      const payload = { ...dadosApi, templateId: dadosApi.templateId || null, whatsappNumeroId: dadosApi.whatsappNumeroId || null, responsavel };
       if (id) {
         await onAtualizarCampanha(id, { ...payload, status: "Ativa", inicio: campanhas.find((c) => c.id === id)?.inicio }, segmentoId || null);
         showToast("Campanha atualizada", "ok");
@@ -54,7 +58,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
       await onCriarCampanha({
         nome: `${c.nome} (cópia)`, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "",
         templateId: c.templateId || null, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR"),
-        intervaloSegundos: c.intervaloSegundos || 3,
+        intervaloSegundos: c.intervaloSegundos || 3, whatsappNumeroId: c.whatsappNumeroId || null,
       }, c.segmentoId || null);
       showToast("Campanha duplicada", "ok");
     } catch (e) {
@@ -178,6 +182,17 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
                 {ativos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
               {!ativos.length && <div style={{ fontSize: 11.5, color: T.coral, marginTop: 6 }}>Nenhum template ativo — crie um na aba Templates.</div>}
+            </Field>
+          )}
+          {f.canal === "WhatsApp" && !!numeros.length && (
+            <Field label="Número de disparo">
+              <Select
+                block
+                value={f.whatsappNumeroId}
+                onChange={(v) => setF({ ...f, whatsappNumeroId: v ? Number(v) : "" })}
+                options={["", ...numeros.map((n) => n.id)]}
+                labels={{ "": "Padrão (número principal)", ...Object.fromEntries(numeros.map((n) => [n.id, n.nome])) }}
+              />
             </Field>
           )}
           {f.canal === "WhatsApp" && (

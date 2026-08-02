@@ -6,6 +6,7 @@ import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { WhatsAppLogo } from "../components/icons";
 import { getWhatsAppStatus, desconectarWhatsApp, solicitarCodigoPareamento, obterQrCodeWhatsApp } from "../api/whatsapp";
+import { listNumeros, createNumero, deleteNumero } from "../api/whatsappNumeros";
 
 // A Evolution recusa gerar codigo de pareamento com um numero ja logado
 // ("instance is already authenticated") - por isso a desconexao e um passo
@@ -247,6 +248,102 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
   );
 }
 
+// Numeros ADICIONAIS de WhatsApp (o principal continua no card acima). Cada
+// um cadastrado aqui vira uma opcao de "numero de disparo" nas Campanhas -
+// o cadastro (nome + token da instancia) e feito depois que o numero ja foi
+// conectado na Evolution (fora desta tela, com o suporte tecnico).
+function OutrosNumerosCard({ showToast, souAdmin }) {
+  const [numeros, setNumeros] = useState(null);
+  const [formAberto, setFormAberto] = useState(false);
+  const [nome, setNome] = useState("");
+  const [instancia, setInstancia] = useState("");
+  const [token, setToken] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const carregar = () => listNumeros().then(setNumeros).catch(() => setNumeros([]));
+  useEffect(() => { carregar(); }, []);
+
+  const salvar = async () => {
+    if (!nome.trim() || !token.trim()) return showToast("Preencha nome e token da instância", "warn");
+    setSalvando(true);
+    try {
+      await createNumero({ nome: nome.trim(), instancia: instancia.trim(), token: token.trim() });
+      setNome(""); setInstancia(""); setToken(""); setFormAberto(false);
+      showToast("Número adicionado", "ok");
+      carregar();
+    } catch (e) {
+      showToast(e.message || "Erro ao adicionar número", "warn");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const remover = async (n) => {
+    try {
+      await deleteNumero(n.id);
+      setNumeros((lista) => lista.filter((x) => x.id !== n.id));
+      showToast("Número removido", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao remover número", "warn");
+    }
+  };
+
+  return (
+    <Card title="Outros números de disparo">
+      <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 14 }}>
+        Números extras, além do principal acima. Depois de cadastrado, cada um vira uma opção de
+        "número de disparo" na criação de campanhas.
+      </div>
+      {numeros === null ? (
+        <div style={{ fontSize: 13, color: T.inkSoft }}>Carregando...</div>
+      ) : !numeros.length ? (
+        <div style={{ fontSize: 13, color: T.inkSoft }}>Nenhum número extra cadastrado.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {numeros.map((n) => (
+            <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, background: T.bg }}>
+              <span style={{ ...s.channelIcon, background: T.wa + "1A" }}><WhatsAppLogo size={20} /></span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: T.ink, fontSize: 13.5 }}>{n.nome}</div>
+                <div style={{ fontSize: 11.5, color: T.inkSoft }}>{n.conectado ? (n.nomeConectado || "Conectado") : "Desconectado"}</div>
+              </div>
+              <span style={{ ...s.tagOk, ...(n.conectado ? {} : { color: T.coral, background: T.coral + "1A" }) }}>
+                {n.conectado ? "● Ativo" : "● Inativo"}
+              </span>
+              {souAdmin && (
+                <button onClick={() => remover(n)} style={{ fontSize: 12, color: T.coral, fontWeight: 600 }}>Remover</button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {souAdmin && (
+        formAberto ? (
+          <div style={{ display: "grid", gap: 10, marginTop: 14, padding: 12, borderRadius: 10, border: `1px solid ${T.line}` }}>
+            <Field label="Nome (pra identificar nas campanhas)">
+              <input style={s.input} placeholder="Ex.: Sarah - Atendimento" value={nome} onChange={(e) => setNome(e.target.value)} />
+            </Field>
+            <Field label="Instância Evolution (opcional, referência)">
+              <input style={s.input} placeholder="Ex.: SorriaCRM2" value={instancia} onChange={(e) => setInstancia(e.target.value)} />
+            </Field>
+            <Field label="Token da instância">
+              <input style={s.input} placeholder="Peça pro suporte técnico" value={token} onChange={(e) => setToken(e.target.value)} />
+            </Field>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={{ ...s.btnGhostSm, flex: 1, justifyContent: "center" }} onClick={() => setFormAberto(false)}>Cancelar</button>
+              <button style={{ ...s.btnPrimarySm, flex: 1, justifyContent: "center" }} disabled={salvando} onClick={salvar}>
+                {salvando ? "Salvando..." : "Adicionar número"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button style={{ ...s.btnGhostSm, marginTop: 14 }} onClick={() => setFormAberto(true)}>+ Adicionar número</button>
+        )
+      )}
+    </Card>
+  );
+}
+
 export function Config({ showToast, usuario }) {
   const [status, setStatus] = useState(null);
   const [modalAberto, setModalAberto] = useState(false);
@@ -302,6 +399,7 @@ export function Config({ showToast, usuario }) {
           </button>
         )}
       </Card>
+      <OutrosNumerosCard showToast={showToast} souAdmin={souAdmin} />
       {modalAberto && (
         <ConectarNumeroModal
           onClose={() => setModalAberto(false)}

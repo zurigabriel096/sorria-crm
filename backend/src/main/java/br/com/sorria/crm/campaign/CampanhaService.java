@@ -7,6 +7,8 @@ import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.dispatch.DisparoHistorico;
 import br.com.sorria.crm.dispatch.DisparoRepository;
 import br.com.sorria.crm.whatsapp.EvolutionApiClient;
+import br.com.sorria.crm.whatsapp.WhatsAppNumero;
+import br.com.sorria.crm.whatsapp.WhatsAppNumeroRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class CampanhaService {
     private final ContatoRepository contatoRepository;
     private final DisparoRepository disparoRepository;
     private final EvolutionApiClient evolutionApiClient;
+    private final WhatsAppNumeroRepository whatsAppNumeroRepository;
 
     public List<CampanhaDTO> listar() {
         return campanhaRepository.findAll().stream().map(this::toDTO).toList();
@@ -97,11 +100,12 @@ public class CampanhaService {
         int falhas = 0;
         int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
                 ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
+        String tokenInstancia = resolverTokenInstancia(campanha);
 
         for (int i = 0; i < elegiveis.size(); i++) {
             Contato contato = elegiveis.get(i);
             String mensagem = corpoTemplate.replace("{nome}", primeiroNome(contato.getNome()));
-            String status = !email ? evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem) : "Entregue";
+            String status = !email ? evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem, tokenInstancia) : "Entregue";
 
             contato.setEnviado(status);
             contatoRepository.save(contato);
@@ -142,6 +146,16 @@ public class CampanhaService {
         return new DispatchResultDTO(elegiveis.size(), entregues, falhas);
     }
 
+    // null (nao escolheu numero) = usa sempre o numero principal, fixo na config
+    // do EvolutionApiClient - preserva o comportamento de campanhas criadas antes
+    // deste campo existir, sem depender de qual numero foi cadastrado por ultimo.
+    private String resolverTokenInstancia(Campanha campanha) {
+        if (campanha.getWhatsappNumeroId() == null) return null;
+        return whatsAppNumeroRepository.findById(campanha.getWhatsappNumeroId())
+                .map(WhatsAppNumero::getToken)
+                .orElse(null);
+    }
+
     private String resolverCorpoMensagem(Campanha campanha, Template template, boolean email) {
         if (email && campanha.getEmailMsg() != null) {
             return campanha.getEmailMsg();
@@ -167,12 +181,14 @@ public class CampanhaService {
         campanha.setEmailMsg(dto.emailMsg());
         campanha.setTemplateId(dto.templateId());
         campanha.setIntervaloSegundos(dto.intervaloSegundos());
+        campanha.setWhatsappNumeroId(dto.whatsappNumeroId());
     }
 
     private CampanhaDTO toDTO(Campanha c) {
         return new CampanhaDTO(c.getId(), c.getNome(), c.getObjetivo(), c.getCanal(), c.getResponsavel(),
                 c.getStatus(), c.getInicio(), c.getEmailMsg(), c.getTemplateId(),
                 Boolean.TRUE.equals(c.getArquivado()), c.getAtualizadoEm(),
-                c.getIntervaloSegundos() != null ? c.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
+                c.getIntervaloSegundos() != null ? c.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS,
+                c.getWhatsappNumeroId());
     }
 }

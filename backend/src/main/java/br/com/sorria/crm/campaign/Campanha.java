@@ -41,6 +41,10 @@ public class Campanha {
     // antiga = usa o default de 3s no service, nao trava a leitura.
     private Integer intervaloSegundos;
 
+    // Qual instancia de WhatsApp usar pra disparar (ver WhatsAppNumero). Null =
+    // usa o numero padrao/o unico configurado - mantem campanhas antigas funcionando.
+    private Long whatsappNumeroId;
+
     // Wrapper (nao primitivo) de proposito: coluna nova numa tabela que ja tem
     // linhas, ddl-auto:update nao faz backfill, entao registros antigos ficam
     // com null aqui — e null != false pra um boolean primitivo (quebraria a leitura).

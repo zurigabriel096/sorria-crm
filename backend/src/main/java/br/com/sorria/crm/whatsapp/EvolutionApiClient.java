@@ -44,6 +44,15 @@ public class EvolutionApiClient {
      * fora da API Business oficial (erro 473), entao nao ha suporte a botoes aqui.
      */
     public String enviarMensagem(String telefone, String mensagem) {
+        return enviarMensagem(telefone, mensagem, apiKey);
+    }
+
+    /**
+     * Mesmo envio, mas permitindo escolher OUTRA instancia (token) que nao a
+     * configurada por padrao - usado quando a campanha aponta pra um numero
+     * secundario cadastrado em WhatsAppNumero.
+     */
+    public String enviarMensagem(String telefone, String mensagem, String tokenInstancia) {
         if (baseUrl == null || baseUrl.isBlank()) {
             log.info("[Evolution API simulada] Envio para {}: {}", telefone, mensagem);
             return statusAleatorio();
@@ -57,7 +66,7 @@ public class EvolutionApiClient {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("apikey", apiKey);
+            headers.set("apikey", tokenInstancia != null && !tokenInstancia.isBlank() ? tokenInstancia : apiKey);
 
             Map<String, Object> body = Map.of(
                     "number", telefone,
@@ -76,25 +85,40 @@ public class EvolutionApiClient {
      * Consulta o estado real da conexao (GET /instance/status). Leitura pura,
      * sem efeito colateral algum na sessao do WhatsApp.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> obterStatus() {
         if (baseUrl == null || baseUrl.isBlank()) {
             return Map.of("connected", true, "loggedIn", true, "nome", "Simulado (modo demo)", "telefone", "");
         }
+        Map<String, Object> status = obterStatus(apiKey);
+        return Map.of(
+                "connected", status.get("connected"),
+                "loggedIn", status.get("loggedIn"),
+                "nome", status.get("nome"),
+                "telefone", obterNumeroConectado());
+    }
+
+    /**
+     * Mesma consulta de status, mas de uma instancia qualquer (por token) -
+     * usada pra mostrar o status ao vivo de numeros secundarios cadastrados.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> obterStatus(String tokenInstancia) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return Map.of("connected", false, "loggedIn", false, "nome", "");
+        }
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.set("apikey", apiKey);
+            headers.set("apikey", tokenInstancia);
             ResponseEntity<Map> resp = restTemplate.exchange(
                     baseUrl + "/instance/status", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
             return Map.of(
                     "connected", Boolean.TRUE.equals(data.get("Connected")),
                     "loggedIn", Boolean.TRUE.equals(data.get("LoggedIn")),
-                    "nome", String.valueOf(data.getOrDefault("Name", "")),
-                    "telefone", obterNumeroConectado());
+                    "nome", String.valueOf(data.getOrDefault("Name", "")));
         } catch (RestClientException ex) {
             log.warn("Falha ao consultar status da Evolution API: {}", ex.getMessage());
-            return Map.of("connected", false, "loggedIn", false, "nome", "", "telefone", "");
+            return Map.of("connected", false, "loggedIn", false, "nome", "");
         }
     }
 
