@@ -46,13 +46,15 @@ export function importarPlanilha(file, cb) {
     const wb = XLSX.read(e.target.result, { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
-    let hi = rows.findIndex((r) => r.some((c) => String(c).toLowerCase().includes("paciente")));
+    const ehCabecalhoNome = (c) => { const t = String(c).toLowerCase(); return t.includes("paciente") || t.includes("nome") || t.includes("lead") || t.includes("cliente"); };
+    let hi = rows.findIndex((r) => r.some(ehCabecalhoNome));
     if (hi < 0) hi = 0;
     const headers = rows[hi].map((x) => String(x).trim());
     const tipo = detectar(headers);
     const col = (name) => headers.findIndex((x) => x.toLowerCase().includes(name));
+    const colAny = (...names) => { for (const n of names) { const i = col(n); if (i >= 0) return i; } return -1; };
     const idx = {
-      cod: col("cód") >= 0 ? col("cód") : col("código"), nome: col("paciente"), tel: col("telefone"),
+      cod: colAny("cód", "código"), nome: colAny("paciente", "nome", "lead", "cliente"), tel: colAny("telefone", "celular", "whatsapp"),
       financ: col("sit.financ") >= 0 ? col("sit.financ") : col("situação"), dentista: col("dentista"),
       ult: col("últ. atend") >= 0 ? col("últ. atend") : col("último atendimento"),
       atras: col("atrasadas"), tot: col("tot"), statusAg: col("status últ"),
