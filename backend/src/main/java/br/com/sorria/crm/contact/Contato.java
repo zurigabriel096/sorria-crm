@@ -48,6 +48,12 @@ public class Contato {
     // ContatoService.listarVisiveisPara.
     private Long responsavelId;
 
+    // Posicao do card dentro da coluna do Kanban (ordenacao "fracionaria" tipo
+    // Trello: ao arrastar um card entre dois outros, o novo valor fica na media
+    // dos vizinhos, sem precisar renumerar o resto da coluna). Null = ainda nao
+    // foi reordenado manualmente, cai no fallback por id.
+    private Double ordemKanban;
+
     private boolean elegivel;
 
     private String enviado;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { Card } from "../components/ui/Card";
@@ -32,6 +32,66 @@ function AvatarResponsavel({ colaborador, size = 24 }) {
       display: "grid", placeItems: "center", fontSize: size * 0.42, fontWeight: 700,
     }}>
       {iniciais(colaborador.nome)}
+    </div>
+  );
+}
+
+// Campo clicavel de multi-selecao pra filtrar por responsavel (em vez de um
+// botao por pessoa, que nao escala com muitos colaboradores). Selecionar
+// alguem aqui desmarca o chip "Sem responsavel" (sao modos excludentes).
+function SeletorResponsaveis({ colaboradores, selecionados, onAlternar }) {
+  const [aberto, setAberto] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setAberto(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const rotulo = !selecionados.length
+    ? "Filtrar por responsável..."
+    : selecionados.length === 1
+    ? colaboradores.find((c) => String(c.id) === selecionados[0])?.nome || "1 selecionado"
+    : `${selecionados.length} responsáveis selecionados`;
+
+  return (
+    <div style={{ position: "relative" }} ref={ref}>
+      <button
+        onClick={() => setAberto((o) => !o)}
+        style={{
+          padding: "5px 11px", borderRadius: 20, fontSize: 11.5, fontWeight: 700,
+          background: selecionados.length ? T.primarySoft : T.lineSoft,
+          color: selecionados.length ? T.primaryDark : T.inkSoft,
+          display: "inline-flex", alignItems: "center", gap: 6,
+        }}
+      >
+        {rotulo} <span style={{ fontSize: 9 }}>▾</span>
+      </button>
+      {aberto && (
+        <div className="pop" style={{
+          position: "absolute", top: 32, left: 0, minWidth: 220, maxHeight: 260, overflowY: "auto",
+          background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10,
+          boxShadow: "0 10px 30px rgba(20,40,55,.14)", zIndex: 40, padding: 6,
+        }}>
+          {!colaboradores.length && (
+            <div style={{ fontSize: 12.5, color: T.inkSoft, padding: "8px 10px" }}>Nenhum colaborador cadastrado.</div>
+          )}
+          {colaboradores.map((c) => {
+            const marcado = selecionados.includes(String(c.id));
+            return (
+              <label
+                key={c.id}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 7, fontSize: 13, fontWeight: 600, color: T.ink, cursor: "pointer" }}
+                className="navItem"
+              >
+                <input type="checkbox" checked={marcado} onChange={() => onAlternar(String(c.id))} />
+                {c.nome}
+              </label>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -230,7 +290,8 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const [novaColuna, setNovaColuna] = useState(false);
   const [nomeNovaColuna, setNomeNovaColuna] = useState("");
   const [colaboradores, setColaboradores] = useState([]);
-  const [filtroResponsavel, setFiltroResponsavel] = useState("todos"); // "todos" | "sem" | id do colaborador (string)
+  const [filtroSemResponsavel, setFiltroSemResponsavel] = useState(false);
+  const [filtroResponsaveisSel, setFiltroResponsaveisSel] = useState([]); // ids (string) selecionados no campo
   const [iniciarAberto, setIniciarAberto] = useState(false);
 
   useEffect(() => { listColaboradores().then(setColaboradores).catch(() => setColaboradores([])); }, []);
@@ -268,11 +329,26 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     ...numeros.map((n) => ({ valor: String(n.id), rotulo: n.nome })),
   ];
 
-  const moverLead = async (contatoId, novaEtapaNome) => {
+  // Ordenacao "fracionaria" tipo Trello: a posicao de um card e' um numero
+  // (ordemKanban) que fica entre os vizinhos na hora de soltar. Cards sem
+  // ordemKanban ainda (leads antigos, de antes dessa funcionalidade existir)
+  // usam o proprio id como posicao de fallback, pra manter a ordem estavel.
+  const posicao = (p) => p.ordemKanban ?? p.id;
+
+  // vizinhos: lista ja ordenada dos cards no destino, SEM o card arrastado.
+  // indiceAlvo: posicao onde o card deve entrar (0 = antes de tudo).
+  const moverParaPosicao = async (contatoId, novaEtapaNome, vizinhos, indiceAlvo) => {
     const lead = patients.find((p) => p.id === contatoId);
-    if (!lead || (lead.estagio || "Lead") === novaEtapaNome) return;
+    if (!lead) return;
+    let novaOrdem;
+    if (!vizinhos.length) novaOrdem = 0;
+    else if (indiceAlvo <= 0) novaOrdem = posicao(vizinhos[0]) - 1;
+    else if (indiceAlvo >= vizinhos.length) novaOrdem = posicao(vizinhos[vizinhos.length - 1]) + 1;
+    else novaOrdem = (posicao(vizinhos[indiceAlvo - 1]) + posicao(vizinhos[indiceAlvo])) / 2;
+
+    if ((lead.estagio || "Lead") === novaEtapaNome && novaOrdem === posicao(lead)) return;
     try {
-      await onAtualizarPaciente({ ...lead, estagio: novaEtapaNome });
+      await onAtualizarPaciente({ ...lead, estagio: novaEtapaNome, ordemKanban: novaOrdem });
     } catch (e) {
       showToast(e.message || "Erro ao mover lead", "warn");
     }
@@ -311,16 +387,20 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     }
   };
 
-  const responsaveisFiltro = [
-    { valor: "todos", rotulo: "Todos" },
-    { valor: "sem", rotulo: "Sem responsável" },
-    ...colaboradores.map((c) => ({ valor: String(c.id), rotulo: c.nome })),
-  ];
-
   const passaFiltroResponsavel = (p) => {
-    if (filtroResponsavel === "todos") return true;
-    if (filtroResponsavel === "sem") return !p.responsavelId;
-    return String(p.responsavelId) === filtroResponsavel;
+    if (filtroSemResponsavel) return !p.responsavelId;
+    if (filtroResponsaveisSel.length) return filtroResponsaveisSel.includes(String(p.responsavelId));
+    return true;
+  };
+
+  const alternarSemResponsavel = () => {
+    setFiltroSemResponsavel((v) => !v);
+    setFiltroResponsaveisSel([]);
+  };
+
+  const alternarResponsavelSel = (id) => {
+    setFiltroResponsaveisSel((sel) => (sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]));
+    setFiltroSemResponsavel(false);
   };
 
   return (
@@ -339,21 +419,21 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 11.5, fontWeight: 700, color: T.inkSoft }}>Responsável:</span>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {responsaveisFiltro.map((r) => (
-            <button
-              key={r.valor}
-              onClick={() => setFiltroResponsavel(r.valor)}
-              style={{
-                padding: "5px 11px", borderRadius: 20, fontSize: 11.5, fontWeight: 700,
-                background: filtroResponsavel === r.valor ? T.primarySoft : T.lineSoft,
-                color: filtroResponsavel === r.valor ? T.primaryDark : T.inkSoft,
-              }}
-            >
-              {r.rotulo}
-            </button>
-          ))}
-        </div>
+        <button
+          onClick={alternarSemResponsavel}
+          style={{
+            padding: "5px 11px", borderRadius: 20, fontSize: 11.5, fontWeight: 700,
+            background: filtroSemResponsavel ? T.primarySoft : T.lineSoft,
+            color: filtroSemResponsavel ? T.primaryDark : T.inkSoft,
+          }}
+        >
+          Sem responsável
+        </button>
+        <SeletorResponsaveis
+          colaboradores={colaboradores}
+          selecionados={filtroResponsaveisSel}
+          onAlternar={alternarResponsavelSel}
+        />
       </div>
       {selecao !== "todos" && (
         <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: -8 }}>
@@ -365,13 +445,20 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
       ) : (
         <div style={{ display: "flex", gap: 14, alignItems: "start", overflowX: "auto", paddingBottom: 8 }}>
           {etapas.map((etapa) => {
-            const doEstagio = patients.filter((p) => (p.estagio || "Lead") === etapa.nome && passaFiltroResponsavel(p));
+            const doEstagio = patients
+              .filter((p) => (p.estagio || "Lead") === etapa.nome && passaFiltroResponsavel(p))
+              .sort((a, b) => posicao(a) - posicao(b));
             return (
               <div
                 key={etapa.id}
                 style={{ display: "grid", gap: 10, alignContent: "start", minWidth: 240, width: 240, flexShrink: 0 }}
                 onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); moverLead(Number(e.dataTransfer.getData("text/plain")), etapa.nome); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const draggedId = Number(e.dataTransfer.getData("text/plain"));
+                  const vizinhos = doEstagio.filter((x) => x.id !== draggedId);
+                  moverParaPosicao(draggedId, etapa.nome, vizinhos, vizinhos.length);
+                }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {renomeando === etapa.id ? (
@@ -402,6 +489,16 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                     key={p.id}
                     draggable
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", String(p.id))}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const draggedId = Number(e.dataTransfer.getData("text/plain"));
+                      if (draggedId === p.id) return;
+                      const vizinhos = doEstagio.filter((x) => x.id !== draggedId);
+                      const indiceAlvo = vizinhos.findIndex((x) => x.id === p.id);
+                      moverParaPosicao(draggedId, etapa.nome, vizinhos, indiceAlvo);
+                    }}
                     style={{ ...s.campCard, cursor: "grab", position: "relative", paddingBottom: 22 }}
                     onClick={() => setChatAberto(p)}
                   >

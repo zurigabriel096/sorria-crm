@@ -204,13 +204,14 @@ public class ContatoService {
         contato.setEnviado(dto.enviado() != null ? dto.enviado() : "Pendente");
         contato.setTags(dto.tags() != null ? new ArrayList<>(dto.tags()) : new ArrayList<>());
         contato.setOrigem(dto.origem());
+        if (dto.ordemKanban() != null) contato.setOrdemKanban(dto.ordemKanban());
     }
 
     private ContatoDTO toDTO(Contato c) {
         return new ContatoDTO(
                 c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(),
                 c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getSegmento(), c.getEstagio(),
-                c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem()
+                c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban()
         );
     }
 }

@@ -20,6 +20,7 @@ public record ContatoDTO(
         boolean elegivel,
         String enviado,
         List<String> tags,
-        String origem
+        String origem,
+        Double ordemKanban
 ) {
 }

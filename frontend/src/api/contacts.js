@@ -24,6 +24,7 @@ function fromApi(c) {
     enviado: c.enviado || "Pendente",
     tags: c.tags || [],
     origem: c.origem || "",
+    ordemKanban: c.ordemKanban ?? null,
   };
 }
 
@@ -44,6 +45,7 @@ function toApi(p) {
     enviado: p.enviado || "Pendente",
     tags: p.tags || [],
     origem: p.origem || null,
+    ordemKanban: p.ordemKanban ?? null,
   };
 }
 
