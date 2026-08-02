@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -66,6 +67,16 @@ public class Contato {
     private List<String> tags = new ArrayList<>();
 
     private String origem;
+
+    // Denormalizado a partir de Mensagem (ver MensagemService.enviar/registrarEntrada)
+    // - so o proprio servico grava isso, nunca vem de fora via PUT/POST. Existe
+    // pra a Fila de Trabalho (F3) ordenar/filtrar por "tempo sem resposta" sem
+    // precisar consultar Mensagem por contato toda vez - essencial em escala
+    // (centenas/milhares de leads).
+    private LocalDateTime ultimaMensagemEm;
+
+    // "ENTRADA" | "SAIDA" - direcao da ultima mensagem trocada com esse lead.
+    private String ultimaMensagemDirecao;
 
     // Valores dos campos customizados (ver br.com.sorria.crm.campo.CampoCustomizado),
     // chave = nome do campo. Guardado sempre como texto (a UI converte pro tipo

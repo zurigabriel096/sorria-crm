@@ -90,7 +90,18 @@ public class MensagemService {
         mensagem.setTexto(req.texto());
         mensagem.setEnviadoPorUsuarioId(usuario.getId());
         mensagem.setNumeroAlternativo(req.whatsappNumeroId() != null);
-        return toDTO(mensagemRepository.save(mensagem));
+        Mensagem salva = mensagemRepository.save(mensagem);
+        atualizarUltimaMensagem(contato, salva);
+        return toDTO(salva);
+    }
+
+    // Denormalizado pra a futura Fila de Trabalho ordenar/filtrar por "tempo
+    // sem resposta" sem consultar Mensagem por contato toda vez - essencial
+    // em escala (ver analise "Kanban nao escala").
+    private void atualizarUltimaMensagem(Contato contato, Mensagem mensagem) {
+        contato.setUltimaMensagemEm(mensagem.getCriadoEm());
+        contato.setUltimaMensagemDirecao(mensagem.getDirecao());
+        contatoRepository.save(contato);
     }
 
     // Recebe o payload cru do webhook da Evolution (POST /api/whatsapp/webhook)
@@ -137,7 +148,8 @@ public class MensagemService {
         mensagem.setDirecao(ENTRADA);
         mensagem.setTexto(texto);
         mensagem.setPayloadBrutoMidia(payloadBrutoMidia);
-        mensagemRepository.save(mensagem);
+        Mensagem salva = mensagemRepository.save(mensagem);
+        atualizarUltimaMensagem(contato, salva);
     }
 
     // Devolve [texto, payloadBrutoDaMidiaOuNull]. Mensagem de texto simples (o

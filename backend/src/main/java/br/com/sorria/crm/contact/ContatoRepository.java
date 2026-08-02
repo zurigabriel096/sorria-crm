@@ -17,6 +17,8 @@ public interface ContatoRepository extends JpaRepository<Contato, Long> {
 
     List<Contato> findByTagsContaining(String tag);
 
+    List<Contato> findByEstagio(String estagio);
+
     List<Contato> findByElegivelTrueAndEnviado(String enviado);
 
     List<Contato> findByElegivelTrue();

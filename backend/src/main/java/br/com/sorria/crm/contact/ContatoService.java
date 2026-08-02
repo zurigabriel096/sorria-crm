@@ -16,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -152,6 +153,7 @@ public class ContatoService {
     }
 
     private void mesclarNoExistente(Contato existente, ContatoDTO novo) {
+        String estagioAntigo = existente.getEstagio();
         if (vazio(existente.getCod())) existente.setCod(novo.cod());
         if (vazio(existente.getEmail())) existente.setEmail(novo.email());
         if (vazio(existente.getFinanc()) || "—".equals(existente.getFinanc())) existente.setFinanc(novo.financ());
@@ -173,9 +175,11 @@ public class ContatoService {
                 }
             });
         }
+        sincronizarTagDeEtapa(existente, estagioAntigo, existente.getEstagio());
     }
 
     private void mesclarEntidades(Contato principal, Contato duplicado) {
+        String estagioAntigo = principal.getEstagio();
         if (vazio(principal.getCod())) principal.setCod(duplicado.getCod());
         if (vazio(principal.getEmail())) principal.setEmail(duplicado.getEmail());
         if (vazio(principal.getFinanc()) || "—".equals(principal.getFinanc())) principal.setFinanc(duplicado.getFinanc());
@@ -193,13 +197,30 @@ public class ContatoService {
                 principal.getCamposCustomizados().put(chave, valor);
             }
         });
+        sincronizarTagDeEtapa(principal, estagioAntigo, principal.getEstagio());
     }
 
     private static boolean vazio(String s) {
         return s == null || s.isBlank();
     }
 
+    // Regra de automacao das etapas: toda vez que o estagio de um lead muda,
+    // a tag da etapa anterior sai e a tag da nova etapa entra - garante
+    // consistencia entre Kanban, Segmentacoes e Campanhas sem depender de
+    // ninguem lembrar de mexer na tag manualmente. Fica aqui (nao no
+    // frontend) de proposito: e' o unico jeito de cobrir TODOS os caminhos
+    // que mudam estagio (arrastar no Kanban, editar o cadastro, importacao,
+    // futuro motor de automacao) com uma regra so.
+    private void sincronizarTagDeEtapa(Contato contato, String estagioAntigo, String estagioNovo) {
+        if (Objects.equals(estagioAntigo, estagioNovo)) return;
+        List<String> tags = new ArrayList<>(contato.getTags());
+        if (!vazio(estagioAntigo)) tags.remove(estagioAntigo);
+        if (!vazio(estagioNovo) && !tags.contains(estagioNovo)) tags.add(estagioNovo);
+        contato.setTags(tags);
+    }
+
     private void aplicar(ContatoDTO dto, Contato contato) {
+        String estagioAntigo = contato.getEstagio();
         contato.setCod(dto.cod());
         contato.setNome(dto.nome());
         contato.setTelefone(normalizarTelefone(dto.telefone()));
@@ -216,6 +237,7 @@ public class ContatoService {
         contato.setOrigem(dto.origem());
         if (dto.ordemKanban() != null) contato.setOrdemKanban(dto.ordemKanban());
         if (dto.camposCustomizados() != null) contato.setCamposCustomizados(new HashMap<>(dto.camposCustomizados()));
+        sincronizarTagDeEtapa(contato, estagioAntigo, dto.estagio());
     }
 
     private ContatoDTO toDTO(Contato c) {
@@ -223,7 +245,7 @@ public class ContatoService {
                 c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(),
                 c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getEstagio(),
                 c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban(),
-                c.getCamposCustomizados()
+                c.getCamposCustomizados(), c.getUltimaMensagemEm(), c.getUltimaMensagemDirecao()
         );
     }
 }

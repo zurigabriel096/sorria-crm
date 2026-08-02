@@ -2,6 +2,7 @@ package br.com.sorria.crm.contact.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -22,6 +23,9 @@ public record ContatoDTO(
         List<String> tags,
         String origem,
         Double ordemKanban,
-        Map<String, String> camposCustomizados
+        Map<String, String> camposCustomizados,
+        // Somente leitura - gravado so por MensagemService, ignorado se vier num PUT/POST.
+        LocalDateTime ultimaMensagemEm,
+        String ultimaMensagemDirecao
 ) {
 }

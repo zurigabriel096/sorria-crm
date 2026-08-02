@@ -25,4 +25,11 @@ public class Tag {
 
     @Column(nullable = false)
     private String cor;
+
+    // Preenchido quando essa tag e' a tag automatica de uma coluna do Kanban
+    // (ver EtapaKanbanService) - null pra tags criadas livremente pelo
+    // usuario em Segmentacoes. So marca a origem; nao ha FK de verdade
+    // porque excluir a coluna nao deve apagar a tag (leads que ja passaram
+    // por ali mantem o historico).
+    private Long etapaId;
 }

@@ -25,6 +25,9 @@ function fromApi(c) {
     origem: c.origem || "",
     ordemKanban: c.ordemKanban ?? null,
     camposCustomizados: c.camposCustomizados || {},
+    // Somente leitura - quem grava e' o backend a cada mensagem trocada.
+    ultimaMensagemEm: c.ultimaMensagemEm || null,
+    ultimaMensagemDirecao: c.ultimaMensagemDirecao || null,
   };
 }
 
