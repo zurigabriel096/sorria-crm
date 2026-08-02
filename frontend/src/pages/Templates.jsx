@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { dataHora } from "../utils/format";
@@ -110,6 +110,28 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
   );
 }
 
+// Botões de formatação do WhatsApp (negrito *texto*, itálico _texto_, tachado
+// ~texto~, citação "> texto") - aparecem numa janelinha flutuante perto da
+// seleção, igual editores tipo Notion/Medium, em vez de precisar decorar a
+// sintaxe do WhatsApp.
+function ToolbarFormatacao({ x, y, onAplicar }) {
+  const btn = { width: 30, height: 30, borderRadius: 6, color: "#fff", fontSize: 14, fontWeight: 700, display: "grid", placeItems: "center" };
+  return (
+    <div
+      style={{
+        position: "absolute", left: x, top: y, transform: "translate(-50%, calc(-100% - 8px))",
+        background: T.ink, borderRadius: 10, padding: 4, display: "flex", gap: 2,
+        boxShadow: "0 8px 22px rgba(0,0,0,.28)", zIndex: 50,
+      }}
+    >
+      <button style={btn} title="Negrito" onMouseDown={(e) => e.preventDefault()} onClick={() => onAplicar("negrito")}>B</button>
+      <button style={{ ...btn, fontStyle: "italic" }} title="Itálico" onMouseDown={(e) => e.preventDefault()} onClick={() => onAplicar("italico")}>I</button>
+      <button style={{ ...btn, textDecoration: "line-through" }} title="Tachado" onMouseDown={(e) => e.preventDefault()} onClick={() => onAplicar("tachado")}>S</button>
+      <button style={btn} title="Citação" onMouseDown={(e) => e.preventDefault()} onClick={() => onAplicar("citacao")}>”</button>
+    </div>
+  );
+}
+
 function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
   const [t, setT] = useState(tpl);
   const set = (k, v) => setT((x) => ({ ...x, [k]: v }));
@@ -121,6 +143,39 @@ function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
     r.readAsDataURL(f);
   };
 
+  const areaRef = useRef(null);
+  const [toolbar, setToolbar] = useState(null);
+
+  const detectarSelecao = (e) => {
+    const el = areaRef.current;
+    if (!el || el.selectionStart === el.selectionEnd) { setToolbar(null); return; }
+    const rect = el.getBoundingClientRect();
+    setToolbar({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const aplicarFormato = (tipo) => {
+    const el = areaRef.current;
+    const { selectionStart: start, selectionEnd: end } = el;
+    if (start === end) return;
+    const texto = t.corpo || "";
+    const selecionado = texto.slice(start, end);
+    let novoSelecionado, deslocInicio;
+    if (tipo === "citacao") {
+      novoSelecionado = selecionado.split("\n").map((l) => `> ${l}`).join("\n");
+      deslocInicio = 2;
+    } else {
+      const marcador = tipo === "negrito" ? "*" : tipo === "italico" ? "_" : "~";
+      novoSelecionado = `${marcador}${selecionado}${marcador}`;
+      deslocInicio = marcador.length;
+    }
+    set("corpo", texto.slice(0, start) + novoSelecionado + texto.slice(end));
+    setToolbar(null);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + deslocInicio, start + deslocInicio + selecionado.length);
+    });
+  };
+
   return (
     <Modal title="Template de WhatsApp" onClose={onClose} wide>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -130,7 +185,19 @@ function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
         <Field label="Status"><Select block value={t.ativo ? "Ativo" : "Inativo"} onChange={(v) => set("ativo", v === "Ativo")} options={["Ativo", "Inativo"]} /></Field>
       </div>
       <Field label={`Corpo da mensagem (${t.corpo.length} caracteres — ideal ≤135)`}>
-        <textarea style={{ ...s.textarea, borderColor: t.corpo.length > 135 ? T.coral : T.line }} rows={3} value={t.corpo} onChange={(e) => set("corpo", e.target.value)} placeholder="Use {nome}, {data}, {hora}..." />
+        <div style={{ position: "relative" }}>
+          <textarea
+            ref={areaRef}
+            style={{ ...s.textarea, borderColor: t.corpo.length > 135 ? T.coral : T.line }}
+            rows={3}
+            value={t.corpo}
+            onChange={(e) => set("corpo", e.target.value)}
+            onMouseUp={detectarSelecao}
+            onBlur={() => setToolbar(null)}
+            placeholder="Use {nome}, {data}, {hora}..."
+          />
+          {toolbar && <ToolbarFormatacao x={toolbar.x} y={toolbar.y} onAplicar={aplicarFormato} />}
+        </div>
       </Field>
       <Field label="Imagem do template (opcional)">
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
