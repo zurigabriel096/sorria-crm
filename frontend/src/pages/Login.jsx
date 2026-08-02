@@ -10,8 +10,8 @@ import { login } from "../api/auth";
 const AVISO_DELAY_MS = 4000;
 
 export function Login({ onEnter, onSupport }) {
-  const [email, setEmail] = useState("clinica@orthodonticsjc.com.br");
-  const [senha, setSenha] = useState("demodemo");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
   const [avisoLento, setAvisoLento] = useState(false);
   const [erro, setErro] = useState("");
