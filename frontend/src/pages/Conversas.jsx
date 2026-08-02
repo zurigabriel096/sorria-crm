@@ -13,7 +13,7 @@ import { listMensagens, enviarMensagem } from "../api/mensagens";
 // drag-and-drop entre colunas de proposito (mudar o Estagio continua sendo
 // feito no modal de detalhe do lead, em Base de Leads) - reposicionar
 // arrastando fica pra uma proxima leva se fizer falta.
-function ChatModal({ contato, whatsappNumeroId, onClose, showToast }) {
+function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onAbrirPaciente }) {
   const [mensagens, setMensagens] = useState(null);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -38,7 +38,20 @@ function ChatModal({ contato, whatsappNumeroId, onClose, showToast }) {
 
   return (
     <Modal title={contato.nome} onClose={onClose} wide>
-      <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 10 }}>{contato.telefone || "Sem telefone"}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <span style={{ fontSize: 12.5, color: T.inkSoft }}>{contato.telefone || "Sem telefone"}</span>
+        <button
+          style={{ fontSize: 12, fontWeight: 700, color: T.primary }}
+          onClick={() => { onAbrirPaciente(contato); onClose(); }}
+        >
+          Editar tags / estágio
+        </button>
+      </div>
+      {!!(contato.tags || []).length && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+          {contato.tags.map((t) => <span key={t} style={{ ...s.tagOk, background: T.lineSoft, color: T.inkSoft }}>{t}</span>)}
+        </div>
+      )}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 360, overflowY: "auto", padding: "4px 2px", marginBottom: 12 }}>
         {mensagens === null ? (
           <div style={{ fontSize: 13, color: T.inkSoft }}>Carregando...</div>
@@ -55,7 +68,11 @@ function ChatModal({ contato, whatsappNumeroId, onClose, showToast }) {
               </div>
               <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 3, textAlign: m.direcao === "SAIDA" ? "right" : "left" }}>
                 {m.direcao === "SAIDA" ? (m.enviadoPorNome || "Você") : "Lead"}
-                {m.numeroAlternativo && <span style={{ color: T.coral, fontWeight: 700 }}> · número alternativo</span>}
+                {m.numeroAlternativo && (
+                  <span style={{ color: T.coral, fontWeight: 700 }}>
+                    {" "}· enviado via número de {numeros.find((n) => n.id === m.whatsappNumeroId)?.nome || "outro atendente"}
+                  </span>
+                )}
               </div>
             </div>
           ))
@@ -77,7 +94,7 @@ function ChatModal({ contato, whatsappNumeroId, onClose, showToast }) {
   );
 }
 
-export function Conversas({ patients, showToast }) {
+export function Conversas({ patients, showToast, onAbrirPaciente }) {
   const [numeros, setNumeros] = useState([]);
   const [selecao, setSelecao] = useState("todos"); // "todos" | "principal" | id do numero (string)
   const [contatoIdsFiltro, setContatoIdsFiltro] = useState(null); // null = sem filtro (mostra todos)
@@ -147,7 +164,7 @@ export function Conversas({ patients, showToast }) {
         </div>
       )}
       {chatAberto && (
-        <ChatModal contato={chatAberto} whatsappNumeroId={numeroEnvio} onClose={() => setChatAberto(null)} showToast={showToast} />
+        <ChatModal contato={chatAberto} whatsappNumeroId={numeroEnvio} numeros={numeros} onClose={() => setChatAberto(null)} showToast={showToast} onAbrirPaciente={onAbrirPaciente} />
       )}
     </div>
   );
