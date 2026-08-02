@@ -1,0 +1,4 @@
+# Backups locais e docs com dados sensiveis (PII de usuarios, tokens de API) -
+# nunca devem ir pro historico do git, mesmo em repositorio privado.
+docs/backups/
+docs/evolution-instancias.md
