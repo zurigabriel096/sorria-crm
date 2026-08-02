@@ -62,6 +62,22 @@ public class ContatoService {
         return toDTO(contatoRepository.save(contato));
     }
 
+    // Importacao de planilha: 1 unica escrita em lote (saveAll) em vez de N
+    // INSERTs isolados - o que o frontend fazia antes (uma requisicao HTTP por
+    // linha, todas em paralelo) sobrecarregava o backend em planilhas grandes
+    // (milhares de linhas = milhares de conexoes simultaneas).
+    public List<ContatoDTO> criarEmLote(List<ContatoDTO> dtos) {
+        List<Contato> contatos = dtos.stream()
+                .filter(dto -> dto.nome() != null && !dto.nome().isBlank())
+                .map(dto -> {
+                    Contato contato = new Contato();
+                    aplicar(dto, contato);
+                    return contato;
+                })
+                .toList();
+        return contatoRepository.saveAll(contatos).stream().map(this::toDTO).toList();
+    }
+
     public ContatoDTO atualizar(Long id, ContatoDTO dto) {
         Contato contato = buscarEntidade(id);
         aplicar(dto, contato);

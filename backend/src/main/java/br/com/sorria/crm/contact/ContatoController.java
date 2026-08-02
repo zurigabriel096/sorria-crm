@@ -37,6 +37,15 @@ public class ContatoController {
         return contatoService.criar(dto);
     }
 
+    // Importacao de planilha: 1 requisicao com todas as linhas, em vez do
+    // frontend disparar centenas/milhares de POSTs simultaneos (isso chegava a
+    // sobrecarregar o backend em bases grandes - ver criarEmLote).
+    @PostMapping("/lote")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<ContatoDTO> criarEmLote(@RequestBody List<ContatoDTO> dtos) {
+        return contatoService.criarEmLote(dtos);
+    }
+
     @PutMapping("/{id}")
     public ContatoDTO atualizar(@PathVariable Long id, @Valid @RequestBody ContatoDTO dto) {
         return contatoService.atualizar(id, dto);

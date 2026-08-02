@@ -23,7 +23,7 @@ import { Suporte } from "./pages/Suporte";
 import { Config } from "./pages/Config";
 
 import { logout as apiLogout } from "./api/auth";
-import { listContacts, createContact, updateContact } from "./api/contacts";
+import { listContacts, createContact, updateContact, createContactsLote } from "./api/contacts";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
 import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
@@ -125,9 +125,12 @@ export default function App() {
     return () => { cancelado = true; clearInterval(intervalo); };
   }, [authed]);
 
+  // 1 requisicao com a planilha inteira - antes disparava uma por linha em
+  // paralelo, o que sobrecarregava o backend em bases grandes (milhares de
+  // linhas = milhares de conexoes simultaneas).
   const onImport = async (res) => {
     try {
-      await Promise.all(res.pacientes.map((p) => createContact(p)));
+      await createContactsLote(res.pacientes);
       showToast(`Planilha "${res.tipo}" importada: ${res.pacientes.length} pacientes`, "ok");
       const pacientesAtualizados = await listContacts();
       setPatients(pacientesAtualizados);

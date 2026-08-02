@@ -22,7 +22,7 @@ export function ImportBox({ onImport, showToast, compact }) {
       <IconUpload color={T.primary} />
       <div>
         <div style={{ fontWeight: 700, color: T.ink, fontSize: 14 }}>Importar Lead (.xlsx)</div>
-        <div style={{ fontSize: 12.5, color: T.inkSoft }}>Arraste ou clique. Reconhece Inadimplentes, Sem Agendamento e Agenda. Os dados ficam só no seu navegador.</div>
+        <div style={{ fontSize: 12.5, color: T.inkSoft }}>Arraste ou clique. Reconhece Inadimplentes, Sem Agendamento e Agenda. Os dados ficam salvos no servidor — acesse de qualquer computador, sem precisar subir a planilha de novo.</div>
       </div>
     </div>
   );

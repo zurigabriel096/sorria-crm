@@ -51,3 +51,7 @@ export const listContacts = async () => (await api.get("/api/contacts")).map(fro
 export const createContact = async (patient) => fromApi(await api.post("/api/contacts", toApi(patient)));
 export const updateContact = async (id, patient) => fromApi(await api.put(`/api/contacts/${id}`, toApi(patient)));
 export const deleteContact = (id) => api.del(`/api/contacts/${id}`);
+
+// Importação de planilha: 1 única requisição com todas as linhas, em vez de
+// uma por linha em paralelo (isso sobrecarregava o backend em bases grandes).
+export const createContactsLote = async (patients) => (await api.post("/api/contacts/lote", patients.map(toApi))).map(fromApi);
