@@ -114,6 +114,38 @@ public class ContatoService {
         contatoRepository.deleteById(id);
     }
 
+    // Usado pelo AutomacaoEngineService (no "alterar_estagio") - passa pela
+    // mesma sincronizarTagDeEtapa que os outros caminhos (Kanban, importacao,
+    // merge de duplicado), senao a automacao move o lead sem atualizar a tag.
+    public void alterarEstagio(Long contatoId, String novoEstagio) {
+        Contato contato = buscarEntidade(contatoId);
+        String estagioAntigo = contato.getEstagio();
+        contato.setEstagio(novoEstagio);
+        sincronizarTagDeEtapa(contato, estagioAntigo, novoEstagio);
+        contatoRepository.save(contato);
+    }
+
+    // Usado pelo AutomacaoEngineService (nos "adicionar_tag"/"remover_tag").
+    public void adicionarTag(Long contatoId, String tag) {
+        if (vazio(tag)) return;
+        Contato contato = buscarEntidade(contatoId);
+        if (contato.getTags().contains(tag)) return;
+        List<String> tags = new ArrayList<>(contato.getTags());
+        tags.add(tag);
+        contato.setTags(tags);
+        contatoRepository.save(contato);
+    }
+
+    public void removerTag(Long contatoId, String tag) {
+        if (vazio(tag)) return;
+        Contato contato = buscarEntidade(contatoId);
+        if (!contato.getTags().contains(tag)) return;
+        List<String> tags = new ArrayList<>(contato.getTags());
+        tags.remove(tag);
+        contato.setTags(tags);
+        contatoRepository.save(contato);
+    }
+
     // Limpeza dos duplicados que ja existem na base (ex.: dois cadastros pro
     // mesmo lead, criados antes desta trava existir). Agrupa por telefone; de
     // cada grupo, o cadastro mais antigo (menor id) vira o "principal" e
