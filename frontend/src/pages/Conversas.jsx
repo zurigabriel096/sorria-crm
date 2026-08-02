@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { T, ESTAGIOS_LEAD } from "../theme";
+import { T } from "../theme";
 import { s } from "../styles/s";
 import { Card } from "../components/ui/Card";
 import { Modal } from "../components/ui/Modal";
+import { DotMenu } from "../components/ui/DotMenu";
 import { listNumeros, contatosPorNumero } from "../api/whatsappNumeros";
 import { listMensagens, enviarMensagem } from "../api/mensagens";
 import { getWhatsAppStatus } from "../api/whatsapp";
+import { listEtapas, createEtapa, renameEtapa, deleteEtapa } from "../api/etapas";
+import { dataHora } from "../utils/format";
+
+const POLL_MENSAGENS_MS = 4000;
 
 // Kanban de conversas: escolhe um numero de WhatsApp, ve so os leads que ja
 // trocaram mensagem por ELE (posicionados por Estagio), e responde direto
-// pelo card - a resposta sai pelo numero selecionado aqui. v1 nao tem
-// drag-and-drop entre colunas de proposito (mudar o Estagio continua sendo
-// feito no modal de detalhe do lead, em Base de Leads) - reposicionar
-// arrastando fica pra uma proxima leva se fizer falta.
+// pelo card - a resposta sai pelo numero selecionado aqui. Colunas vem do
+// cadastro EtapaKanban (editavel por ADMIN: criar/renomear/excluir), nao mais
+// de um array fixo. Arrastar um card muda o Estagio do lead de verdade.
 function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onAbrirPaciente }) {
   const [mensagens, setMensagens] = useState(null);
   const [texto, setTexto] = useState("");
@@ -20,6 +24,13 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
 
   const carregar = () => listMensagens(contato.id).then(setMensagens).catch(() => setMensagens([]));
   useEffect(() => { carregar(); }, [contato.id]);
+  // Atualiza sozinho enquanto a conversa estiver aberta - sem isso, uma
+  // resposta que chega pelo webhook so aparecia fechando e reabrindo o card.
+  useEffect(() => {
+    const intervalo = setInterval(carregar, POLL_MENSAGENS_MS);
+    return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contato.id]);
 
   const enviar = async () => {
     if (!texto.trim()) return;
@@ -67,7 +78,7 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
                 {m.texto}
               </div>
               <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 3, textAlign: m.direcao === "SAIDA" ? "right" : "left" }}>
-                {m.direcao === "SAIDA" ? (m.enviadoPorNome || "Você") : "Lead"}
+                {m.direcao === "SAIDA" ? (m.enviadoPorNome || "Você") : "Lead"} · {dataHora(m.criadoEm)}
                 {m.numeroAlternativo && (
                   <span style={{ color: T.coral, fontWeight: 700 }}>
                     {" "}· enviado via número de {numeros.find((n) => n.id === m.whatsappNumeroId)?.nome || "outro atendente"}
@@ -94,14 +105,22 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
   );
 }
 
-export function Conversas({ patients, showToast, onAbrirPaciente }) {
+export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPaciente, usuario }) {
+  const souAdmin = usuario?.papel === "ADMIN";
   const [numeros, setNumeros] = useState([]);
   const [nomePrincipal, setNomePrincipal] = useState("");
   const [selecao, setSelecao] = useState("todos"); // "todos" | "principal" | id do numero (string)
   const [contatoIdsFiltro, setContatoIdsFiltro] = useState(null); // null = sem filtro (mostra todos)
   const [carregandoFiltro, setCarregandoFiltro] = useState(false);
   const [chatAberto, setChatAberto] = useState(null);
+  const [etapas, setEtapas] = useState([]);
+  const [renomeando, setRenomeando] = useState(null); // id da etapa em edição de nome
+  const [nomeEdicao, setNomeEdicao] = useState("");
+  const [novaColuna, setNovaColuna] = useState(false);
+  const [nomeNovaColuna, setNomeNovaColuna] = useState("");
 
+  const carregarEtapas = () => listEtapas().then(setEtapas).catch(() => setEtapas([]));
+  useEffect(() => { carregarEtapas(); }, []);
   useEffect(() => { listNumeros().then(setNumeros).catch(() => setNumeros([])); }, []);
   useEffect(() => { getWhatsAppStatus().then((s) => setNomePrincipal(s.nome || "")).catch(() => {}); }, []);
 
@@ -123,6 +142,49 @@ export function Conversas({ patients, showToast, onAbrirPaciente }) {
     { valor: "principal", rotulo: nomePrincipal ? `${nomePrincipal} (principal)` : "Número principal" },
     ...numeros.map((n) => ({ valor: String(n.id), rotulo: n.nome })),
   ];
+
+  const moverLead = async (contatoId, novaEtapaNome) => {
+    const lead = patients.find((p) => p.id === contatoId);
+    if (!lead || (lead.estagio || "Lead") === novaEtapaNome) return;
+    try {
+      await onAtualizarPaciente({ ...lead, estagio: novaEtapaNome });
+    } catch (e) {
+      showToast(e.message || "Erro ao mover lead", "warn");
+    }
+  };
+
+  const salvarRenomeio = async (etapa) => {
+    if (!nomeEdicao.trim() || nomeEdicao.trim() === etapa.nome) { setRenomeando(null); return; }
+    try {
+      await renameEtapa(etapa.id, nomeEdicao.trim());
+      setRenomeando(null);
+      carregarEtapas();
+    } catch (e) {
+      showToast(e.message || "Erro ao renomear coluna", "warn");
+    }
+  };
+
+  const excluirEtapa = async (etapa) => {
+    if (!window.confirm(`Excluir a coluna "${etapa.nome}"? Os leads que estão nela não serão apagados, só deixam de aparecer aqui.`)) return;
+    try {
+      await deleteEtapa(etapa.id);
+      carregarEtapas();
+    } catch (e) {
+      showToast(e.message || "Erro ao excluir coluna", "warn");
+    }
+  };
+
+  const criarColuna = async () => {
+    if (!nomeNovaColuna.trim()) return;
+    try {
+      await createEtapa(nomeNovaColuna.trim());
+      setNomeNovaColuna("");
+      setNovaColuna(false);
+      carregarEtapas();
+    } catch (e) {
+      showToast(e.message || "Erro ao criar coluna", "warn");
+    }
+  };
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -150,20 +212,48 @@ export function Conversas({ patients, showToast, onAbrirPaciente }) {
       {carregandoFiltro ? (
         <Card><div style={{ textAlign: "center", padding: 30, color: T.inkSoft }}>Carregando...</div></Card>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${ESTAGIOS_LEAD.length}, 1fr)`, gap: 14, alignItems: "start" }}>
-          {ESTAGIOS_LEAD.map((estagio) => {
-            const doEstagio = patients.filter((p) => (p.estagio || "Lead") === estagio);
+        <div style={{ display: "flex", gap: 14, alignItems: "start", overflowX: "auto", paddingBottom: 8 }}>
+          {etapas.map((etapa) => {
+            const doEstagio = patients.filter((p) => (p.estagio || "Lead") === etapa.nome);
             return (
-              <div key={estagio} style={{ display: "grid", gap: 10, alignContent: "start" }}>
+              <div
+                key={etapa.id}
+                style={{ display: "grid", gap: 10, alignContent: "start", minWidth: 240, width: 240, flexShrink: 0 }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); moverLead(Number(e.dataTransfer.getData("text/plain")), etapa.nome); }}
+              >
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{estagio}</span>
+                  {renomeando === etapa.id ? (
+                    <input
+                      autoFocus
+                      style={{ ...s.input, height: 30, fontSize: 13, fontWeight: 700, flex: 1 }}
+                      value={nomeEdicao}
+                      onChange={(e) => setNomeEdicao(e.target.value)}
+                      onBlur={() => salvarRenomeio(etapa)}
+                      onKeyDown={(e) => { if (e.key === "Enter") salvarRenomeio(etapa); if (e.key === "Escape") setRenomeando(null); }}
+                    />
+                  ) : (
+                    <span style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{etapa.nome}</span>
+                  )}
                   <span style={{ ...s.tagOk, background: T.lineSoft, color: T.inkSoft }}>{doEstagio.length}</span>
+                  {souAdmin && renomeando !== etapa.id && (
+                    <DotMenu items={[
+                      { label: "Renomear", onClick: () => { setRenomeando(etapa.id); setNomeEdicao(etapa.nome); } },
+                      { label: "Excluir coluna", danger: true, onClick: () => excluirEtapa(etapa) },
+                    ]} />
+                  )}
                 </div>
                 {!doEstagio.length && (
                   <Card><div style={{ fontSize: 12, color: T.inkSoft, textAlign: "center", padding: "14px 4px" }}>Nenhum lead aqui</div></Card>
                 )}
                 {doEstagio.map((p) => (
-                  <div key={p.id} style={{ ...s.campCard, cursor: "pointer" }} onClick={() => setChatAberto(p)}>
+                  <div
+                    key={p.id}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData("text/plain", String(p.id))}
+                    style={{ ...s.campCard, cursor: "grab" }}
+                    onClick={() => setChatAberto(p)}
+                  >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{p.nome}</div>
                       {selecao !== "todos" && idsComConversa.has(p.id) && (
@@ -176,6 +266,27 @@ export function Conversas({ patients, showToast, onAbrirPaciente }) {
               </div>
             );
           })}
+          {souAdmin && (
+            <div style={{ minWidth: 240, width: 240, flexShrink: 0 }}>
+              {novaColuna ? (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    autoFocus
+                    style={{ ...s.input, height: 34, fontSize: 13, flex: 1 }}
+                    placeholder="Nome da coluna"
+                    value={nomeNovaColuna}
+                    onChange={(e) => setNomeNovaColuna(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") criarColuna(); if (e.key === "Escape") setNovaColuna(false); }}
+                  />
+                  <button style={s.btnPrimarySm} onClick={criarColuna}>OK</button>
+                </div>
+              ) : (
+                <button style={{ ...s.btnGhostSm, width: "100%", justifyContent: "center" }} onClick={() => setNovaColuna(true)}>
+                  + Nova coluna
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
       {chatAberto && (

@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { T, ESTAGIOS_LEAD } from "../theme";
+import { useEffect, useState } from "react";
+import { T } from "../theme";
+import { listEtapas } from "../api/etapas";
 import { s } from "../styles/s";
 import { exportarXlsx } from "../utils/patients";
 import { Card } from "../components/ui/Card";
@@ -13,6 +14,9 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
   const [fEleg, setFEleg] = useState(filtroInicial?.eleg || "Todos");
   const [fTag, setFTag] = useState("Todas");
   const [q, setQ] = useState("");
+  const [etapas, setEtapas] = useState([]);
+
+  useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
 
   const limpar = () => { setFSeg("Todos"); setFEstagio("Todos"); setFEleg("Todos"); setFTag("Todas"); setQ(""); };
 
@@ -38,7 +42,7 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
           <div style={s.search}><IconSearch /><input placeholder="Nome do lead..." style={s.searchInput} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         </div>
         <div><div style={s.fieldLabel}>Segmento</div><Select value={fSeg} onChange={setFSeg} options={["Todos", "VIP", "Fidelizado", "Regular", "Risco", "Inativo"]} /></div>
-        <div><div style={s.fieldLabel}>Estágio</div><Select value={fEstagio} onChange={setFEstagio} options={["Todos", ...ESTAGIOS_LEAD]} /></div>
+        <div><div style={s.fieldLabel}>Estágio</div><Select value={fEstagio} onChange={setFEstagio} options={["Todos", ...etapas.map((e) => e.nome)]} /></div>
         <div><div style={s.fieldLabel}>Elegibilidade</div><Select value={fEleg} onChange={setFEleg} options={["Todos", "Elegíveis", "A corrigir"]} /></div>
         <div><div style={s.fieldLabel}>Tag</div><Select value={fTag} onChange={setFTag} options={["Todas", ...tags]} /></div>
         <button style={s.btnGhostSm} onClick={limpar}>Limpar filtros</button>
