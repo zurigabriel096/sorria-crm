@@ -19,6 +19,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
@@ -37,6 +38,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Sem isso, o Spring Security manda 403 tanto pra "sem token/token
+                // expirado" quanto pra "logado mas sem permissao" - o frontend so
+                // sabe deslogar sozinho no 401, entao token expirado ficava parecendo
+                // "conta vazia" em vez de pedir login de novo. Agora: sem
+                // autenticacao valida = 401 (forca novo login); autenticado mas sem
+                // acesso a um recurso especifico (ex.: lead de outro colaborador,
+                // @PreAuthorize) continua 403 normalmente.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) ->
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Sessao invalida ou expirada")))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/actuator/health", "/api/whatsapp/webhook").permitAll()
                         .anyRequest().authenticated())
