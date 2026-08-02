@@ -23,7 +23,7 @@ import { Suporte } from "./pages/Suporte";
 import { Config } from "./pages/Config";
 
 import { logout as apiLogout } from "./api/auth";
-import { listContacts, createContact, updateContact, createContactsLote } from "./api/contacts";
+import { listContacts, createContact, updateContact, createContactsLote, unificarDuplicados as apiUnificarDuplicados } from "./api/contacts";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
 import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
@@ -152,6 +152,15 @@ export default function App() {
     const criado = await createContact(dados);
     setPatients((ps) => [criado, ...ps]);
     return criado;
+  };
+
+  // Limpeza de duplicados (mesmo telefone) que já existiam antes da trava de
+  // criação existir - mescla e recarrega a lista com o resultado.
+  const unificarDuplicados = async () => {
+    const { unificados } = await apiUnificarDuplicados();
+    const pacientesAtualizados = await listContacts();
+    setPatients(pacientesAtualizados);
+    showToast(unificados > 0 ? `${unificados} cadastro(s) duplicado(s) unificado(s)` : "Nenhum duplicado encontrado", "ok");
   };
 
   const abrirPaciente = (paciente, aba = "dados") => setPacienteAberto({ paciente, aba });
@@ -283,7 +292,7 @@ export default function App() {
         <Topbar view={view} usuario={usuario} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
-          {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} />}
+          {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} />}
           {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} />}
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} setTags={setTags} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}

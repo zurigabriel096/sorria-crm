@@ -8,13 +8,26 @@ import { Select } from "../components/ui/Select";
 import { ImportBox } from "../components/ui/ImportBox";
 import { IconSearch, IconDownload } from "../components/icons";
 
-export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, onAbrirPaciente }) {
+export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, onAbrirPaciente, onUnificarDuplicados, usuario }) {
+  const souAdmin = usuario?.papel === "ADMIN";
   const [fSeg, setFSeg] = useState("Todos");
   const [fEstagio, setFEstagio] = useState("Todos");
   const [fEleg, setFEleg] = useState(filtroInicial?.eleg || "Todos");
   const [fTag, setFTag] = useState("Todas");
   const [q, setQ] = useState("");
   const [etapas, setEtapas] = useState([]);
+  const [unificando, setUnificando] = useState(false);
+
+  const unificar = async () => {
+    setUnificando(true);
+    try {
+      await onUnificarDuplicados();
+    } catch (e) {
+      showToast(e.message || "Erro ao unificar duplicados", "warn");
+    } finally {
+      setUnificando(false);
+    }
+  };
 
   useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
 
@@ -47,6 +60,11 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
         <div><div style={s.fieldLabel}>Tag</div><Select value={fTag} onChange={setFTag} options={["Todas", ...tags]} /></div>
         <button style={s.btnGhostSm} onClick={limpar}>Limpar filtros</button>
         <div style={{ flex: 1 }} />
+        {souAdmin && (
+          <button style={s.btnGhostSm} disabled={unificando} onClick={unificar} title="Junta cadastros com o mesmo telefone, sem apagar dado">
+            {unificando ? "Unificando..." : "Unificar duplicados"}
+          </button>
+        )}
         <button style={s.btnGhostSm} onClick={() => exportarXlsx(patients)}><IconDownload color={T.ink} /> Exportar Lead</button>
       </div>
       <Card noPad>

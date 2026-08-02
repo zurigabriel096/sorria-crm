@@ -55,3 +55,7 @@ export const deleteContact = (id) => api.del(`/api/contacts/${id}`);
 // Importação de planilha: 1 única requisição com todas as linhas, em vez de
 // uma por linha em paralelo (isso sobrecarregava o backend em bases grandes).
 export const createContactsLote = async (patients) => (await api.post("/api/contacts/lote", patients.map(toApi))).map(fromApi);
+
+// Mescla cadastros duplicados (mesmo telefone) que ja existiam antes da
+// trava de criacao existir - nao apaga dado, so unifica.
+export const unificarDuplicados = () => api.post("/api/contacts/unificar-duplicados", {});

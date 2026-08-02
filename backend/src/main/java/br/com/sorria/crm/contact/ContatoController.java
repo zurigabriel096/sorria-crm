@@ -5,11 +5,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/contacts")
@@ -55,5 +57,14 @@ public class ContatoController {
     public ResponseEntity<Void> remover(@PathVariable Long id) {
         contatoService.remover(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Limpeza de duplicados (mesmo telefone) que ja existiam antes da trava de
+    // criacao existir - mescla os cadastros e move o historico de mensagens,
+    // nao apaga dado nenhum. Restrito a ADMIN por mexer na base inteira de uma vez.
+    @PostMapping("/unificar-duplicados")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Integer> unificarDuplicados() {
+        return Map.of("unificados", contatoService.unificarDuplicados());
     }
 }
