@@ -36,6 +36,34 @@ function AvatarResponsavel({ colaborador, size = 24 }) {
   );
 }
 
+function tempoDesde(iso) {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return `${Math.max(min, 1)}min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+// Badge de "ultima interacao" no card - substitui os campos removidos
+// (dentista/financeiro/tags/etc, que ficam so no cadastro). Vermelho quando
+// o cliente respondeu por ultimo e ninguem retornou ainda (o que mais
+// importa pra fila de trabalho); neutro quando quem respondeu por ultimo
+// fomos nos.
+function BadgeUltimaMensagem({ ultimaMensagemEm, ultimaMensagemDirecao }) {
+  if (!ultimaMensagemEm) return null;
+  const aguardando = ultimaMensagemDirecao === "ENTRADA";
+  return (
+    <span style={{
+      fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+      background: aguardando ? "#FDEBE8" : T.lineSoft,
+      color: aguardando ? T.coral : T.inkSoft,
+      display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
+    }}>
+      {aguardando ? `⏱ aguardando há ${tempoDesde(ultimaMensagemEm)}` : `✓ respondido há ${tempoDesde(ultimaMensagemEm)}`}
+    </span>
+  );
+}
+
 // Campo clicavel de multi-selecao pra filtrar por responsavel (em vez de um
 // botao por pessoa, que nao escala com muitos colaboradores). Selecionar
 // alguem aqui desmarca o chip "Sem responsavel" (sao modos excludentes).
@@ -499,7 +527,10 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                       const indiceAlvo = vizinhos.findIndex((x) => x.id === p.id);
                       moverParaPosicao(draggedId, etapa.nome, vizinhos, indiceAlvo);
                     }}
-                    style={{ ...s.campCard, cursor: "grab", position: "relative", paddingBottom: 22 }}
+                    style={{
+                      ...s.campCard, cursor: "grab", position: "relative", paddingBottom: 22,
+                      borderLeft: `3px solid ${p.ultimaMensagemDirecao === "ENTRADA" ? T.coral : "transparent"}`,
+                    }}
                     onClick={() => setChatAberto(p)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -508,7 +539,9 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                         <span style={{ color: T.primary, fontWeight: 700, fontSize: 12 }} title="Já conversou por este número">✓</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 4 }}>{p.tel || "Sem telefone"}</div>
+                    <div style={{ marginTop: 6 }}>
+                      <BadgeUltimaMensagem ultimaMensagemEm={p.ultimaMensagemEm} ultimaMensagemDirecao={p.ultimaMensagemDirecao} />
+                    </div>
                     <div style={{ position: "absolute", bottom: 8, right: 8 }}>
                       <AvatarResponsavel colaborador={colaboradores.find((c) => c.id === p.responsavelId)} />
                     </div>
