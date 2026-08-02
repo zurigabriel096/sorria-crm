@@ -12,4 +12,8 @@ EXPOSE 8080
 # container de 512MB do Render aguenta e o processo e morto por OOM (visto em
 # producao: "Ran out of memory (used over 512MB)" em loop de crash).
 # UseSerialGC porque o G1 (default) reserva memoria extra que nao cabe aqui.
-ENTRYPOINT ["java", "-Xmx320m", "-Xss256k", "-XX:MaxMetaspaceSize=96m", "-XX:+UseSerialGC", "-jar", "app.jar"]
+# MaxMetaspaceSize subiu de 96m pra 160m (com Xmx caindo de 320m pra 288m, pra
+# manter o mesmo teto de ~448MB): o app cresceu bastante desde que o limite de
+# 96m foi definido (WhatsAppNumero, Mensagem, EtapaKanban, decodificacao de
+# midia...) e passou a estourar Metaspace mesmo com o heap sobrando.
+ENTRYPOINT ["java", "-Xmx288m", "-Xss256k", "-XX:MaxMetaspaceSize=160m", "-XX:+UseSerialGC", "-jar", "app.jar"]
