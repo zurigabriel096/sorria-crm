@@ -44,6 +44,7 @@ export const IconPlus = (p) => <svg {...I(p)} width="13" height="13"><path d="M1
 const CHEVRON_DEG = { left: 0, right: 180, down: -90, up: 90 };
 export const IconChevron = ({ color, dir = "left" }) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: `rotate(${CHEVRON_DEG[dir]}deg)`, transition: "transform .15s" }}><path d="M15 6l-6 6 6 6" /></svg>;
 export const IconZap = (p) => <svg {...I(p)}><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" /></svg>;
+export const IconKanban = (p) => <svg {...I(p)}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg>;
 export const Dot = ({ color }) => <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />;
 
 // Bolinha de status com leve brilho pulsante (verde = ativo, vermelho = inativo).

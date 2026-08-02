@@ -15,6 +15,7 @@ import { Campanhas } from "./pages/Campanhas";
 import { Templates } from "./pages/Templates";
 import { DisparoFlow } from "./pages/Disparo";
 import { Automacoes } from "./pages/Automacoes";
+import { Conversas } from "./pages/Conversas";
 import { HistoricoDisparos } from "./pages/HistoricoDisparos";
 import { Colaboradores } from "./pages/Colaboradores";
 import { Plano } from "./pages/Plano";
@@ -272,6 +273,7 @@ export default function App() {
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} />}
+          {view === "conversas" && <Conversas patients={patients} showToast={showToast} />}
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} setTags={setTags} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
