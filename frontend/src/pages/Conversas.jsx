@@ -8,10 +8,10 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { listNumeros, contatosPorNumero } from "../api/whatsappNumeros";
 import { listMensagens, enviarMensagem, carregarMidiaBlobUrl } from "../api/mensagens";
 import { getWhatsAppStatus } from "../api/whatsapp";
-import { listEtapas, createEtapa, renameEtapa, deleteEtapa } from "../api/etapas";
+import { listEtapas, createEtapa, renameEtapa, deleteEtapa, marcarEtapaFinal } from "../api/etapas";
 import { listColaboradores } from "../api/colaboradores";
 import { iniciais } from "../utils/usuario";
-import { dataHora } from "../utils/format";
+import { dataHora, tempoDesde } from "../utils/format";
 
 const POLL_MENSAGENS_MS = 4000;
 const EMOJIS = ["😀", "😂", "😍", "🙏", "👍", "👋", "❤️", "😢", "😮", "🎉", "✅", "❌", "🔥", "💬", "📅", "😅", "🤔", "👏"];
@@ -34,14 +34,6 @@ function AvatarResponsavel({ colaborador, size = 24 }) {
       {iniciais(colaborador.nome)}
     </div>
   );
-}
-
-function tempoDesde(iso) {
-  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 60) return `${Math.max(min, 1)}min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
 }
 
 // Badge de "ultima interacao" no card - substitui os campos removidos
@@ -304,7 +296,7 @@ function ChatModal({ contato, whatsappNumeroId, numeros, colaboradores, onClose,
   );
 }
 
-export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPaciente, onCriarPaciente, usuario }) {
+export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPaciente, onCriarPaciente, usuario, abrirContatoId, onAbriuContato }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [numeros, setNumeros] = useState([]);
   const [nomePrincipal, setNomePrincipal] = useState("");
@@ -323,6 +315,15 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const [iniciarAberto, setIniciarAberto] = useState(false);
 
   useEffect(() => { listColaboradores().then(setColaboradores).catch(() => setColaboradores([])); }, []);
+
+  // Deep link vindo da Fila de Trabalho - assim que o lead pedido estiver
+  // carregado, abre o chat dele direto (sem precisar achar o card no Kanban).
+  useEffect(() => {
+    if (!abrirContatoId) return;
+    const p = patients.find((x) => x.id === abrirContatoId);
+    if (p) { setChatAberto(p); onAbriuContato?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirContatoId, patients]);
 
   // Mantem o chat aberto sincronizado com o estado global (ex.: depois de
   // atribuir responsavel, o cabecalho do chat reflete sem precisar fechar/abrir).
@@ -400,6 +401,15 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
       carregarEtapas();
     } catch (e) {
       showToast(e.message || "Erro ao excluir coluna", "warn");
+    }
+  };
+
+  const alternarEtapaFinal = async (etapa) => {
+    try {
+      await marcarEtapaFinal(etapa.id, !etapa.etapaFinal);
+      carregarEtapas();
+    } catch (e) {
+      showToast(e.message || "Erro ao atualizar coluna", "warn");
     }
   };
 
@@ -499,12 +509,15 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                       onKeyDown={(e) => { if (e.key === "Enter") salvarRenomeio(etapa); if (e.key === "Escape") setRenomeando(null); }}
                     />
                   ) : (
-                    <span style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{etapa.nome}</span>
+                    <span style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }} title={etapa.etapaFinal ? "Etapa final - some da Fila de Trabalho quando inativa" : ""}>
+                      {etapa.etapaFinal && "🏁 "}{etapa.nome}
+                    </span>
                   )}
                   <span style={{ ...s.tagOk, background: T.lineSoft, color: T.inkSoft }}>{doEstagio.length}</span>
                   {souAdmin && renomeando !== etapa.id && (
                     <DotMenu items={[
                       { label: "Renomear", onClick: () => { setRenomeando(etapa.id); setNomeEdicao(etapa.nome); } },
+                      { label: etapa.etapaFinal ? "Desmarcar etapa final" : "Marcar como etapa final", onClick: () => alternarEtapaFinal(etapa) },
                       { label: "Excluir coluna", danger: true, onClick: () => excluirEtapa(etapa) },
                     ]} />
                   )}

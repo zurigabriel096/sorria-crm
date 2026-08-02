@@ -237,6 +237,7 @@ public class ContatoService {
         contato.setOrigem(dto.origem());
         if (dto.ordemKanban() != null) contato.setOrdemKanban(dto.ordemKanban());
         if (dto.camposCustomizados() != null) contato.setCamposCustomizados(new HashMap<>(dto.camposCustomizados()));
+        contato.setProximaAcaoEm(dto.proximaAcaoEm());
         sincronizarTagDeEtapa(contato, estagioAntigo, dto.estagio());
     }
 
@@ -245,7 +246,7 @@ public class ContatoService {
                 c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(),
                 c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getEstagio(),
                 c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban(),
-                c.getCamposCustomizados(), c.getUltimaMensagemEm(), c.getUltimaMensagemDirecao()
+                c.getCamposCustomizados(), c.getUltimaMensagemEm(), c.getUltimaMensagemDirecao(), c.getProximaAcaoEm()
         );
     }
 }

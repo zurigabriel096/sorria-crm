@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { T } from "../../theme";
 import { s } from "../../styles/s";
 import { Logo } from "../Logo";
-import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam, IconCard, IconLife, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban } from "../icons";
+import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam, IconCard, IconLife, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox } from "../icons";
 
 // Itens simples navegam direto; itens com "children" viram um grupo expansível
 // (acordeão inline), no espírito do menu de Campanhas da RD Station. O próprio
@@ -10,6 +10,7 @@ import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam
 // itens satélite — sem duplicar "Campanhas" dentro do próprio submenu.
 const ITEMS = [
   ["dashboard", "Painel", IconGrid],
+  ["filaTrabalho", "Fila de Trabalho", IconInbox],
   ["pacientes", "Base de Leads", IconUsers],
   ["conversas", "Conversas", IconKanban],
   {

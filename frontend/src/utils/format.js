@@ -11,3 +11,13 @@ export const dataHora = (iso) => {
   const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   return `${data} às ${hora}`;
 };
+
+// "3min"/"5h"/"2d" - usado no badge de ultima interacao (Kanban) e na Fila
+// de Trabalho, pra mostrar ha quanto tempo uma mensagem foi trocada.
+export const tempoDesde = (iso) => {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return `${Math.max(min, 1)}min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+};

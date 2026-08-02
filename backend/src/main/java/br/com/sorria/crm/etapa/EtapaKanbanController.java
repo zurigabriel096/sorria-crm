@@ -45,4 +45,10 @@ public class EtapaKanbanController {
     public List<EtapaKanbanDTO> reordenar(@RequestBody List<Long> idsEmOrdem) {
         return service.reordenar(idsEmOrdem);
     }
+
+    @PatchMapping("/{id}/final")
+    @PreAuthorize("hasRole('ADMIN')")
+    public EtapaKanbanDTO marcarComoFinal(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        return service.marcarComoFinal(id, Boolean.TRUE.equals(body.get("etapaFinal")));
+    }
 }

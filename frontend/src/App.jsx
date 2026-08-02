@@ -16,6 +16,8 @@ import { Templates } from "./pages/Templates";
 import { DisparoFlow } from "./pages/Disparo";
 import { Automacoes } from "./pages/Automacoes";
 import { Conversas } from "./pages/Conversas";
+import { FilaTrabalho } from "./pages/FilaTrabalho";
+import { InicioColaborador } from "./pages/InicioColaborador";
 import { HistoricoDisparos } from "./pages/HistoricoDisparos";
 import { Colaboradores } from "./pages/Colaboradores";
 import { Plano } from "./pages/Plano";
@@ -60,6 +62,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [disparoCampanha, setDisparoCampanha] = useState(null);
   const [pacienteAberto, setPacienteAberto] = useState(null);
+  const [conversaParaAbrir, setConversaParaAbrir] = useState(null);
   const [carregandoDevagar, setCarregandoDevagar] = useState(false);
 
   const showToast = (msg, kind = "ok") => { setToast({ msg, kind }); setTimeout(() => setToast(null), 3200); };
@@ -88,6 +91,7 @@ export default function App() {
       if (precisaUsuario) {
         setUsuario(meRes);
         setAvatarColor(meRes.corPerfil || T.primary);
+        setView(viewInicialPara(meRes));
       }
     } catch (e) {
       showToast(e.message || "Erro ao carregar dados do servidor", "warn");
@@ -298,7 +302,13 @@ export default function App() {
     setUsuario(u);
     setAvatarColor(u.corPerfil || T.primary);
     setAuthed(true);
+    setView(viewInicialPara(u));
   };
+
+  // ADMIN/GESTOR caem no Painel Executivo (analitico, visao agregada); os
+  // demais papeis caem na tela de boas-vindas do dia (saudacao + contadores
+  // + botao pra Fila de Trabalho), nao direto no Kanban.
+  const viewInicialPara = (u) => (u?.papel === "ADMIN" || u?.papel === "GESTOR" ? "dashboard" : "inicio");
 
   // A cor do avatar é preferência de cada conta — muda na hora na tela, mas
   // também salva no backend pra não vazar pra outra conta no mesmo navegador
@@ -311,6 +321,13 @@ export default function App() {
   const irParaPacientes = (filtroEleg) => {
     setFiltroPacientesInicial(filtroEleg ? { eleg: filtroEleg } : null);
     setView("pacientes");
+  };
+
+  // Deep link da Fila de Trabalho pra conversa de um lead especifico -
+  // Conversas.jsx observa conversaParaAbrir e abre o ChatModal sozinho.
+  const abrirConversa = (contatoId) => {
+    setConversaParaAbrir(contatoId);
+    setView("conversas");
   };
 
   if (!authed) {
@@ -337,8 +354,10 @@ export default function App() {
         <Topbar view={view} usuario={usuario} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
+          {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} />}
+          {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} />}
-          {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} />}
+          {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} abrirContatoId={conversaParaAbrir} onAbriuContato={() => setConversaParaAbrir(null)} />}
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}

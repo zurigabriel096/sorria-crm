@@ -86,6 +86,14 @@ public class EtapaKanbanService {
         return listar();
     }
 
+    // "Etapa final" (Cliente/Pos-venda etc) - so afeta o filtro padrao da
+    // Fila de Trabalho (F4), nunca o Kanban nem o Painel Executivo.
+    public EtapaKanbanDTO marcarComoFinal(Long id, boolean etapaFinal) {
+        EtapaKanban etapa = buscar(id);
+        etapa.setEtapaFinal(etapaFinal);
+        return toDTO(repository.save(etapa));
+    }
+
     private void criarTagVinculada(EtapaKanban etapa) {
         if (tagRepository.findByEtapaId(etapa.getId()).isPresent()) return;
         Tag tag = new Tag();
@@ -117,6 +125,6 @@ public class EtapaKanbanService {
     }
 
     private EtapaKanbanDTO toDTO(EtapaKanban e) {
-        return new EtapaKanbanDTO(e.getId(), e.getNome(), e.getOrdem());
+        return new EtapaKanbanDTO(e.getId(), e.getNome(), e.getOrdem(), e.isEtapaFinal());
     }
 }

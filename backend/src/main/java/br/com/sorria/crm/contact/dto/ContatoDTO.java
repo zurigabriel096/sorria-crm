@@ -26,6 +26,8 @@ public record ContatoDTO(
         Map<String, String> camposCustomizados,
         // Somente leitura - gravado so por MensagemService, ignorado se vier num PUT/POST.
         LocalDateTime ultimaMensagemEm,
-        String ultimaMensagemDirecao
+        String ultimaMensagemDirecao,
+        // Editavel - o follow-up agendado pelo colaborador.
+        LocalDateTime proximaAcaoEm
 ) {
 }

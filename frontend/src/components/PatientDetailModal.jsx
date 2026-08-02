@@ -72,6 +72,17 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
             <Field label="Dentista"><input style={s.input} value={p.dentista} onChange={(e) => set("dentista", e.target.value)} /></Field>
             <Field label="Elegível p/ disparo"><Select block value={p.elegivel ? "Sim" : "Não"} onChange={(v) => set("elegivel", v === "Sim")} options={["Sim", "Não"]} /></Field>
           </div>
+          <Field label="Próxima ação (follow-up)">
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="datetime-local"
+                style={{ ...s.input, flex: 1 }}
+                value={p.proximaAcaoEm ? p.proximaAcaoEm.slice(0, 16) : ""}
+                onChange={(e) => set("proximaAcaoEm", e.target.value || null)}
+              />
+              {p.proximaAcaoEm && <button style={s.btnGhostSm} onClick={() => set("proximaAcaoEm", null)}>Limpar</button>}
+            </div>
+          </Field>
           <Field label="Tags">
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {tags.map((t) => {

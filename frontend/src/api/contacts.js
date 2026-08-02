@@ -28,6 +28,7 @@ function fromApi(c) {
     // Somente leitura - quem grava e' o backend a cada mensagem trocada.
     ultimaMensagemEm: c.ultimaMensagemEm || null,
     ultimaMensagemDirecao: c.ultimaMensagemDirecao || null,
+    proximaAcaoEm: c.proximaAcaoEm || null,
   };
 }
 
@@ -49,6 +50,7 @@ function toApi(p) {
     origem: p.origem || null,
     ordemKanban: p.ordemKanban ?? null,
     camposCustomizados: p.camposCustomizados || {},
+    proximaAcaoEm: p.proximaAcaoEm || null,
   };
 }
 

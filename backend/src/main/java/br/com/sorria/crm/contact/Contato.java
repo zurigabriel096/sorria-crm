@@ -78,6 +78,11 @@ public class Contato {
     // "ENTRADA" | "SAIDA" - direcao da ultima mensagem trocada com esse lead.
     private String ultimaMensagemDirecao;
 
+    // Follow-up agendado pelo colaborador (ex.: "retornar dia X") - ao
+    // contrario dos dois campos acima, esse e' editavel pelo usuario. Base
+    // dos filtros Vencidos/Hoje/Amanha/Esta semana da Fila de Trabalho.
+    private LocalDateTime proximaAcaoEm;
+
     // Valores dos campos customizados (ver br.com.sorria.crm.campo.CampoCustomizado),
     // chave = nome do campo. Guardado sempre como texto (a UI converte pro tipo
     // configurado - numero/data/lista) pra nao precisar de uma tabela por tipo.

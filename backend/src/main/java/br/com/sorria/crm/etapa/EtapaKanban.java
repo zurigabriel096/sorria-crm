@@ -31,6 +31,12 @@ public class EtapaKanban {
 
     private LocalDateTime criadoEm;
 
+    // Marca uma coluna como "resolvida" (ex.: Cliente/Pos-venda) pra Fila de
+    // Trabalho (F4) poder esconder por padrao quem esta aqui, sem
+    // proximaAcaoEm futura e sem mensagem recente - nao afeta o Kanban nem
+    // o Painel Executivo, so o filtro padrao da fila operacional.
+    private boolean etapaFinal;
+
     @PrePersist
     protected void aoCriar() {
         this.criadoEm = LocalDateTime.now();
