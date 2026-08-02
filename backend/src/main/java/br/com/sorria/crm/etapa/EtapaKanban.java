@@ -39,6 +39,13 @@ public class EtapaKanban {
     @ColumnDefault("false")
     private boolean etapaFinal;
 
+    // So tem efeito quando etapaFinal=true - dias sem mensagem que a Fila de
+    // Trabalho (F4) exige pra esconder por padrao quem esta aqui. Comeca em
+    // 60 (mesmo valor que era fixo/global antes desta coluna existir) e o
+    // ADMIN calibra por coluna se quiser.
+    @ColumnDefault("60")
+    private Integer limiarInatividadeDias = 60;
+
     @PrePersist
     protected void aoCriar() {
         this.criadoEm = LocalDateTime.now();

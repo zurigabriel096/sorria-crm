@@ -51,4 +51,10 @@ public class EtapaKanbanController {
     public EtapaKanbanDTO marcarComoFinal(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
         return service.marcarComoFinal(id, Boolean.TRUE.equals(body.get("etapaFinal")));
     }
+
+    @PatchMapping("/{id}/limiar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public EtapaKanbanDTO atualizarLimiarInatividade(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
+        return service.atualizarLimiarInatividade(id, body.get("limiarInatividadeDias"));
+    }
 }

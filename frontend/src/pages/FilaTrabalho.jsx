@@ -6,12 +6,6 @@ import { iniciais } from "../utils/usuario";
 import { listEtapas } from "../api/etapas";
 import { Card } from "../components/ui/Card";
 
-// Quantos dias sem nenhuma mensagem uma etapa "final" (Cliente/Pos-venda,
-// marcada pelo ADMIN) precisa acumular pra sumir da fila por padrao (F4 -
-// ocultacao inteligente). Limiar unico por enquanto - por etapa fica pra
-// uma proxima iteracao se a clinica sentir falta de calibrar por coluna.
-const LIMIAR_DIAS_INATIVIDADE = 60;
-
 function pontuarPrioridade(p) {
   let score = 0;
   if (p.ultimaMensagemDirecao === "ENTRADA" && p.ultimaMensagemEm) {
@@ -65,7 +59,12 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
   const [etapas, setEtapas] = useState([]);
   useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
 
-  const etapasFinais = useMemo(() => new Set(etapas.filter((e) => e.etapaFinal).map((e) => e.nome)), [etapas]);
+  // Nome da etapa -> limiar de dias sem mensagem calibrado pelo ADMIN nessa
+  // coluna (EtapaKanban.limiarInatividadeDias), só existe pra etapas finais.
+  const limiarPorEtapaFinal = useMemo(
+    () => new Map(etapas.filter((e) => e.etapaFinal).map((e) => [e.nome, e.limiarInatividadeDias ?? 60])),
+    [etapas]
+  );
 
   // Ocultacao inteligente (F4): esconde por padrao quem esta numa etapa
   // final, sem follow-up futuro agendado e sem mensagem ha muito tempo -
@@ -73,10 +72,11 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
   const visiveis = useMemo(() => {
     if (mostrarTudo) return patients;
     return patients.filter((p) => {
-      const resolvido = etapasFinais.has(p.estagio) && !p.proximaAcaoEm && diasSemAtividade(p) > LIMIAR_DIAS_INATIVIDADE;
+      const limiar = limiarPorEtapaFinal.get(p.estagio);
+      const resolvido = limiar != null && !p.proximaAcaoEm && diasSemAtividade(p) > limiar;
       return !resolvido;
     });
-  }, [patients, mostrarTudo, etapasFinais]);
+  }, [patients, mostrarTudo, limiarPorEtapaFinal]);
 
   const filtrados = useMemo(() => {
     const f = FILTROS.find((x) => x.chave === filtro);

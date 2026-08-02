@@ -6,8 +6,10 @@ import br.com.sorria.crm.etapa.dto.EtapaKanbanDTO;
 import br.com.sorria.crm.tag.Tag;
 import br.com.sorria.crm.tag.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -94,6 +96,18 @@ public class EtapaKanbanService {
         return toDTO(repository.save(etapa));
     }
 
+    // Limiar de inatividade (dias sem mensagem) especifico dessa coluna pra
+    // ocultacao inteligente da Fila de Trabalho - so tem efeito em colunas
+    // etapaFinal=true, mas o valor fica salvo independente disso.
+    public EtapaKanbanDTO atualizarLimiarInatividade(Long id, Integer dias) {
+        if (dias == null || dias < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um numero de dias positivo");
+        }
+        EtapaKanban etapa = buscar(id);
+        etapa.setLimiarInatividadeDias(dias);
+        return toDTO(repository.save(etapa));
+    }
+
     private void criarTagVinculada(EtapaKanban etapa) {
         if (tagRepository.findByEtapaId(etapa.getId()).isPresent()) return;
         Tag tag = new Tag();
@@ -125,6 +139,6 @@ public class EtapaKanbanService {
     }
 
     private EtapaKanbanDTO toDTO(EtapaKanban e) {
-        return new EtapaKanbanDTO(e.getId(), e.getNome(), e.getOrdem(), e.isEtapaFinal());
+        return new EtapaKanbanDTO(e.getId(), e.getNome(), e.getOrdem(), e.isEtapaFinal(), e.getLimiarInatividadeDias());
     }
 }

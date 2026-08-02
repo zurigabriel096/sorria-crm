@@ -8,7 +8,7 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { listNumeros, contatosPorNumero } from "../api/whatsappNumeros";
 import { listMensagens, enviarMensagem, carregarMidiaBlobUrl } from "../api/mensagens";
 import { getWhatsAppStatus } from "../api/whatsapp";
-import { listEtapas, createEtapa, renameEtapa, deleteEtapa, marcarEtapaFinal } from "../api/etapas";
+import { listEtapas, createEtapa, renameEtapa, deleteEtapa, marcarEtapaFinal, definirLimiarInatividade } from "../api/etapas";
 import { listColaboradores } from "../api/colaboradores";
 import { iniciais } from "../utils/usuario";
 import { dataHora, tempoDesde } from "../utils/format";
@@ -307,6 +307,8 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const [etapas, setEtapas] = useState([]);
   const [renomeando, setRenomeando] = useState(null); // id da etapa em edição de nome
   const [nomeEdicao, setNomeEdicao] = useState("");
+  const [editandoLimiar, setEditandoLimiar] = useState(null); // id da etapa em edição do limiar de inatividade
+  const [limiarEdicao, setLimiarEdicao] = useState("");
   const [novaColuna, setNovaColuna] = useState(false);
   const [nomeNovaColuna, setNomeNovaColuna] = useState("");
   const [colaboradores, setColaboradores] = useState([]);
@@ -410,6 +412,19 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
       carregarEtapas();
     } catch (e) {
       showToast(e.message || "Erro ao atualizar coluna", "warn");
+    }
+  };
+
+  const salvarLimiar = async (etapa) => {
+    const dias = parseInt(limiarEdicao, 10);
+    if (!dias || dias < 1) { setEditandoLimiar(null); return; }
+    if (dias === etapa.limiarInatividadeDias) { setEditandoLimiar(null); return; }
+    try {
+      await definirLimiarInatividade(etapa.id, dias);
+      setEditandoLimiar(null);
+      carregarEtapas();
+    } catch (e) {
+      showToast(e.message || "Erro ao atualizar limiar de inatividade", "warn");
     }
   };
 
@@ -518,10 +533,30 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                     <DotMenu items={[
                       { label: "Renomear", onClick: () => { setRenomeando(etapa.id); setNomeEdicao(etapa.nome); } },
                       { label: etapa.etapaFinal ? "Desmarcar etapa final" : "Marcar como etapa final", onClick: () => alternarEtapaFinal(etapa) },
+                      ...(etapa.etapaFinal ? [{
+                        label: "Definir limiar de inatividade",
+                        onClick: () => { setEditandoLimiar(etapa.id); setLimiarEdicao(String(etapa.limiarInatividadeDias ?? 60)); },
+                      }] : []),
                       { label: "Excluir coluna", danger: true, onClick: () => excluirEtapa(etapa) },
                     ]} />
                   )}
                 </div>
+                {editandoLimiar === etapa.id && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: T.inkSoft }}>
+                    Sumir da fila após
+                    <input
+                      autoFocus
+                      type="number"
+                      min={1}
+                      style={{ ...s.input, height: 26, width: 56, fontSize: 12, padding: "2px 6px" }}
+                      value={limiarEdicao}
+                      onChange={(e) => setLimiarEdicao(e.target.value)}
+                      onBlur={() => salvarLimiar(etapa)}
+                      onKeyDown={(e) => { if (e.key === "Enter") salvarLimiar(etapa); if (e.key === "Escape") setEditandoLimiar(null); }}
+                    />
+                    dias sem mensagem
+                  </div>
+                )}
                 {!doEstagio.length && (
                   <Card><div style={{ fontSize: 12, color: T.inkSoft, textAlign: "center", padding: "14px 4px" }}>Nenhum lead aqui</div></Card>
                 )}
