@@ -27,6 +27,9 @@ import { listContacts, createContact, updateContact, createContactsLote, unifica
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
 import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
+import { listTags, createTag, updateTag, deleteTag } from "./api/tags";
+import { listCamposCustomizados, createCampoCustomizado, updateCampoCustomizado, deleteCampoCustomizado } from "./api/camposCustomizados";
+import { getColunasVisiveis, setColunasVisiveis as apiSetColunasVisiveis } from "./api/configColunas";
 import { getMe, updateCorPerfil } from "./api/me";
 import { checkHealth } from "./api/health";
 
@@ -47,7 +50,10 @@ export default function App() {
   const [historico, setHistorico] = useState([]);
 
   const [segmentos, setSegmentos] = useState([]);
-  const [tags, setTags] = useState(["Inadimplente", "Sem agendamento", "Agenda Agosto", "Retorno"]);
+  const [tagObjetos, setTagObjetos] = useState([]);
+  const tags = tagObjetos.map((t) => t.nome);
+  const [camposCustomizados, setCamposCustomizados] = useState([]);
+  const [colunasVisiveis, setColunasVisiveisState] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [objetivos, setObjetivos] = useState(["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"]);
 
@@ -65,8 +71,9 @@ export default function App() {
     setCarregando(true);
     try {
       const precisaUsuario = !usuarioAtual;
-      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, segmentosRes, meRes] = await Promise.all([
-        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(), listSegmentacoes(),
+      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, segmentosRes, tagsRes, camposRes, colunasRes, meRes] = await Promise.all([
+        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(), listSegmentacoes(), listTags(),
+        listCamposCustomizados(), getColunasVisiveis(),
         precisaUsuario ? getMe() : Promise.resolve(usuarioAtual),
       ]);
       setPatients(pacientesRes);
@@ -75,6 +82,9 @@ export default function App() {
       setHistorico(historicoRes);
       setColaboradores(colaboradoresRes);
       setSegmentos(segmentosRes);
+      setTagObjetos(tagsRes);
+      setCamposCustomizados(camposRes);
+      setColunasVisiveisState(colunasRes);
       if (precisaUsuario) {
         setUsuario(meRes);
         setAvatarColor(meRes.corPerfil || T.primary);
@@ -242,6 +252,41 @@ export default function App() {
     setSegmentos((s2) => s2.map((x) => (x.id === id ? atualizada : x)));
   };
 
+  const criarTagHandler = async (nome, cor) => {
+    const criada = await createTag(nome, cor);
+    setTagObjetos((ts) => [...ts, criada]);
+  };
+
+  const atualizarTagHandler = async (id, nome, cor) => {
+    const atualizada = await updateTag(id, nome, cor);
+    setTagObjetos((ts) => ts.map((t) => (t.id === id ? atualizada : t)));
+  };
+
+  const excluirTagHandler = async (id) => {
+    await deleteTag(id);
+    setTagObjetos((ts) => ts.filter((t) => t.id !== id));
+  };
+
+  const criarCampoHandler = async (campo) => {
+    const criado = await createCampoCustomizado(campo);
+    setCamposCustomizados((cs) => [...cs, criado]);
+  };
+
+  const atualizarCampoHandler = async (id, campo) => {
+    const atualizado = await updateCampoCustomizado(id, campo);
+    setCamposCustomizados((cs) => cs.map((c) => (c.id === id ? atualizado : c)));
+  };
+
+  const excluirCampoHandler = async (id) => {
+    await deleteCampoCustomizado(id);
+    setCamposCustomizados((cs) => cs.filter((c) => c.id !== id));
+  };
+
+  const atualizarColunasHandler = async (colunas) => {
+    const atualizadas = await apiSetColunasVisiveis(colunas);
+    setColunasVisiveisState(atualizadas);
+  };
+
   const onLogout = () => {
     apiLogout();
     setAuthed(false);
@@ -292,9 +337,9 @@ export default function App() {
         <Topbar view={view} usuario={usuario} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} />}
-          {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} />}
+          {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} />}
           {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} />}
-          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} setTags={setTags} showToast={showToast} />}
+          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
           {view === "automacoes" && <Automacoes showToast={showToast} usuario={usuario} />}
@@ -312,6 +357,8 @@ export default function App() {
           paciente={pacienteAberto.paciente}
           abaInicial={pacienteAberto.aba}
           tags={tags}
+          tagObjetos={tagObjetos}
+          camposCustomizados={camposCustomizados}
           historico={historico}
           onSave={salvarPaciente}
           onClose={() => setPacienteAberto(null)}

@@ -3,6 +3,7 @@ package br.com.sorria.crm.contact.dto;
 import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
+import java.util.Map;
 
 public record ContatoDTO(
         Long id,
@@ -20,6 +21,7 @@ public record ContatoDTO(
         String enviado,
         List<String> tags,
         String origem,
-        Double ordemKanban
+        Double ordemKanban,
+        Map<String, String> camposCustomizados
 ) {
 }

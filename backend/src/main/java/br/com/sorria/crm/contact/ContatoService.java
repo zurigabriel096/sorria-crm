@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -165,6 +166,13 @@ public class ContatoService {
             uniao.addAll(novo.tags());
             existente.setTags(new ArrayList<>(uniao));
         }
+        if (novo.camposCustomizados() != null) {
+            novo.camposCustomizados().forEach((chave, valor) -> {
+                if (vazio(existente.getCamposCustomizados().get(chave)) && !vazio(valor)) {
+                    existente.getCamposCustomizados().put(chave, valor);
+                }
+            });
+        }
     }
 
     private void mesclarEntidades(Contato principal, Contato duplicado) {
@@ -180,6 +188,11 @@ public class ContatoService {
         Set<String> uniao = new LinkedHashSet<>(principal.getTags());
         uniao.addAll(duplicado.getTags());
         principal.setTags(new ArrayList<>(uniao));
+        duplicado.getCamposCustomizados().forEach((chave, valor) -> {
+            if (vazio(principal.getCamposCustomizados().get(chave)) && !vazio(valor)) {
+                principal.getCamposCustomizados().put(chave, valor);
+            }
+        });
     }
 
     private static boolean vazio(String s) {
@@ -202,13 +215,15 @@ public class ContatoService {
         contato.setTags(dto.tags() != null ? new ArrayList<>(dto.tags()) : new ArrayList<>());
         contato.setOrigem(dto.origem());
         if (dto.ordemKanban() != null) contato.setOrdemKanban(dto.ordemKanban());
+        if (dto.camposCustomizados() != null) contato.setCamposCustomizados(new HashMap<>(dto.camposCustomizados()));
     }
 
     private ContatoDTO toDTO(Contato c) {
         return new ContatoDTO(
                 c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(),
                 c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getEstagio(),
-                c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban()
+                c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban(),
+                c.getCamposCustomizados()
         );
     }
 }

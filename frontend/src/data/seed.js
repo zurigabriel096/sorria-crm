@@ -24,10 +24,29 @@ export const FIELD_META = {
   financ: { label: "Financeiro", ops: ["é", "não é"], values: ["Adimplente", "Inadimplente"] },
   recencia: { label: "Recência (dias)", ops: ["maior", "menor"], value: "number" },
   elegivel: { label: "Elegível", ops: ["é", "não é"], values: ["Sim", "Não"] },
-  tag: { label: "Tag", ops: ["contém"], values: [] },
+  tag: { label: "Tag", ops: ["contém", "não contém"], values: [] },
 };
 
-export const OP_LABEL = { "é": "é", "não é": "não é", maior: "maior que", menor: "menor que", contém: "contém" };
+export const OP_LABEL = {
+  "é": "é", "não é": "não é", maior: "maior que", menor: "menor que",
+  contém: "contém", "não contém": "não contém",
+};
+
+// Estende FIELD_META com um campo por CampoCustomizado ativo, pra virar
+// condição de verdade no construtor de Segmentações. Chave carrega o tipo
+// (custom:TIPO:nome) pra evalCond saber comparar sem precisar de outra
+// consulta - ver utils/patients.js.
+export function montarFieldMeta(camposCustomizados) {
+  const meta = { ...FIELD_META };
+  (camposCustomizados || []).forEach((campo) => {
+    const chave = `custom:${campo.tipo}:${campo.nome}`;
+    if (campo.tipo === "NUMERO") meta[chave] = { label: campo.nome, ops: ["maior", "menor"], value: "number" };
+    else if (campo.tipo === "DATA") meta[chave] = { label: campo.nome, ops: ["maior", "menor"], value: "date" };
+    else if (campo.tipo === "LISTA") meta[chave] = { label: campo.nome, ops: ["é", "não é"], values: campo.opcoes || [] };
+    else meta[chave] = { label: campo.nome, ops: ["contém", "não contém"], value: "text" };
+  });
+  return meta;
+}
 
 // groups: lista de grupos "E" combinados entre si por "OU".
 // Ex.: [[A,B],[C]] = (A E B) OU (C)

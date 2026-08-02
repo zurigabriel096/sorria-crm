@@ -12,7 +12,7 @@ import { listColaboradores } from "../api/colaboradores";
 // Modal de detalhe do paciente, com duas abas: Dados (cadastro) e Histórico do cliente
 // (mensagens que ele recebeu). Usado tanto pela tela de Pacientes quanto pela de Disparos,
 // pra manter a mesma experiência não importa de onde a pessoa chegou até o paciente.
-export function PatientDetailModal({ paciente, tags, historico, abaInicial = "dados", onSave, onClose }) {
+export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomizados, historico, abaInicial = "dados", onSave, onClose }) {
   const [aba, setAba] = useState(abaInicial);
   const [p, setP] = useState(paciente);
   const [dirty, setDirty] = useState(false);
@@ -23,6 +23,10 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
   const set = (k, v) => { setP((x) => ({ ...x, [k]: v })); setDirty(true); };
   const toggleTag = (t) => {
     setP((x) => ({ ...x, tags: (x.tags || []).includes(t) ? x.tags.filter((y) => y !== t) : [...(x.tags || []), t] }));
+    setDirty(true);
+  };
+  const setCampoCustomizado = (nome, valor) => {
+    setP((x) => ({ ...x, camposCustomizados: { ...(x.camposCustomizados || {}), [nome]: valor } }));
     setDirty(true);
   };
 
@@ -72,14 +76,40 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {tags.map((t) => {
                 const on = (p.tags || []).includes(t);
+                const cor = tagObjetos?.find((tg) => tg.nome === t)?.cor;
                 return (
-                  <button key={t} onClick={() => toggleTag(t)} style={{ ...s.tagChipBig, cursor: "pointer", opacity: on ? 1 : .45, outline: on ? `1.5px solid ${T.primary}` : "none" }}>
+                  <button key={t} onClick={() => toggleTag(t)} style={{ ...s.tagChipBig, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: on ? 1 : .45, outline: on ? `1.5px solid ${T.primary}` : "none" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor || T.inkSoft, flexShrink: 0 }} />
                     {t}
                   </button>
                 );
               })}
             </div>
           </Field>
+          {!!(camposCustomizados || []).length && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+              {camposCustomizados.map((campo) => (
+                <Field key={campo.id} label={campo.nome}>
+                  {campo.tipo === "LISTA" ? (
+                    <Select
+                      block
+                      value={p.camposCustomizados?.[campo.nome] || ""}
+                      onChange={(v) => setCampoCustomizado(campo.nome, v)}
+                      options={["", ...campo.opcoes]}
+                      labels={{ "": "—" }}
+                    />
+                  ) : (
+                    <input
+                      style={s.input}
+                      type={campo.tipo === "DATA" ? "date" : campo.tipo === "NUMERO" ? "number" : "text"}
+                      value={p.camposCustomizados?.[campo.nome] || ""}
+                      onChange={(e) => setCampoCustomizado(campo.nome, e.target.value)}
+                    />
+                  )}
+                </Field>
+              ))}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Cancelar</button>
             <button style={{ ...s.btnPrimary, flex: 1 }} onClick={() => onSave(p)}>Salvar alterações</button>

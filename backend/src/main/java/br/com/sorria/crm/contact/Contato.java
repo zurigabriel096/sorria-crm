@@ -6,7 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "contatos")
@@ -64,4 +66,13 @@ public class Contato {
     private List<String> tags = new ArrayList<>();
 
     private String origem;
+
+    // Valores dos campos customizados (ver br.com.sorria.crm.campo.CampoCustomizado),
+    // chave = nome do campo. Guardado sempre como texto (a UI converte pro tipo
+    // configurado - numero/data/lista) pra nao precisar de uma tabela por tipo.
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "contato_campos_customizados", joinColumns = @JoinColumn(name = "contato_id"))
+    @MapKeyColumn(name = "campo_nome")
+    @Column(name = "valor")
+    private Map<String, String> camposCustomizados = new HashMap<>();
 }

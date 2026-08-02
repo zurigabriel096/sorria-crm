@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { T } from "../theme";
+import { T, AVATAR_COLORS } from "../theme";
 import { s } from "../styles/s";
-import { FIELD_META, OP_LABEL } from "../data/seed";
+import { montarFieldMeta, OP_LABEL } from "../data/seed";
 import { matchSeg } from "../utils/patients";
 import { dataHora } from "../utils/format";
 import { Card } from "../components/ui/Card";
@@ -9,19 +9,36 @@ import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
+import { ColorPicker } from "../components/ui/ColorPicker";
+
+const TIPOS_CAMPO = [
+  { valor: "TEXTO", rotulo: "Texto" },
+  { valor: "NUMERO", rotulo: "Número" },
+  { valor: "DATA", rotulo: "Data" },
+  { valor: "LISTA", rotulo: "Lista de opções" },
+];
 
 const novaCondicao = () => ({ field: "financ", op: "é", value: "Adimplente" });
 const novoGrupo = () => [{ field: "recencia", op: "maior", value: 120 }];
 const contagemLabel = (n) => (n === 1 ? "1 lead" : `${n} leads`);
 
-export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcluir, onArquivar, tags, setTags, showToast }) {
+export function Segmentacoes({
+  patients, segmentos, onCriar, onAtualizar, onExcluir, onArquivar,
+  tags, tagObjetos, onCriarTag, onAtualizarTag, onExcluirTag,
+  camposCustomizados, onCriarCampo, onAtualizarCampo, onExcluirCampo,
+  showToast,
+}) {
   const [builder, setBuilder] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [novaTag, setNovaTag] = useState("");
   const [buscaTag, setBuscaTag] = useState("Todas");
   const [tagEditando, setTagEditando] = useState(null);
   const [tagEditValor, setTagEditValor] = useState("");
+  const [tagEditCor, setTagEditCor] = useState(T.primary);
   const [verArquivadas, setVerArquivadas] = useState(false);
+  const [campoForm, setCampoForm] = useState(null); // null | {id,nome,tipo,opcoes}
+
+  const fieldMeta = montarFieldMeta(camposCustomizados);
 
   const salvar = async () => {
     if (!builder.nome.trim()) return showToast("Dê um nome", "warn");
@@ -65,27 +82,72 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
     }
   };
 
-  const criarTag = () => {
+  const criarTag = async () => {
     const t = novaTag.trim();
     if (!t) return;
     if (tags.includes(t)) return showToast("Tag já existe", "warn");
-    setTags((ts) => [...ts, t]);
-    setNovaTag("");
-    showToast(`Tag "${t}" criada`, "ok");
+    try {
+      await onCriarTag(t, AVATAR_COLORS[tagObjetos.length % AVATAR_COLORS.length]);
+      setNovaTag("");
+      showToast(`Tag "${t}" criada`, "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao criar tag", "warn");
+    }
   };
 
-  const salvarEdicaoTag = () => {
+  const abrirEdicaoTag = (tag) => {
+    setTagEditando(tag.id);
+    setTagEditValor(tag.nome);
+    setTagEditCor(tag.cor || T.primary);
+  };
+
+  const salvarEdicaoTag = async () => {
     const novo = tagEditValor.trim();
     if (!novo) return;
-    setTags((ts) => ts.map((t) => (t === tagEditando ? novo : t)));
-    setTagEditando(null);
-    showToast("Tag renomeada", "ok");
+    try {
+      await onAtualizarTag(tagEditando, novo, tagEditCor);
+      setTagEditando(null);
+      showToast("Tag atualizada", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao atualizar tag", "warn");
+    }
   };
 
-  const excluirTag = (t) => {
-    setTags((ts) => ts.filter((x) => x !== t));
-    if (buscaTag === t) setBuscaTag("Todas");
-    showToast(`Tag "${t}" removida`, "ok");
+  const excluirTag = async (tag) => {
+    try {
+      await onExcluirTag(tag.id);
+      if (buscaTag === tag.nome) setBuscaTag("Todas");
+      showToast(`Tag "${tag.nome}" removida`, "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao remover tag", "warn");
+    }
+  };
+
+  const salvarCampo = async () => {
+    if (!campoForm.nome.trim()) return showToast("Dê um nome pro campo", "warn");
+    const payload = {
+      nome: campoForm.nome.trim(),
+      tipo: campoForm.tipo,
+      opcoes: campoForm.tipo === "LISTA" ? campoForm.opcoes.split(",").map((o) => o.trim()).filter(Boolean) : [],
+    };
+    try {
+      if (campoForm.id) await onAtualizarCampo(campoForm.id, payload);
+      else await onCriarCampo(payload);
+      setCampoForm(null);
+      showToast("Campo salvo", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar campo", "warn");
+    }
+  };
+
+  const excluirCampo = async (campo) => {
+    if (!window.confirm(`Excluir o campo "${campo.nome}"? Valores já salvos nos leads não são apagados, só deixam de aparecer.`)) return;
+    try {
+      await onExcluirCampo(campo.id);
+      showToast("Campo removido", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao remover campo", "warn");
+    }
   };
 
   const busca = buscaTag === "Todas" ? [] : patients.filter((p) => (p.tags || []).includes(buscaTag));
@@ -120,7 +182,7 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
                         {group.map((c, i) => (
                           <span key={i}>
                             {i > 0 && <b style={{ color: T.primary }}> E </b>}
-                            {FIELD_META[c.field].label} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b>
+                            {fieldMeta[c.field]?.label || c.field} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b>
                           </span>
                         ))}
                       </span>
@@ -151,31 +213,75 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
             <button style={s.btnPrimarySm} onClick={criarTag}>Criar</button>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {tags.map((t) =>
-              tagEditando === t ? (
-                <span key={t} style={{ display: "inline-flex", gap: 4 }}>
+            {tagObjetos.map((tag) =>
+              tagEditando === tag.id ? (
+                <span key={tag.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: T.lineSoft, padding: "4px 8px", borderRadius: 10 }}>
                   <input
                     autoFocus
-                    style={{ ...s.input, height: 28, width: 120, fontSize: 12.5 }}
+                    style={{ ...s.input, height: 28, width: 110, fontSize: 12.5 }}
                     value={tagEditValor}
                     onChange={(e) => setTagEditValor(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && salvarEdicaoTag()}
                   />
+                  {AVATAR_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setTagEditCor(c)}
+                      style={{ width: 18, height: 18, borderRadius: "50%", background: c, border: tagEditCor === c ? `2px solid ${T.ink}` : "2px solid transparent", flexShrink: 0 }}
+                    />
+                  ))}
+                  <ColorPicker value={tagEditCor} onChange={setTagEditCor} />
                   <button style={s.btnGhostSm} onClick={salvarEdicaoTag}>OK</button>
                 </span>
               ) : (
-                <span key={t} style={{ ...s.tagChipBig, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  {t}
+                <span key={tag.id} style={{ ...s.tagChipBig, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: tag.cor || T.inkSoft, flexShrink: 0 }} />
+                  {tag.nome}
                   <DotMenu
                     items={[
-                      { label: "Editar", onClick: () => { setTagEditando(t); setTagEditValor(t); } },
-                      { label: "Excluir", danger: true, onClick: () => excluirTag(t) },
+                      { label: "Editar", onClick: () => abrirEdicaoTag(tag) },
+                      { label: "Excluir", danger: true, onClick: () => excluirTag(tag) },
                     ]}
                   />
                 </span>
               )
             )}
           </div>
+        </Card>
+        <Card title="Campos personalizados">
+          <div style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>
+            Crie campos extras pro cadastro do lead — eles viram uma condição disponível aqui em Segmentações.
+          </div>
+          <div style={{ display: "grid", gap: 6, marginBottom: 10 }}>
+            {!camposCustomizados.length && <span style={{ fontSize: 13, color: T.inkSoft }}>Nenhum campo personalizado ainda.</span>}
+            {camposCustomizados.map((campo) => (
+              <div key={campo.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: T.lineSoft, borderRadius: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, flex: 1 }}>{campo.nome}</span>
+                <span style={{ fontSize: 11, color: T.inkSoft }}>{TIPOS_CAMPO.find((t) => t.valor === campo.tipo)?.rotulo}</span>
+                <DotMenu
+                  items={[
+                    { label: "Editar", onClick: () => setCampoForm({ id: campo.id, nome: campo.nome, tipo: campo.tipo, opcoes: (campo.opcoes || []).join(", ") }) },
+                    { label: "Excluir", danger: true, onClick: () => excluirCampo(campo) },
+                  ]}
+                />
+              </div>
+            ))}
+          </div>
+          {campoForm ? (
+            <div style={{ border: `1.5px dashed ${T.line}`, borderRadius: 10, padding: 10, display: "grid", gap: 8 }}>
+              <input style={s.input} placeholder="Nome do campo (ex: Convênio)" value={campoForm.nome} onChange={(e) => setCampoForm({ ...campoForm, nome: e.target.value })} />
+              <Select block value={campoForm.tipo} onChange={(v) => setCampoForm({ ...campoForm, tipo: v })} options={TIPOS_CAMPO.map((t) => t.valor)} labels={Object.fromEntries(TIPOS_CAMPO.map((t) => [t.valor, t.rotulo]))} />
+              {campoForm.tipo === "LISTA" && (
+                <input style={s.input} placeholder="Opções separadas por vírgula" value={campoForm.opcoes} onChange={(e) => setCampoForm({ ...campoForm, opcoes: e.target.value })} />
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setCampoForm(null)}>Cancelar</button>
+                <button style={{ ...s.btnPrimary, flex: 1 }} onClick={salvarCampo}>Salvar</button>
+              </div>
+            </div>
+          ) : (
+            <button style={s.btnGhostSm} onClick={() => setCampoForm({ id: null, nome: "", tipo: "TEXTO", opcoes: "" })}>+ Novo campo</button>
+          )}
         </Card>
         <Card title="Buscar por tag">
           <Select block value={buscaTag} onChange={setBuscaTag} options={["Todas", ...tags]} />
@@ -195,20 +301,25 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
           </div>
         </Card>
       </div>
-      {builder && <SegBuilder builder={builder} setBuilder={setBuilder} tags={tags} patients={patients} onSave={salvar} onClose={() => setBuilder(null)} salvando={salvando} />}
+      {builder && <SegBuilder builder={builder} setBuilder={setBuilder} tags={tags} fieldMeta={fieldMeta} patients={patients} onSave={salvar} onClose={() => setBuilder(null)} salvando={salvando} />}
     </div>
   );
 }
 
-function SegBuilder({ builder, setBuilder, tags, patients, onSave, onClose, salvando }) {
+function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, onClose, salvando }) {
   const set = (patch) => setBuilder({ ...builder, ...patch });
 
   const setCond = (gi, ci, patch) =>
     set({ groups: builder.groups.map((g, j) => (j === gi ? g.map((c, k) => (k === ci ? { ...c, ...patch } : c)) : g)) });
 
   const changeField = (gi, ci, field) => {
-    const m = FIELD_META[field];
-    setCond(gi, ci, { field, op: m.ops[0], value: m.value === "number" ? 0 : field === "tag" ? (tags[0] || "") : m.values[0] });
+    const m = fieldMeta[field];
+    const valorPadrao = m.value === "number" ? 0
+      : m.value === "date" ? ""
+      : m.value === "text" ? ""
+      : field === "tag" ? (tags[0] || "")
+      : (m.values[0] || "");
+    setCond(gi, ci, { field, op: m.ops[0], value: valorPadrao });
   };
 
   const addCondicao = (gi) => set({ groups: builder.groups.map((g, j) => (j === gi ? [...g, novaCondicao()] : g)) });
@@ -241,18 +352,22 @@ function SegBuilder({ builder, setBuilder, tags, patients, onSave, onClose, salv
           <div style={{ border: `1.5px dashed ${T.line}`, borderRadius: 12, padding: 10 }}>
             <div style={{ display: "grid", gap: 8 }}>
               {group.map((c, ci) => {
-                const m = FIELD_META[c.field];
+                const m = fieldMeta[c.field] || fieldMeta.financ;
                 return (
                   <div key={ci} style={s.condRow}>
                     <span style={{ width: 24, fontSize: 12, fontWeight: 700, color: ci > 0 ? T.primary : "transparent" }}>{ci > 0 ? "E" : ""}</span>
                     <select value={c.field} onChange={(e) => changeField(gi, ci, e.target.value)} style={s.condSelect}>
-                      {Object.entries(FIELD_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      {Object.entries(fieldMeta).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                     <select value={c.op} onChange={(e) => setCond(gi, ci, { op: e.target.value })} style={s.condSelect}>
                       {m.ops.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
                     </select>
                     {m.value === "number" ? (
                       <input type="number" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
+                    ) : m.value === "date" ? (
+                      <input type="date" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 150 }} />
+                    ) : m.value === "text" ? (
+                      <input type="text" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} placeholder="Valor..." style={s.condSelect} />
                     ) : (
                       <select value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={s.condSelect}>
                         {(c.field === "tag" ? tags : m.values).map((v) => <option key={v} value={v}>{v}</option>)}

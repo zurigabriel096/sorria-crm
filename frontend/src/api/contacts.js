@@ -24,6 +24,7 @@ function fromApi(c) {
     tags: c.tags || [],
     origem: c.origem || "",
     ordemKanban: c.ordemKanban ?? null,
+    camposCustomizados: c.camposCustomizados || {},
   };
 }
 
@@ -44,6 +45,7 @@ function toApi(p) {
     tags: p.tags || [],
     origem: p.origem || null,
     ordemKanban: p.ordemKanban ?? null,
+    camposCustomizados: p.camposCustomizados || {},
   };
 }
 
