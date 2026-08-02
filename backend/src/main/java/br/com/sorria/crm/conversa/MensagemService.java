@@ -90,11 +90,16 @@ public class MensagemService {
         }
 
         String telefone = sender.split("[:@]")[0].replaceAll("\\D", "");
-        Contato contato = contatoRepository.findByTelefone(telefone).orElse(null);
-        if (contato == null) {
+        List<Contato> encontrados = contatoRepository.findByTelefone(telefone);
+        if (encontrados.isEmpty()) {
             log.info("Webhook Evolution: numero {} nao corresponde a nenhum lead conhecido", telefone);
             return;
         }
+        if (encontrados.size() > 1) {
+            log.warn("Webhook Evolution: numero {} bate com {} contatos - usando o primeiro (id={})",
+                    telefone, encontrados.size(), encontrados.get(0).getId());
+        }
+        Contato contato = encontrados.get(0);
 
         Mensagem mensagem = new Mensagem();
         mensagem.setContatoId(contato.getId());
