@@ -75,7 +75,7 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
                 const on = (p.tags || []).includes(t);
                 return (
                   <button key={t} onClick={() => toggleTag(t)} style={{ ...s.tagChipBig, cursor: "pointer", opacity: on ? 1 : .45, outline: on ? `1.5px solid ${T.primary}` : "none" }}>
-                    # {t}
+                    {t}
                   </button>
                 );
               })}

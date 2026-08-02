@@ -242,7 +242,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const idsComConversa = useMemo(() => new Set(contatoIdsFiltro || []), [contatoIdsFiltro]);
   const numeroEnvio = selecao === "todos" || selecao === "principal" ? null : Number(selecao);
   const abas = [
-    { valor: "todos", rotulo: "Todos" },
+    { valor: "todos", rotulo: "Todos os números" },
     { valor: "principal", rotulo: nomePrincipal ? `${nomePrincipal} (principal)` : "Número principal" },
     ...numeros.map((n) => ({ valor: String(n.id), rotulo: n.nome })),
   ];
@@ -304,22 +304,15 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 6, background: T.bg, padding: 4, borderRadius: 10 }}>
-          {abas.map((aba) => (
-            <button
-              key={aba.valor}
-              onClick={() => setSelecao(aba.valor)}
-              style={{
-                padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 700,
-                background: selecao === aba.valor ? "#fff" : "transparent",
-                color: selecao === aba.valor ? T.ink : T.inkSoft,
-                boxShadow: selecao === aba.valor ? "0 1px 4px rgba(20,40,55,.12)" : "none",
-              }}
-            >
-              {aba.rotulo}
-            </button>
-          ))}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: T.inkSoft, marginBottom: 6 }}>Você deseja disparar de qual número?</div>
+          <select style={{ ...s.select, minWidth: 260 }} value={selecao} onChange={(e) => setSelecao(e.target.value)}>
+            {abas.map((aba) => <option key={aba.valor} value={aba.valor}>{aba.rotulo}</option>)}
+          </select>
+          <div style={{ fontSize: 11.5, color: T.primary, fontWeight: 700, marginTop: 6 }}>
+            Número selecionado: {abas.find((a) => a.valor === selecao)?.rotulo}
+          </div>
         </div>
         <button style={s.btnPrimarySm} onClick={() => setIniciarAberto(true)}>+ Iniciar conversa</button>
       </div>

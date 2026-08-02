@@ -165,7 +165,7 @@ export function Segmentacoes({ patients, segmentos, onCriar, onAtualizar, onExcl
                 </span>
               ) : (
                 <span key={t} style={{ ...s.tagChipBig, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  # {t}
+                  {t}
                   <DotMenu
                     items={[
                       { label: "Editar", onClick: () => { setTagEditando(t); setTagEditValor(t); } },

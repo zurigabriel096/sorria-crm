@@ -65,6 +65,7 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
             {unificando ? "Unificando..." : "Unificar duplicados"}
           </button>
         )}
+        <ImportBox onImport={onImport} showToast={showToast} variant="button" />
         <button style={s.btnGhostSm} onClick={() => exportarXlsx(patients)}><IconDownload color={T.ink} /> Exportar Lead</button>
       </div>
       <Card noPad>
@@ -73,7 +74,7 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
             <thead>
               <tr>
                 <th style={s.thL}>Lead</th><th style={s.th}>Segmento</th><th style={s.th}>Estágio</th><th style={s.th}>Financeiro</th>
-                <th style={s.th}>Dentista</th><th style={s.th}>Recência</th><th style={s.th}>Elegível</th><th style={s.th}>Tags</th>
+                <th style={s.th}>Dentista</th><th style={s.th}>Recência</th><th style={s.th}>Elegível</th>
               </tr>
             </thead>
             <tbody>
@@ -92,7 +93,6 @@ export function Pacientes({ patients, tags, onImport, showToast, filtroInicial, 
                     <td style={s.tdNum}>{p.dentista || "—"}</td>
                     <td style={s.tdNum}>{p.recencia != null ? p.recencia + "d" : "—"}</td>
                     <td style={s.td}>{p.elegivel ? <span style={s.tagOk}>● Sim</span> : <span style={s.tagBad}>▲ Não</span>}</td>
-                    <td style={s.td}><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{(p.tags || []).map((t) => <span key={t} style={s.tagChip}>{t}</span>)}</div></td>
                   </tr>
                 );
               })}
