@@ -23,7 +23,7 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
 
   const enviar = async () => {
     if (!texto.trim()) return;
-    if (!contato.telefone) return showToast("Este lead não tem telefone cadastrado", "warn");
+    if (!contato.tel) return showToast("Este lead não tem telefone cadastrado", "warn");
     setEnviando(true);
     try {
       await enviarMensagem(contato.id, { texto: texto.trim(), whatsappNumeroId: whatsappNumeroId || null });
@@ -39,7 +39,7 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
   return (
     <Modal title={contato.nome} onClose={onClose} wide>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 12.5, color: T.inkSoft }}>{contato.telefone || "Sem telefone"}</span>
+        <span style={{ fontSize: 12.5, color: T.inkSoft }}>{contato.tel || "Sem telefone"}</span>
         <button
           style={{ fontSize: 12, fontWeight: 700, color: T.primary }}
           onClick={() => { onAbrirPaciente(contato); onClose(); }}
@@ -155,7 +155,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente }) {
                 {doEstagio.map((p) => (
                   <div key={p.id} style={{ ...s.campCard, cursor: "pointer" }} onClick={() => setChatAberto(p)}>
                     <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{p.nome}</div>
-                    <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 4 }}>{p.telefone || "Sem telefone"}</div>
+                    <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 4 }}>{p.tel || "Sem telefone"}</div>
                   </div>
                 ))}
               </div>
