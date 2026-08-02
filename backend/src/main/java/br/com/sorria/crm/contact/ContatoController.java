@@ -5,7 +5,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -17,12 +19,15 @@ public class ContatoController {
     private final ContatoService contatoService;
 
     @GetMapping
-    public List<ContatoDTO> listar() {
-        return contatoService.listar();
+    public List<ContatoDTO> listar(Authentication auth) {
+        return contatoService.listarVisiveisPara(auth.getName());
     }
 
     @GetMapping("/{id}")
-    public ContatoDTO buscar(@PathVariable Long id) {
+    public ContatoDTO buscar(@PathVariable Long id, Authentication auth) {
+        if (!contatoService.podeVer(contatoService.buscarEntidade(id), auth.getName())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Voce nao tem acesso a este lead.");
+        }
         return contatoService.buscar(id);
     }
 

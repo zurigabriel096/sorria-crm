@@ -7,6 +7,7 @@ import { Modal } from "./ui/Modal";
 import { StatusBadge } from "./ui/StatusBadge";
 import { IconBook } from "./icons";
 import { listEtapas } from "../api/etapas";
+import { listColaboradores } from "../api/colaboradores";
 
 // Modal de detalhe do paciente, com duas abas: Dados (cadastro) e Histórico do cliente
 // (mensagens que ele recebeu). Usado tanto pela tela de Pacientes quanto pela de Disparos,
@@ -16,7 +17,9 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
   const [p, setP] = useState(paciente);
   const [dirty, setDirty] = useState(false);
   const [etapas, setEtapas] = useState(["Lead"]);
+  const [colaboradores, setColaboradores] = useState([]);
   useEffect(() => { listEtapas().then((lista) => setEtapas(lista.map((e) => e.nome))).catch(() => {}); }, []);
+  useEffect(() => { listColaboradores().then(setColaboradores).catch(() => {}); }, []);
   const set = (k, v) => { setP((x) => ({ ...x, [k]: v })); setDirty(true); };
   const toggleTag = (t) => {
     setP((x) => ({ ...x, tags: (x.tags || []).includes(t) ? x.tags.filter((y) => y !== t) : [...(x.tags || []), t] }));
@@ -53,6 +56,15 @@ export function PatientDetailModal({ paciente, tags, historico, abaInicial = "da
             <Field label="Email"><input style={s.input} value={p.email} onChange={(e) => set("email", e.target.value)} placeholder="email@paciente.com" /></Field>
             <Field label="Segmento"><Select block value={p.segmento} onChange={(v) => set("segmento", v)} options={["VIP", "Fidelizado", "Regular", "Risco", "Inativo"]} /></Field>
             <Field label="Estágio"><Select block value={p.estagio || "Lead"} onChange={(v) => set("estagio", v)} options={etapas} /></Field>
+            <Field label="Responsável pelo Lead">
+              <Select
+                block
+                value={p.responsavelId ? String(p.responsavelId) : ""}
+                onChange={(v) => set("responsavelId", v ? Number(v) : null)}
+                options={["", ...colaboradores.map((c) => String(c.id))]}
+                labels={{ "": "Sem responsável (fila compartilhada)", ...Object.fromEntries(colaboradores.map((c) => [String(c.id), c.nome])) }}
+              />
+            </Field>
             <Field label="Financeiro"><Select block value={p.financ} onChange={(v) => set("financ", v)} options={["Adimplente", "Inadimplente", "—"]} /></Field>
             <Field label="Dentista"><input style={s.input} value={p.dentista} onChange={(e) => set("dentista", e.target.value)} /></Field>
             <Field label="Elegível p/ disparo"><Select block value={p.elegivel ? "Sim" : "Não"} onChange={(v) => set("elegivel", v === "Sim")} options={["Sim", "Não"]} /></Field>

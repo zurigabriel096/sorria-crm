@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { Card } from "../components/ui/Card";
+import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { listNumeros, contatosPorNumero } from "../api/whatsappNumeros";
 import { listMensagens, enviarMensagem, carregarMidiaBlobUrl } from "../api/mensagens";
 import { getWhatsAppStatus } from "../api/whatsapp";
 import { listEtapas, createEtapa, renameEtapa, deleteEtapa } from "../api/etapas";
+import { listColaboradores } from "../api/colaboradores";
 import { dataHora } from "../utils/format";
 
 const POLL_MENSAGENS_MS = 4000;
@@ -40,11 +42,23 @@ function FotoMensagem({ mensagemId }) {
   );
 }
 
-function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onAbrirPaciente }) {
+function ChatModal({ contato, whatsappNumeroId, numeros, colaboradores, onClose, showToast, onAbrirPaciente, onAtualizarPaciente }) {
   const [mensagens, setMensagens] = useState(null);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [emojiAberto, setEmojiAberto] = useState(false);
+  const [editandoResponsavel, setEditandoResponsavel] = useState(false);
+
+  const nomeResponsavel = colaboradores.find((c) => c.id === contato.responsavelId)?.nome;
+
+  const mudarResponsavel = async (valor) => {
+    setEditandoResponsavel(false);
+    try {
+      await onAtualizarPaciente({ ...contato, responsavelId: valor ? Number(valor) : null });
+    } catch (e) {
+      showToast(e.message || "Erro ao atribuir responsável", "warn");
+    }
+  };
 
   const carregar = () => listMensagens(contato.id).then(setMensagens).catch(() => setMensagens([]));
   useEffect(() => { carregar(); }, [contato.id]);
@@ -73,14 +87,32 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
 
   return (
     <Modal title={contato.nome} onClose={onClose} wide>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 10 }}>
         <span style={{ fontSize: 12.5, color: T.inkSoft }}>{contato.tel || "Sem telefone"}</span>
-        <button
-          style={{ fontSize: 12, fontWeight: 700, color: T.primary }}
-          onClick={() => { onAbrirPaciente(contato); onClose(); }}
-        >
-          Editar tags / estágio
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {editandoResponsavel ? (
+            <select
+              autoFocus
+              style={{ ...s.select, height: 30, fontSize: 12.5 }}
+              defaultValue={contato.responsavelId ? String(contato.responsavelId) : ""}
+              onChange={(e) => mudarResponsavel(e.target.value)}
+              onBlur={() => setEditandoResponsavel(false)}
+            >
+              <option value="">Sem responsável</option>
+              {colaboradores.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+          ) : (
+            <button style={{ fontSize: 12, fontWeight: 700, color: T.ink }} onClick={() => setEditandoResponsavel(true)}>
+              👤 {nomeResponsavel || "Sem responsável"}
+            </button>
+          )}
+          <button
+            style={{ fontSize: 12, fontWeight: 700, color: T.primary }}
+            onClick={() => { onAbrirPaciente(contato); onClose(); }}
+          >
+            Editar tags / estágio
+          </button>
+        </div>
       </div>
       {!!(contato.tags || []).length && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
@@ -163,7 +195,7 @@ function ChatModal({ contato, whatsappNumeroId, numeros, onClose, showToast, onA
   );
 }
 
-export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPaciente, usuario }) {
+export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPaciente, onCriarPaciente, usuario }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [numeros, setNumeros] = useState([]);
   const [nomePrincipal, setNomePrincipal] = useState("");
@@ -176,6 +208,20 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const [nomeEdicao, setNomeEdicao] = useState("");
   const [novaColuna, setNovaColuna] = useState(false);
   const [nomeNovaColuna, setNomeNovaColuna] = useState("");
+  const [colaboradores, setColaboradores] = useState([]);
+  const [filtroResponsavel, setFiltroResponsavel] = useState("todos"); // "todos" | "sem" | id do colaborador (string)
+  const [iniciarAberto, setIniciarAberto] = useState(false);
+
+  useEffect(() => { listColaboradores().then(setColaboradores).catch(() => setColaboradores([])); }, []);
+
+  // Mantem o chat aberto sincronizado com o estado global (ex.: depois de
+  // atribuir responsavel, o cabecalho do chat reflete sem precisar fechar/abrir).
+  useEffect(() => {
+    if (!chatAberto) return;
+    const atualizado = patients.find((p) => p.id === chatAberto.id);
+    if (atualizado && atualizado !== chatAberto) setChatAberto(atualizado);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patients]);
 
   const carregarEtapas = () => listEtapas().then(setEtapas).catch(() => setEtapas([]));
   useEffect(() => { carregarEtapas(); }, []);
@@ -244,23 +290,56 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     }
   };
 
+  const responsaveisFiltro = [
+    { valor: "todos", rotulo: "Todos" },
+    { valor: "sem", rotulo: "Sem responsável" },
+    ...colaboradores.map((c) => ({ valor: String(c.id), rotulo: c.nome })),
+  ];
+
+  const passaFiltroResponsavel = (p) => {
+    if (filtroResponsavel === "todos") return true;
+    if (filtroResponsavel === "sem") return !p.responsavelId;
+    return String(p.responsavelId) === filtroResponsavel;
+  };
+
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <div style={{ display: "flex", gap: 6, background: T.bg, padding: 4, borderRadius: 10, width: "fit-content" }}>
-        {abas.map((aba) => (
-          <button
-            key={aba.valor}
-            onClick={() => setSelecao(aba.valor)}
-            style={{
-              padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 700,
-              background: selecao === aba.valor ? "#fff" : "transparent",
-              color: selecao === aba.valor ? T.ink : T.inkSoft,
-              boxShadow: selecao === aba.valor ? "0 1px 4px rgba(20,40,55,.12)" : "none",
-            }}
-          >
-            {aba.rotulo}
-          </button>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, background: T.bg, padding: 4, borderRadius: 10 }}>
+          {abas.map((aba) => (
+            <button
+              key={aba.valor}
+              onClick={() => setSelecao(aba.valor)}
+              style={{
+                padding: "8px 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+                background: selecao === aba.valor ? "#fff" : "transparent",
+                color: selecao === aba.valor ? T.ink : T.inkSoft,
+                boxShadow: selecao === aba.valor ? "0 1px 4px rgba(20,40,55,.12)" : "none",
+              }}
+            >
+              {aba.rotulo}
+            </button>
+          ))}
+        </div>
+        <button style={s.btnPrimarySm} onClick={() => setIniciarAberto(true)}>+ Iniciar conversa</button>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: T.inkSoft }}>Responsável:</span>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {responsaveisFiltro.map((r) => (
+            <button
+              key={r.valor}
+              onClick={() => setFiltroResponsavel(r.valor)}
+              style={{
+                padding: "5px 11px", borderRadius: 20, fontSize: 11.5, fontWeight: 700,
+                background: filtroResponsavel === r.valor ? T.primarySoft : T.lineSoft,
+                color: filtroResponsavel === r.valor ? T.primaryDark : T.inkSoft,
+              }}
+            >
+              {r.rotulo}
+            </button>
+          ))}
+        </div>
       </div>
       {selecao !== "todos" && (
         <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: -8 }}>
@@ -272,7 +351,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
       ) : (
         <div style={{ display: "flex", gap: 14, alignItems: "start", overflowX: "auto", paddingBottom: 8 }}>
           {etapas.map((etapa) => {
-            const doEstagio = patients.filter((p) => (p.estagio || "Lead") === etapa.nome);
+            const doEstagio = patients.filter((p) => (p.estagio || "Lead") === etapa.nome && passaFiltroResponsavel(p));
             return (
               <div
                 key={etapa.id}
@@ -319,6 +398,9 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                       )}
                     </div>
                     <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 4 }}>{p.tel || "Sem telefone"}</div>
+                    <div style={{ fontSize: 10.5, color: T.inkSoft, marginTop: 3 }}>
+                      👤 {colaboradores.find((c) => c.id === p.responsavelId)?.nome || "Sem responsável"}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -348,8 +430,103 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
         </div>
       )}
       {chatAberto && (
-        <ChatModal contato={chatAberto} whatsappNumeroId={numeroEnvio} numeros={numeros} onClose={() => setChatAberto(null)} showToast={showToast} onAbrirPaciente={onAbrirPaciente} />
+        <ChatModal
+          contato={chatAberto} whatsappNumeroId={numeroEnvio} numeros={numeros} colaboradores={colaboradores}
+          onClose={() => setChatAberto(null)} showToast={showToast} onAbrirPaciente={onAbrirPaciente} onAtualizarPaciente={onAtualizarPaciente}
+        />
+      )}
+      {iniciarAberto && (
+        <IniciarConversaModal
+          patients={patients}
+          usuario={usuario}
+          onClose={() => setIniciarAberto(false)}
+          onSelecionar={(p) => { setChatAberto(p); setIniciarAberto(false); }}
+          onCriarPaciente={onCriarPaciente}
+          showToast={showToast}
+        />
       )}
     </div>
+  );
+}
+
+function IniciarConversaModal({ patients, usuario, onClose, onSelecionar, onCriarPaciente, showToast }) {
+  const [modo, setModo] = useState("selecionar"); // "selecionar" | "criar"
+  const [busca, setBusca] = useState("");
+  const [nome, setNome] = useState("");
+  const [tel, setTel] = useState("");
+  const [criando, setCriando] = useState(false);
+
+  const encontrados = busca.trim()
+    ? patients.filter((p) => p.nome.toLowerCase().includes(busca.trim().toLowerCase()) || (p.tel || "").includes(busca.trim()))
+    : patients;
+
+  const criar = async () => {
+    if (!nome.trim() || !tel.trim()) return showToast("Preencha nome e telefone", "warn");
+    setCriando(true);
+    try {
+      const novo = await onCriarPaciente({ nome: nome.trim(), tel: tel.trim(), responsavelId: usuario?.id || null });
+      onSelecionar(novo);
+    } catch (e) {
+      showToast(e.message || "Erro ao criar lead", "warn");
+    } finally {
+      setCriando(false);
+    }
+  };
+
+  return (
+    <Modal title="Iniciar conversa" onClose={onClose}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: T.bg, padding: 4, borderRadius: 10 }}>
+        {[["selecionar", "Selecionar lead"], ["criar", "Criar novo lead"]].map(([valor, rotulo]) => (
+          <button
+            key={valor}
+            onClick={() => setModo(valor)}
+            style={{
+              flex: 1, padding: "8px 6px", borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+              background: modo === valor ? "#fff" : "transparent",
+              color: modo === valor ? T.ink : T.inkSoft,
+              boxShadow: modo === valor ? "0 1px 4px rgba(20,40,55,.12)" : "none",
+            }}
+          >
+            {rotulo}
+          </button>
+        ))}
+      </div>
+
+      {modo === "selecionar" ? (
+        <>
+          <input
+            style={{ ...s.input, width: "100%", marginBottom: 10 }}
+            placeholder="Buscar por nome ou telefone..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            autoFocus
+          />
+          <div style={{ display: "grid", gap: 6, maxHeight: 320, overflowY: "auto" }}>
+            {!encontrados.length && <div style={{ fontSize: 13, color: T.inkSoft, padding: "10px 0" }}>Nenhum lead encontrado.</div>}
+            {encontrados.slice(0, 50).map((p) => (
+              <div
+                key={p.id}
+                onClick={() => onSelecionar(p)}
+                style={{ padding: "10px 12px", borderRadius: 10, background: T.bg, cursor: "pointer" }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{p.nome}</div>
+                <div style={{ fontSize: 11.5, color: T.inkSoft }}>{p.tel || "Sem telefone"}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <Field label="Nome do lead"><input style={s.input} value={nome} onChange={(e) => setNome(e.target.value)} autoFocus /></Field>
+          <Field label="Telefone (com DDD)"><input style={s.input} placeholder="12988887777" value={tel} onChange={(e) => setTel(e.target.value)} /></Field>
+          <div style={{ fontSize: 11.5, color: T.inkSoft, margin: "6px 0 14px" }}>
+            O responsável já entra como você ({usuario?.nome}) — pode trocar depois pelo chat.
+          </div>
+          <button style={{ ...s.btnPrimarySm, width: "100%", justifyContent: "center" }} disabled={criando} onClick={criar}>
+            {criando ? "Criando..." : "Criar lead e iniciar conversa"}
+          </button>
+        </>
+      )}
+    </Modal>
   );
 }

@@ -11,6 +11,10 @@ public interface ContatoRepository extends JpaRepository<Contato, Long> {
     // - um Optional aqui quebraria com IncorrectResultSizeDataAccessException.
     List<Contato> findByTelefone(String telefone);
 
+    // Visibilidade por colaborador: os leads dele + a fila compartilhada
+    // (responsavelId nulo) - ver ContatoService.listarVisiveisPara.
+    List<Contato> findByResponsavelIdOrResponsavelIdIsNull(Long responsavelId);
+
     List<Contato> findBySegmento(String segmento);
 
     List<Contato> findByTagsContaining(String tag);

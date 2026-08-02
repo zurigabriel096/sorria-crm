@@ -17,8 +17,8 @@ public class MensagemController {
     private final MensagemService service;
 
     @GetMapping
-    public List<MensagemDTO> listar(@PathVariable Long contatoId) {
-        return service.listar(contatoId);
+    public List<MensagemDTO> listar(@PathVariable Long contatoId, Authentication auth) {
+        return service.listar(contatoId, auth.getName());
     }
 
     @PostMapping

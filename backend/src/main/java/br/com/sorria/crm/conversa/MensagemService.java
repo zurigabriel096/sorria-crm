@@ -2,6 +2,7 @@ package br.com.sorria.crm.conversa;
 
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
+import br.com.sorria.crm.contact.ContatoService;
 import br.com.sorria.crm.conversa.dto.EnviarMensagemRequest;
 import br.com.sorria.crm.conversa.dto.MensagemDTO;
 import br.com.sorria.crm.user.Usuario;
@@ -12,7 +13,9 @@ import br.com.sorria.crm.whatsapp.WhatsAppNumeroRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -29,6 +32,7 @@ public class MensagemService {
 
     private final MensagemRepository mensagemRepository;
     private final ContatoRepository contatoRepository;
+    private final ContatoService contatoService;
     private final UsuarioRepository usuarioRepository;
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final EvolutionApiClient evolutionApiClient;
@@ -45,8 +49,17 @@ public class MensagemService {
             "stickerMessage", "🩹 Figurinha"
     );
 
-    public List<MensagemDTO> listar(Long contatoId) {
+    public List<MensagemDTO> listar(Long contatoId, String emailUsuarioLogado) {
+        exigirVisibilidade(contatoId, emailUsuarioLogado);
         return mensagemRepository.findByContatoIdOrderByCriadoEmAsc(contatoId).stream().map(this::toDTO).toList();
+    }
+
+    private void exigirVisibilidade(Long contatoId, String emailUsuarioLogado) {
+        Contato contato = contatoRepository.findById(contatoId)
+                .orElseThrow(() -> new NoSuchElementException("Contato nao encontrado: " + contatoId));
+        if (!contatoService.podeVer(contato, emailUsuarioLogado)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Voce nao tem acesso a este lead.");
+        }
     }
 
     // Envio avulso (fora do fluxo de campanha) - o "responder direto pelo Kanban".
@@ -56,6 +69,9 @@ public class MensagemService {
     public MensagemDTO enviar(Long contatoId, EnviarMensagemRequest req, String emailUsuarioLogado) {
         Contato contato = contatoRepository.findById(contatoId)
                 .orElseThrow(() -> new NoSuchElementException("Contato nao encontrado: " + contatoId));
+        if (!contatoService.podeVer(contato, emailUsuarioLogado)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Voce nao tem acesso a este lead.");
+        }
         Usuario usuario = usuarioRepository.findByEmail(emailUsuarioLogado)
                 .orElseThrow(() -> new NoSuchElementException("Usuario nao encontrado"));
 

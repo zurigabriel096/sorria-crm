@@ -1,11 +1,15 @@
 package br.com.sorria.crm.conversa;
 
+import br.com.sorria.crm.contact.Contato;
+import br.com.sorria.crm.contact.ContatoRepository;
+import br.com.sorria.crm.contact.ContatoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,14 +32,21 @@ import java.util.NoSuchElementException;
 public class MensagemMidiaController {
 
     private final MensagemRepository mensagemRepository;
+    private final ContatoRepository contatoRepository;
+    private final ContatoService contatoService;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate = new RestTemplate();
 
     @GetMapping("/{id}/midia")
     @SuppressWarnings("unchecked")
-    public ResponseEntity<byte[]> midia(@PathVariable Long id) {
+    public ResponseEntity<byte[]> midia(@PathVariable Long id, Authentication auth) {
         Mensagem mensagem = mensagemRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Mensagem nao encontrada: " + id));
+        Contato contato = contatoRepository.findById(mensagem.getContatoId())
+                .orElseThrow(() -> new NoSuchElementException("Contato nao encontrado: " + mensagem.getContatoId()));
+        if (!contatoService.podeVer(contato, auth.getName())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Voce nao tem acesso a este lead.");
+        }
         if (mensagem.getPayloadBrutoMidia() == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Esta mensagem nao tem midia associada.");
         }

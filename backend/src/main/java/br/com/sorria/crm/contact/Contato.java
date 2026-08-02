@@ -43,6 +43,11 @@ public class Contato {
     // validado so no Select do frontend.
     private String estagio;
 
+    // Colaborador dono deste lead (Usuario.id). Null = "fila compartilhada",
+    // visivel a qualquer colaborador ate alguem assumir/ser atribuido - ver
+    // ContatoService.listarVisiveisPara.
+    private Long responsavelId;
+
     private boolean elegivel;
 
     private String enviado;
