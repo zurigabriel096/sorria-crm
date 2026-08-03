@@ -88,7 +88,7 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, historic
             )}
             <div style={s.summaryRow}>
               <Metric label="Destinatários elegíveis (prévia)" value={num(elegiveis.length)} />
-              <Metric label="Canal" value={email ? "Email" : "WhatsApp oficial"} />
+              <Metric label="Canal" value={email ? "Email" : "WhatsApp"} />
               <Metric label="Custo estimado" value={brl(custo)} />
             </div>
           </Card>
