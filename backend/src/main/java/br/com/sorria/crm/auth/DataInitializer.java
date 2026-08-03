@@ -1,6 +1,5 @@
 package br.com.sorria.crm.auth;
 
-import br.com.sorria.crm.user.Papel;
 import br.com.sorria.crm.user.Usuario;
 import br.com.sorria.crm.user.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +27,7 @@ public class DataInitializer implements CommandLineRunner {
         admin.setNome("Clinica Orthodontics JC");
         admin.setEmail("clinica@orthodonticsjc.com.br");
         admin.setSenhaHash(passwordEncoder.encode("demodemo"));
-        admin.setPapel(Papel.ADMIN);
+        admin.setPapel("ADMIN");
         usuarioRepository.save(admin);
 
         log.info("Usuario admin seed criado: {}", admin.getEmail());

@@ -30,6 +30,7 @@ import { listContacts, createContact, updateContact, createContactsLote, unifica
 import { matchSeg } from "./utils/patients";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
+import { listPapeisCargo, createPapelCargo, updatePapelCargo, deletePapelCargo } from "./api/papeisCargo";
 import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
 import { listTags, createTag, updateTag, deleteTag } from "./api/tags";
 import { listCamposCustomizados, createCampoCustomizado, updateCampoCustomizado, deleteCampoCustomizado } from "./api/camposCustomizados";
@@ -59,6 +60,7 @@ export default function App() {
   const [camposCustomizados, setCamposCustomizados] = useState([]);
   const [colunasVisiveis, setColunasVisiveisState] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
+  const [papeisCargo, setPapeisCargo] = useState([]);
   const [objetivos, setObjetivos] = useState(["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"]);
 
   const [toast, setToast] = useState(null);
@@ -77,8 +79,8 @@ export default function App() {
     setCarregando(true);
     try {
       const precisaUsuario = !usuarioAtual;
-      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, segmentosRes, tagsRes, camposRes, colunasRes, meRes] = await Promise.all([
-        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(), listSegmentacoes(), listTags(),
+      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, papeisCargoRes, segmentosRes, tagsRes, camposRes, colunasRes, meRes] = await Promise.all([
+        listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(), listPapeisCargo(), listSegmentacoes(), listTags(),
         listCamposCustomizados(), getColunasVisiveis(),
         precisaUsuario ? getMe() : Promise.resolve(usuarioAtual),
       ]);
@@ -87,6 +89,7 @@ export default function App() {
       setTemplates(templatesRes);
       setHistorico(historicoRes);
       setColaboradores(colaboradoresRes);
+      setPapeisCargo(papeisCargoRes);
       setSegmentos(segmentosRes);
       setTagObjetos(tagsRes);
       setCamposCustomizados(camposRes);
@@ -272,6 +275,21 @@ export default function App() {
     setColaboradores((c) => c.filter((x) => x.id !== id));
   };
 
+  const criarPapelCargoHandler = async (dados) => {
+    const criado = await createPapelCargo(dados);
+    setPapeisCargo((ps) => [...ps, criado]);
+  };
+
+  const atualizarPapelCargoHandler = async (id, dados) => {
+    const atualizado = await updatePapelCargo(id, dados);
+    setPapeisCargo((ps) => ps.map((p) => (p.id === id ? atualizado : p)));
+  };
+
+  const excluirPapelCargoHandler = async (id) => {
+    await deletePapelCargo(id);
+    setPapeisCargo((ps) => ps.filter((p) => p.id !== id));
+  };
+
   const criarSegmentacao = async (seg) => {
     const criada = await createSegmentacao(seg);
     setSegmentos((s2) => [criada, ...s2]);
@@ -389,7 +407,7 @@ export default function App() {
     <div style={s.root}>
       <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} angry={angry} setAngry={setAngry} usuario={usuario} />
       <div style={s.main}>
-        <Topbar view={view} usuario={usuario} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
+        <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} />}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} />}
@@ -402,7 +420,7 @@ export default function App() {
           {view === "automacoes" && <Automacoes showToast={showToast} usuario={usuario} />}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} />}
-          {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} />}
+          {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} papeisCargo={papeisCargo} onCriarPapelCargo={criarPapelCargoHandler} onAtualizarPapelCargo={atualizarPapelCargoHandler} onExcluirPapelCargo={excluirPapelCargoHandler} />}
           {view === "plano" && <Plano showToast={showToast} usuario={usuario} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
           {view === "config" && <Config showToast={showToast} usuario={usuario} />}

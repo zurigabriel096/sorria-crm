@@ -31,7 +31,10 @@ public class Usuario {
     @Column(nullable = false)
     private String senhaHash;
 
-    @Enumerated(EnumType.STRING)
+    // Chave de PapelCargo (ex.: "ADMIN", "GESTOR", ou uma funcao criada pelo
+    // ADMIN depois) - era enum fixo (Papel), virou String pra permitir criar
+    // novas funcoes sem alterar codigo (ver PapelCargo). Mesma coluna/valores
+    // de antes (EnumType.STRING ja gravava o texto puro), sem migracao de dado.
     @Column(nullable = false)
-    private Papel papel;
+    private String papel;
 }

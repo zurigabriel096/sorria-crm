@@ -51,6 +51,6 @@ public class MeController {
     }
 
     private UsuarioDTO toDTO(Usuario u) {
-        return new UsuarioDTO(u.getId(), u.getNome(), u.getCpf(), u.getEmail(), u.getPapel().name(), u.getCorPerfil(), u.getAvatarUrl());
+        return new UsuarioDTO(u.getId(), u.getNome(), u.getCpf(), u.getEmail(), u.getPapel(), u.getCorPerfil(), u.getAvatarUrl());
     }
 }

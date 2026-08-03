@@ -4,7 +4,7 @@ import { s } from "../../styles/s";
 import { IconLogout, GlowDot } from "../icons";
 import { ColorPicker } from "../ui/ColorPicker";
 import { AvatarUploader } from "../ui/AvatarUploader";
-import { PAPEL_LABEL, iniciais } from "../../utils/usuario";
+import { iniciais } from "../../utils/usuario";
 
 const TITLES = {
   dashboard: "Painel executivo", pacientes: "Base de Leads", segmentacoes: "Segmentações",
@@ -13,12 +13,12 @@ const TITLES = {
   suporte: "Suporte", config: "Configurações",
 };
 
-export function Topbar({ view, usuario, onAvatarUploaded, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout, showToast }) {
+export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout, showToast }) {
   const [open, setOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const ref = useRef(null);
   const sigla = iniciais(usuario?.nome);
-  const papelLabel = PAPEL_LABEL[usuario?.papel] || usuario?.papel || "";
+  const papelLabel = (papeisCargo || []).find((p) => p.chave === usuario?.papel)?.rotulo || usuario?.papel || "";
 
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };

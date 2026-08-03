@@ -17,6 +17,7 @@ import java.util.NoSuchElementException;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final PapelCargoRepository papelCargoRepository;
     private final PasswordEncoder passwordEncoder;
 
     public List<UsuarioDTO> listar() {
@@ -72,15 +73,17 @@ public class UsuarioService {
                 .orElseThrow(() -> new NoSuchElementException("Colaborador nao encontrado: " + id));
     }
 
-    private Papel papelDe(String papel) {
-        try {
-            return Papel.valueOf(papel.toUpperCase());
-        } catch (IllegalArgumentException ex) {
+    // Valida contra o catalogo dinamico (PapelCargo) em vez de um enum fixo -
+    // devolve a "chave" (a que Usuario.papel guarda de verdade).
+    private String papelDe(String papel) {
+        String chave = papel == null ? "" : papel.trim().toUpperCase();
+        if (!papelCargoRepository.existsByChave(chave)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Papel invalido: " + papel);
         }
+        return chave;
     }
 
     private UsuarioDTO toDTO(Usuario u) {
-        return new UsuarioDTO(u.getId(), u.getNome(), u.getCpf(), u.getEmail(), u.getPapel().name(), u.getCorPerfil(), u.getAvatarUrl());
+        return new UsuarioDTO(u.getId(), u.getNome(), u.getCpf(), u.getEmail(), u.getPapel(), u.getCorPerfil(), u.getAvatarUrl());
     }
 }

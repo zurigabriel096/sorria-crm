@@ -2,7 +2,6 @@ package br.com.sorria.crm.contact;
 
 import br.com.sorria.crm.contact.dto.ContatoDTO;
 import br.com.sorria.crm.conversa.MensagemRepository;
-import br.com.sorria.crm.user.Papel;
 import br.com.sorria.crm.user.Usuario;
 import br.com.sorria.crm.user.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +29,9 @@ import java.util.stream.Collectors;
 @Transactional
 public class ContatoService {
 
-    // Quem enxerga a operacao inteira, sem filtro por responsavel.
-    private static final Set<Papel> PAPEIS_VISAO_TOTAL = Set.of(Papel.ADMIN, Papel.GESTOR);
+    // Quem enxerga a operacao inteira, sem filtro por responsavel. Papel virou
+    // String dinamica (PapelCargo), mas esses dois nomes continuam especiais.
+    private static final Set<String> PAPEIS_VISAO_TOTAL = Set.of("ADMIN", "GESTOR");
 
     private final ContatoRepository contatoRepository;
     private final UsuarioRepository usuarioRepository;

@@ -16,4 +16,9 @@ EXPOSE 8080
 # manter o mesmo teto de ~448MB): o app cresceu bastante desde que o limite de
 # 96m foi definido (WhatsAppNumero, Mensagem, EtapaKanban, decodificacao de
 # midia...) e passou a estourar Metaspace mesmo com o heap sobrando.
-ENTRYPOINT ["java", "-Xmx288m", "-Xss256k", "-XX:MaxMetaspaceSize=160m", "-XX:+UseSerialGC", "-jar", "app.jar"]
+# -Duser.timezone=America/Sao_Paulo: o container do Render roda em UTC por
+# padrao - sem isso, todo LocalDateTime.now() do backend (Mensagem.criadoEm,
+# ContatoService.ultimaMensagemEm, etc.) grava hora UTC, e o frontend exibe
+# esse valor como se ja fosse horario de Brasilia (sem converter fuso),
+# fazendo mensagens aparecerem ~3h no futuro (as vezes ate no dia seguinte).
+ENTRYPOINT ["java", "-Duser.timezone=America/Sao_Paulo", "-Xmx288m", "-Xss256k", "-XX:MaxMetaspaceSize=160m", "-XX:+UseSerialGC", "-jar", "app.jar"]
