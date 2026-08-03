@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { T } from "../theme";
 import { listEtapas } from "../api/etapas";
 import { s } from "../styles/s";
-import { exportarXlsx } from "../utils/patients";
+import { exportarXlsx, parseData } from "../utils/patients";
 import { brl } from "../utils/format";
 import { rotuloCampo, valorDoCampoPainel } from "../utils/painelCampos";
 import { Card } from "../components/ui/Card";
@@ -23,18 +23,20 @@ const TIPOS_CAMPO = [
 
 // Colunas fixas que a tabela sempre teve. "Lead" (nome+telefone) não entra
 // aqui - é a identificação da linha, sempre visível, não faz sentido esconder.
+// "valor" (separado de "render", que é JSX) é o que a ordenação por cabeçalho
+// de coluna usa pra comparar duas linhas - ver alternarOrdenacao.
 function colunasFixas() {
   return [
-    { chave: "estagio", rotulo: "Estágio", render: (p) => {
+    { chave: "estagio", rotulo: "Estágio", valor: (p) => (p.estagio || "Lead").toLowerCase(), render: (p) => {
       const col = T.estagio[p.estagio] || T.estagio.Lead;
       return <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{p.estagio || "Lead"}</span>;
     } },
-    { chave: "financ", rotulo: "Financeiro", render: (p) => (
+    { chave: "financ", rotulo: "Financeiro", valor: (p) => (p.financ || "").toLowerCase(), render: (p) => (
       <span style={{ fontSize: 12.5, color: p.financ === "Inadimplente" ? T.coral : T.inkSoft, fontWeight: 600 }}>{p.financ}</span>
     ) },
-    { chave: "dentista", rotulo: "Dentista", render: (p) => p.dentista || "—", numerica: true },
-    { chave: "recencia", rotulo: "Data do último atendimento", render: (p) => p.ultAtend || "—", numerica: true },
-    { chave: "elegivel", rotulo: "Elegível", render: (p) => (p.elegivel ? <span style={s.tagOk}>● Sim</span> : <span style={s.tagBad}>▲ Não</span>) },
+    { chave: "dentista", rotulo: "Dentista", valor: (p) => (p.dentista || "").toLowerCase(), render: (p) => p.dentista || "—", numerica: true },
+    { chave: "recencia", rotulo: "Data do último atendimento", valor: (p) => parseData(p.ultAtend)?.getTime() ?? -Infinity, render: (p) => p.ultAtend || "—", numerica: true },
+    { chave: "elegivel", rotulo: "Elegível", valor: (p) => (p.elegivel ? 1 : 0), render: (p) => (p.elegivel ? <span style={s.tagOk}>● Sim</span> : <span style={s.tagBad}>▲ Não</span>) },
   ];
 }
 
@@ -42,6 +44,12 @@ function colunaCustomizada(campo) {
   return {
     chave: `custom:${campo.nome}`,
     rotulo: campo.nome,
+    valor: (p) => {
+      const v = p.camposCustomizados?.[campo.nome];
+      if (campo.tipo === "NUMERO" || campo.tipo === "MOEDA") return v ? Number(v) : -Infinity;
+      if (campo.tipo === "DATA") return v ? new Date(v).getTime() : -Infinity;
+      return (v || "").toLowerCase();
+    },
     render: (p) => {
       const valor = p.camposCustomizados?.[campo.nome];
       if (!valor) return "—";
@@ -65,6 +73,7 @@ export function Pacientes({
   // (ver Dashboard.jsx irParaPacientes) - {campo, valor} no mesmo formato de
   // PainelCard, resolvido com o mesmo valorDoCampoPainel usado la.
   const [fCampoValor, setFCampoValor] = useState(filtroInicial?.campo ? { campo: filtroInicial.campo, valor: filtroInicial.valor } : null);
+  const [ordenacao, setOrdenacao] = useState(null); // null | {chave, direcao: "asc"|"desc"}
   const [q, setQ] = useState("");
   const [etapas, setEtapas] = useState([]);
   const [unificando, setUnificando] = useState(false);
@@ -160,6 +169,33 @@ export function Pacientes({
     return true;
   });
 
+  // Ordenacao por clique no cabeçalho da coluna - 1º clique ordena crescente,
+  // 2º decrescente, 3º volta ao padrão (sem ordenação). "Lead" usa uma chave
+  // propria (nome da linha, nao esta em todasColunas); as demais usam o
+  // extrator "valor" de cada coluna (ver colunasFixas/colunaCustomizada).
+  const alternarOrdenacao = (chave) => {
+    setOrdenacao((o) => {
+      if (!o || o.chave !== chave) return { chave, direcao: "asc" };
+      if (o.direcao === "asc") return { chave, direcao: "desc" };
+      return null;
+    });
+  };
+
+  const extratorOrdenacao = ordenacao
+    ? ordenacao.chave === "__nome__"
+      ? (p) => p.nome?.toLowerCase() || ""
+      : todasColunas.find((c) => c.chave === ordenacao.chave)?.valor
+    : null;
+
+  const listaOrdenada = extratorOrdenacao
+    ? [...filtered].sort((a, b) => {
+        const va = extratorOrdenacao(a), vb = extratorOrdenacao(b);
+        if (va < vb) return ordenacao.direcao === "asc" ? -1 : 1;
+        if (va > vb) return ordenacao.direcao === "asc" ? 1 : -1;
+        return 0;
+      })
+    : filtered;
+
   if (!patients.length) {
     return (
       <div style={{ maxWidth: 560, margin: "20px auto", display: "grid", gap: 12, justifyItems: "center" }}>
@@ -202,13 +238,19 @@ export function Pacientes({
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.thL}>Lead</th>
-                {colunasParaMostrar.map((col) => <th key={col.chave} style={s.th}>{col.rotulo}</th>)}
+                <th style={{ ...s.thL, cursor: "pointer", userSelect: "none" }} onClick={() => alternarOrdenacao("__nome__")}>
+                  Lead{ordenacao?.chave === "__nome__" && (ordenacao.direcao === "asc" ? " ▲" : " ▼")}
+                </th>
+                {colunasParaMostrar.map((col) => (
+                  <th key={col.chave} style={{ ...s.th, cursor: "pointer", userSelect: "none" }} onClick={() => alternarOrdenacao(col.chave)}>
+                    {col.rotulo}{ordenacao?.chave === col.chave && (ordenacao.direcao === "asc" ? " ▲" : " ▼")}
+                  </th>
+                ))}
                 {souAdmin && <th style={s.th}></th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 200).map((p) => (
+              {listaOrdenada.slice(0, 200).map((p) => (
                 <tr key={p.id} className="prow" onClick={() => onAbrirPaciente(p, "dados")}>
                   <td style={s.tdL}>
                     <div style={{ fontWeight: 600, color: T.primary }}>{p.nome}</div>
