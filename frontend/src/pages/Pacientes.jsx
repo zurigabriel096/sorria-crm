@@ -167,11 +167,11 @@ export function Pacientes({
           <div style={s.fieldLabel}>Buscar</div>
           <div style={s.search}><IconSearch /><input placeholder="Nome do lead..." style={s.searchInput} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         </div>
-        <button style={s.btnGhostSm} onClick={() => setMaisAcoesAberto(true)}>+ Mais</button>
         <div><div style={s.fieldLabel}>Estágio</div><Select value={fEstagio} onChange={setFEstagio} options={["Todos", ...etapas.map((e) => e.nome)]} /></div>
         <div><div style={s.fieldLabel}>Elegibilidade</div><Select value={fEleg} onChange={setFEleg} options={["Todos", "Elegíveis", "A corrigir"]} /></div>
         <div><div style={s.fieldLabel}>Tag</div><Select value={fTag} onChange={setFTag} options={["Todas", ...tags]} /></div>
         <button style={s.btnGhostSm} onClick={limpar}>Limpar filtros</button>
+        <button style={s.btnGhostSm} onClick={() => setMaisAcoesAberto(true)}>+ Mais</button>
         <div style={{ flex: 1 }} />
         {souAdmin && (
           <button style={s.btnPrimarySm} onClick={() => setNovoLead({ nome: "", tel: "" })}>+ Novo lead</button>
