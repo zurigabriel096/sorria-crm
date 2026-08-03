@@ -3,6 +3,7 @@ package br.com.sorria.crm.contact;
 import br.com.sorria.crm.common.lote.LoteJobService;
 import br.com.sorria.crm.common.lote.LoteJobStatus;
 import br.com.sorria.crm.contact.dto.AplicarTagLoteRequest;
+import br.com.sorria.crm.contact.dto.AtribuirResponsavelLoteRequest;
 import br.com.sorria.crm.contact.dto.ContatoDTO;
 import br.com.sorria.crm.contact.dto.ExcluirLoteRequest;
 import jakarta.validation.Valid;
@@ -14,6 +15,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -126,6 +129,42 @@ public class ContatoController {
     @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> statusExcluirEmLote(@PathVariable String jobId) {
         return statusDTO(loteJobService.status(jobId));
+    }
+
+    // Distribui os leads entre os colaboradores escolhidos - aleatorio E
+    // equilibrado ao mesmo tempo: embaralha a ordem dos contatos e depois
+    // distribui em rodizio pelos colaboradores (contato N vai pro colaborador
+    // N % total). O embaralhamento garante que QUAL contato cai com QUAL
+    // colaborador seja aleatorio; o rodizio garante que a contagem final fique
+    // igual (diferenca de no maximo 1) entre eles. Roda em background, mesma
+    // infraestrutura de tag/excluir em lote.
+    @PostMapping("/responsavel/lote")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Map<String, Object> atribuirResponsavelEmLote(@RequestBody AtribuirResponsavelLoteRequest req) {
+        List<Long> colaboradorIds = req.colaboradorIds() != null ? req.colaboradorIds() : List.of();
+        if (colaboradorIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escolha pelo menos 1 colaborador.");
+        }
+        List<Long> embaralhados = new ArrayList<>(req.contatoIds() != null ? req.contatoIds() : List.of());
+        Collections.shuffle(embaralhados);
+
+        List<ParContatoColaborador> pares = new ArrayList<>();
+        for (int i = 0; i < embaralhados.size(); i++) {
+            pares.add(new ParContatoColaborador(embaralhados.get(i), colaboradorIds.get(i % colaboradorIds.size())));
+        }
+
+        String jobId = loteJobService.iniciar(pares, par -> contatoService.atribuirResponsavel(par.contatoId(), par.colaboradorId()));
+        return Map.of("jobId", jobId, "total", pares.size());
+    }
+
+    @GetMapping("/responsavel/lote/{jobId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Object> statusResponsavelEmLote(@PathVariable String jobId) {
+        return statusDTO(loteJobService.status(jobId));
+    }
+
+    private record ParContatoColaborador(Long contatoId, Long colaboradorId) {
     }
 
     private void aplicarTagNoContato(Long contatoId, String tag, boolean remover) {

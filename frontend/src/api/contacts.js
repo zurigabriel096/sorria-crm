@@ -86,3 +86,11 @@ export const getTagLoteStatus = (jobId) => api.get(`/api/contacts/tags/lote/${jo
 // tag em lote.
 export const excluirContatosEmLote = (contatoIds) => api.post("/api/contacts/excluir-lote", { contatoIds });
 export const getExcluirLoteStatus = (jobId) => api.get(`/api/contacts/excluir-lote/${jobId}`);
+
+// Distribui contatoIds entre colaboradorIds - aleatorio e equilibrado (ver
+// ContatoController.atribuirResponsavelEmLote), restrito a ADMIN no backend,
+// roda em background igual tag/excluir em lote.
+export const atribuirResponsavelEmLote = (contatoIds, colaboradorIds) =>
+  api.post("/api/contacts/responsavel/lote", { contatoIds, colaboradorIds });
+
+export const getResponsavelLoteStatus = (jobId) => api.get(`/api/contacts/responsavel/lote/${jobId}`);

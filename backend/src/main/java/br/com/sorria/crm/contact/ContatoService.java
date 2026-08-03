@@ -127,6 +127,15 @@ public class ContatoService {
         contatoRepository.save(contato);
     }
 
+    // Usado pelo ContatoController.atribuirResponsavelEmLote (distribuicao em
+    // massa de leads entre colaboradores, ver LoteJobService) - so troca o
+    // dono, nao mexe em mais nada do cadastro.
+    public void atribuirResponsavel(Long contatoId, Long colaboradorId) {
+        Contato contato = buscarEntidade(contatoId);
+        contato.setResponsavelId(colaboradorId);
+        contatoRepository.save(contato);
+    }
+
     // Usado pelo AutomacaoEngineService (nos "adicionar_tag"/"remover_tag").
     public void adicionarTag(Long contatoId, String tag) {
         if (vazio(tag)) return;

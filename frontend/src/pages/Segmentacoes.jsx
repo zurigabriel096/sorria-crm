@@ -19,7 +19,7 @@ export function Segmentacoes({
   patients, segmentos, onCriar, onAtualizar, onExcluir, onArquivar,
   tags, tagObjetos, onCriarTag, onAtualizarTag, onExcluirTag,
   camposCustomizados,
-  onAplicarTagEmLote, onExcluirLeadsEmLote, usuario,
+  onAplicarTagEmLote, onExcluirLeadsEmLote, colaboradores, onAtribuirResponsavelEmLote, usuario,
   showToast,
 }) {
   const souAdmin = usuario?.papel === "ADMIN";
@@ -35,6 +35,8 @@ export function Segmentacoes({
   const [aplicandoLote, setAplicandoLote] = useState(false);
   const [excluirLote, setExcluirLote] = useState(null); // null | {seg, quantidade, confirmacao}
   const [excluindoLote, setExcluindoLote] = useState(false);
+  const [respLote, setRespLote] = useState(null); // null | {seg, colaboradorIds}
+  const [atribuindoLote, setAtribuindoLote] = useState(false);
 
   const fieldMeta = montarFieldMeta(camposCustomizados);
 
@@ -118,6 +120,27 @@ export function Segmentacoes({
       showToast(e.message || "Erro ao excluir leads em massa", "warn");
     } finally {
       setExcluindoLote(false);
+    }
+  };
+
+  const abrirRespLote = (seg) => setRespLote({ seg, colaboradorIds: [] });
+
+  const toggleColaboradorLote = (id) =>
+    setRespLote((r) => ({ ...r, colaboradorIds: r.colaboradorIds.includes(id) ? r.colaboradorIds.filter((x) => x !== id) : [...r.colaboradorIds, id] }));
+
+  const confirmarRespLote = async () => {
+    if (!respLote.colaboradorIds.length) return showToast("Escolha pelo menos 1 colaborador", "warn");
+    setAtribuindoLote(true);
+    try {
+      // Roda em background - o modal fecha na hora, o progresso aparece na
+      // barra no canto da tela (ver JobsProgress em App.jsx), sem travar aqui.
+      await onAtribuirResponsavelEmLote(respLote.seg, respLote.colaboradorIds);
+      showToast("Distribuindo leads em segundo plano...", "ok");
+      setRespLote(null);
+    } catch (e) {
+      showToast(e.message || "Erro ao distribuir leads", "warn");
+    } finally {
+      setAtribuindoLote(false);
     }
   };
 
@@ -211,6 +234,7 @@ export function Segmentacoes({
                       ...(souAdmin ? [
                         { label: "Adicionar tag a estes leads", onClick: () => abrirTagLote(seg, false) },
                         { label: "Remover tag destes leads", onClick: () => abrirTagLote(seg, true) },
+                        { label: "Atribuir responsável em massa", onClick: () => abrirRespLote(seg) },
                         { label: "Excluir leads contidos nesse fluxo", danger: true, onClick: () => abrirExcluirLote(seg) },
                       ] : []),
                       { label: seg.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(seg) },
@@ -305,6 +329,39 @@ export function Segmentacoes({
               disabled={aplicandoLote || tags.length === 0}
             >
               {aplicandoLote ? "Aplicando..." : "Confirmar"}
+            </button>
+          </div>
+        </Modal>
+      )}
+      {respLote && (
+        <Modal title="Atribuir responsável em massa" onClose={() => setRespLote(null)}>
+          <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
+            Distribui todo mundo que <b>{respLote.seg.nome}</b> captura agora
+            ({contagemLabel(patients.filter((p) => matchSeg(p, respLote.seg)).length)}) entre os colaboradores marcados
+            abaixo — de forma aleatória e equilibrada (cada um recebe uma quantidade parecida).
+          </div>
+          {!colaboradores?.length ? (
+            <div style={{ fontSize: 13, color: T.inkSoft }}>Cadastre colaboradores primeiro (tela de Colaboradores).</div>
+          ) : (
+            <Field label="Colaboradores">
+              <div style={{ display: "grid", gap: 6, maxHeight: 220, overflowY: "auto" }}>
+                {colaboradores.map((c) => (
+                  <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
+                    <input type="checkbox" checked={respLote.colaboradorIds.includes(c.id)} onChange={() => toggleColaboradorLote(c.id)} />
+                    {c.nome}
+                  </label>
+                ))}
+              </div>
+            </Field>
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setRespLote(null)}>Cancelar</button>
+            <button
+              style={{ ...s.btnPrimary, flex: 1, opacity: atribuindoLote ? .6 : 1 }}
+              onClick={confirmarRespLote}
+              disabled={atribuindoLote || !colaboradores?.length}
+            >
+              {atribuindoLote ? "Distribuindo..." : "Confirmar"}
             </button>
           </div>
         </Modal>
