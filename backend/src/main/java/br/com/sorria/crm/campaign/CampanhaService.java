@@ -5,6 +5,7 @@ import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
 import br.com.sorria.crm.campaign.dto.ProspectDTO;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
+import br.com.sorria.crm.conversa.MensagemService;
 import br.com.sorria.crm.dispatch.DisparoHistorico;
 import br.com.sorria.crm.dispatch.DisparoProspectHistorico;
 import br.com.sorria.crm.dispatch.DisparoProspectHistoricoRepository;
@@ -38,6 +39,7 @@ public class CampanhaService {
     private final EvolutionApiClient evolutionApiClient;
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final DisparoProspectHistoricoRepository disparoProspectHistoricoRepository;
+    private final MensagemService mensagemService;
 
     public List<CampanhaDTO> listar() {
         return campanhaRepository.findAll().stream().map(this::toDTO).toList();
@@ -127,6 +129,8 @@ public class CampanhaService {
 
             if ("Entregue".equals(status)) {
                 entregues++;
+                // So WhatsApp vira Mensagem/aparece no Kanban - email nao tem chat aqui.
+                if (!email) mensagemService.registrarSaidaExterna(contato.getId(), campanha.getWhatsappNumeroId(), mensagem);
             } else if ("Falhou".equals(status)) {
                 falhas++;
             }

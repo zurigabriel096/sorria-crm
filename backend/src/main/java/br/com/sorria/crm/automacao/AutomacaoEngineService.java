@@ -3,6 +3,7 @@ package br.com.sorria.crm.automacao;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.contact.ContatoService;
+import br.com.sorria.crm.conversa.MensagemService;
 import br.com.sorria.crm.segment.Segmentacao;
 import br.com.sorria.crm.segment.SegmentacaoRepository;
 import br.com.sorria.crm.whatsapp.EvolutionApiClient;
@@ -62,6 +63,7 @@ public class AutomacaoEngineService {
     private final ContatoService contatoService;
     private final SegmentacaoMatcher segmentacaoMatcher;
     private final EvolutionApiClient evolutionApiClient;
+    private final MensagemService mensagemService;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelay = 30_000)
@@ -212,7 +214,14 @@ public class AutomacaoEngineService {
     }
 
     private void enviarMensagemComPacing(Contato contato, String texto) {
-        evolutionApiClient.enviarMensagem(contato.getTelefone(), texto);
+        String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), texto);
+        // Sem isso, mensagem de fluxo nao aparecia no Kanban (Conversas.jsx) nem
+        // atualizava Contato.ultimaMensagemEm - a Fila de Trabalho nao sabia que a
+        // automacao tinha acabado de falar com o lead. Numero principal sempre
+        // (FluxoAutomacao nao tem campo de numero alternativo).
+        if ("Entregue".equals(status)) {
+            mensagemService.registrarSaidaExterna(contato.getId(), null, texto);
+        }
         try {
             int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (INTERVALO_PACING_SEGUNDOS * 1000 * 0.4) + 1);
             Thread.sleep(INTERVALO_PACING_SEGUNDOS * 1000L + jitterMs);

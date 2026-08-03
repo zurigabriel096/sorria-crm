@@ -99,6 +99,24 @@ public class MensagemService {
         return toDTO(salva);
     }
 
+    // Usado por CampanhaService/AutomacaoEngineService pra registrar no historico
+    // real de conversa uma mensagem de WhatsApp que ja foi enviada de verdade fora
+    // do reply avulso - sem isso, disparo de campanha/fluxo nao aparecia no Kanban
+    // nem atualizava Contato.ultimaMensagemEm (Fila de Trabalho nao sabia que uma
+    // mensagem tinha saido). enviadoPorUsuarioId fica null (nao foi um humano
+    // respondendo, ver comentario de Mensagem.enviadoPorUsuarioId).
+    public void registrarSaidaExterna(Long contatoId, Long whatsappNumeroId, String texto) {
+        Contato contato = contatoRepository.findById(contatoId).orElse(null);
+        if (contato == null) return;
+        Mensagem mensagem = new Mensagem();
+        mensagem.setContatoId(contatoId);
+        mensagem.setWhatsappNumeroId(whatsappNumeroId);
+        mensagem.setDirecao(SAIDA);
+        mensagem.setTexto(texto);
+        Mensagem salva = mensagemRepository.save(mensagem);
+        atualizarUltimaMensagem(contato, salva);
+    }
+
     // Denormalizado pra a futura Fila de Trabalho ordenar/filtrar por "tempo
     // sem resposta" sem consultar Mensagem por contato toda vez - essencial
     // em escala (ver analise "Kanban nao escala").
