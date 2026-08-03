@@ -6,15 +6,18 @@ import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { WhatsAppLogo } from "../components/icons";
 import { getWhatsAppStatus, desconectarWhatsApp, solicitarCodigoPareamento, obterQrCodeWhatsApp } from "../api/whatsapp";
-import { listNumeros, createNumero, deleteNumero } from "../api/whatsappNumeros";
+import { listNumeros, createNumero, deleteNumero, gerarQrCodeNumero, solicitarPareamentoNumero } from "../api/whatsappNumeros";
 
 // A Evolution recusa gerar codigo de pareamento com um numero ja logado
 // ("instance is already authenticated") - por isso a desconexao e um passo
-// explicito e confirmado, antes de liberar o campo de numero novo.
+// explicito e confirmado, antes de liberar o campo de numero novo. So se
+// aplica ao numero PRINCIPAL (numeroId null) - um numero secundario novo
+// (WhatsAppNumeroService.criar) ja nasce como instancia propria e
+// desconectada, nunca precisa desse gate.
 const QR_DURACAO_SEGUNDOS = 25;
 
-function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial }) {
-  const [desconectado, setDesconectado] = useState(!(statusInicial?.connected && statusInicial?.loggedIn));
+function ConectarNumeroModal({ numeroId, onClose, showToast, onConectado, statusInicial }) {
+  const [desconectado, setDesconectado] = useState(!!numeroId || !(statusInicial?.connected && statusInicial?.loggedIn));
   const [confirmarDesconexao, setConfirmarDesconexao] = useState(false);
   const [desconectando, setDesconectando] = useState(false);
   const [metodo, setMetodo] = useState("qr");
@@ -59,7 +62,7 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
   const gerarCodigo = async () => {
     setCarregando(true);
     try {
-      const { pairingCode } = await solicitarCodigoPareamento(telefone);
+      const { pairingCode } = numeroId ? await solicitarPareamentoNumero(numeroId, telefone) : await solicitarCodigoPareamento(telefone);
       setPairingCode(pairingCode);
     } catch (e) {
       showToast(e.message, "warn");
@@ -71,7 +74,7 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
   const gerarQrCode = async () => {
     setCarregando(true);
     try {
-      const { qrcode } = await obterQrCodeWhatsApp();
+      const { qrcode } = numeroId ? await gerarQrCodeNumero(numeroId) : await obterQrCodeWhatsApp();
       setQrCode(qrcode);
     } catch (e) {
       showToast(e.message, "warn");
@@ -80,9 +83,24 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
     }
   };
 
+  // Numero secundario nao tem um /status dedicado (so aparece no listar()
+  // geral) - reaproveita listNumeros() pra confirmar se esse id em especifico
+  // ja conectou, em vez de criar um endpoint so pra essa checagem pontual.
   const jaConectei = async () => {
     setVerificando(true);
     try {
+      if (numeroId) {
+        const lista = await listNumeros();
+        const numero = lista.find((n) => n.id === numeroId);
+        if (numero?.conectado) {
+          showToast(`WhatsApp conectado: ${numero.nomeConectado}`, "ok");
+          onConectado(numero);
+          onClose();
+        } else {
+          showToast("Ainda não detectei a conexão. Confirme se digitou o código no WhatsApp e tente de novo.", "warn");
+        }
+        return;
+      }
       const status = await getWhatsAppStatus();
       if (status.connected && status.loggedIn) {
         showToast(`WhatsApp conectado: ${status.nome}`, "ok");
@@ -249,28 +267,28 @@ function ConectarNumeroModal({ onClose, showToast, onConectado, statusInicial })
 }
 
 // Numeros ADICIONAIS de WhatsApp (o principal continua no card acima). Cada
-// um cadastrado aqui vira uma opcao de "numero de disparo" nas Campanhas -
-// o cadastro (nome + token da instancia) e feito depois que o numero ja foi
-// conectado na Evolution (fora desta tela, com o suporte tecnico).
+// um cadastrado aqui vira uma opcao de "numero de disparo" nas Campanhas. Ao
+// salvar o nome, o backend ja cria a instancia na Evolution e devolve o id -
+// na hora ja abre o QR pra conectar, sem precisar de nada feito por fora.
 function OutrosNumerosCard({ showToast, souAdmin }) {
   const [numeros, setNumeros] = useState(null);
   const [formAberto, setFormAberto] = useState(false);
   const [nome, setNome] = useState("");
-  const [instancia, setInstancia] = useState("");
-  const [token, setToken] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [numeroParaConectar, setNumeroParaConectar] = useState(null);
 
   const carregar = () => listNumeros().then(setNumeros).catch(() => setNumeros([]));
   useEffect(() => { carregar(); }, []);
 
   const salvar = async () => {
-    if (!nome.trim() || !token.trim()) return showToast("Preencha nome e token da instância", "warn");
+    if (!nome.trim()) return showToast("Dê um nome pra esse número", "warn");
     setSalvando(true);
     try {
-      await createNumero({ nome: nome.trim(), instancia: instancia.trim(), token: token.trim() });
-      setNome(""); setInstancia(""); setToken(""); setFormAberto(false);
-      showToast("Número adicionado", "ok");
+      const criado = await createNumero(nome.trim());
+      setNome(""); setFormAberto(false);
+      showToast("Número criado — agora conecte escaneando o QR", "ok");
       carregar();
+      setNumeroParaConectar(criado.id);
     } catch (e) {
       showToast(e.message || "Erro ao adicionar número", "warn");
     } finally {
@@ -310,6 +328,9 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
               <span style={{ ...s.tagOk, ...(n.conectado ? {} : { color: T.coral, background: T.coral + "1A" }) }}>
                 {n.conectado ? "● Ativo" : "● Inativo"}
               </span>
+              {souAdmin && !n.conectado && (
+                <button onClick={() => setNumeroParaConectar(n.id)} style={{ fontSize: 12, color: T.primary, fontWeight: 600 }}>Conectar</button>
+              )}
               {souAdmin && (
                 <button onClick={() => remover(n)} style={{ fontSize: 12, color: T.coral, fontWeight: 600 }}>Remover</button>
               )}
@@ -323,12 +344,6 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
             <Field label="Nome (pra identificar nas campanhas)">
               <input style={s.input} placeholder="Ex.: Sarah - Atendimento" value={nome} onChange={(e) => setNome(e.target.value)} />
             </Field>
-            <Field label="Instância Evolution (opcional, referência)">
-              <input style={s.input} placeholder="Ex.: SorriaCRM2" value={instancia} onChange={(e) => setInstancia(e.target.value)} />
-            </Field>
-            <Field label="Token da instância">
-              <input style={s.input} placeholder="Peça pro suporte técnico" value={token} onChange={(e) => setToken(e.target.value)} />
-            </Field>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={{ ...s.btnGhostSm, flex: 1, justifyContent: "center" }} onClick={() => setFormAberto(false)}>Cancelar</button>
               <button style={{ ...s.btnPrimarySm, flex: 1, justifyContent: "center" }} disabled={salvando} onClick={salvar}>
@@ -339,6 +354,15 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
         ) : (
           <button style={{ ...s.btnGhostSm, marginTop: 14 }} onClick={() => setFormAberto(true)}>+ Adicionar número</button>
         )
+      )}
+      {numeroParaConectar && (
+        <ConectarNumeroModal
+          numeroId={numeroParaConectar}
+          onClose={() => setNumeroParaConectar(null)}
+          showToast={showToast}
+          onConectado={() => carregar()}
+          statusInicial={{ connected: false, loggedIn: false }}
+        />
       )}
     </Card>
   );

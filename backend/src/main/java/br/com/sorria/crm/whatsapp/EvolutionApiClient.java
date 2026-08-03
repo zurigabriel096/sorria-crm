@@ -164,12 +164,17 @@ public class EvolutionApiClient {
      * already authenticated") - esse passo e obrigatorio antes de trocar de numero.
      */
     public void desconectarInstancia() {
+        desconectarInstancia(apiKey);
+    }
+
+    /** Mesma desconexao, mas de uma instancia qualquer (por token) - ver enviarMensagem(3 args). */
+    public void desconectarInstancia(String tokenInstancia) {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
         }
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.set("apikey", apiKey);
+            headers.set("apikey", tokenInstancia);
             restTemplate.exchange(baseUrl + "/instance/logout", HttpMethod.DELETE, new HttpEntity<>(headers), String.class);
         } catch (RestClientException ex) {
             log.warn("Falha ao desconectar instancia Evolution: {}", ex.getMessage());
@@ -183,18 +188,30 @@ public class EvolutionApiClient {
      * (a WhatsApp as vezes recusa o codigo como invalido). So funciona com a instancia
      * ja desconectada - ver desconectarInstancia().
      */
-    @SuppressWarnings("unchecked")
     public String obterQrCode() {
+        return obterQrCode(apiKey, null);
+    }
+
+    /**
+     * Mesma geracao de QR, mas de uma instancia qualquer (por token) - usada pra
+     * conectar numeros secundarios (WhatsAppNumero) direto pelo app, sem precisar
+     * de nenhuma chamada manual fora do Sorr.ia. webhookUrl (opcional) registra
+     * pra qual endpoint essa instancia deve mandar eventos de mensagem recebida -
+     * ver WhatsAppWebhookController "numeroId" na query string.
+     */
+    @SuppressWarnings("unchecked")
+    public String obterQrCode(String tokenInstancia, String webhookUrl) {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
         }
         HttpHeaders headers = new HttpHeaders();
-        headers.set("apikey", apiKey);
+        headers.set("apikey", tokenInstancia);
         try {
             HttpHeaders headersConnect = new HttpHeaders();
             headersConnect.setContentType(MediaType.APPLICATION_JSON);
-            headersConnect.set("apikey", apiKey);
-            Map<String, Object> body = Map.of("immediate", true, "subscribe", List.of("QRCODE"));
+            headersConnect.set("apikey", tokenInstancia);
+            Map<String, Object> body = new java.util.HashMap<>(Map.of("immediate", true, "subscribe", List.of("QRCODE")));
+            if (webhookUrl != null && !webhookUrl.isBlank()) body.put("webhookUrl", webhookUrl);
             restTemplate.postForEntity(baseUrl + "/instance/connect", new HttpEntity<>(body, headersConnect), String.class);
         } catch (RestClientException ex) {
             log.warn("Falha ao iniciar conexao para gerar QR code: {}", ex.getMessage());
@@ -227,8 +244,13 @@ public class EvolutionApiClient {
      * Solicita um codigo de pareamento (POST /instance/pair) para o numero informado.
      * So funciona se a instancia ja estiver desconectada - ver desconectarInstancia().
      */
-    @SuppressWarnings("unchecked")
     public String solicitarPareamento(String telefone) {
+        return solicitarPareamento(apiKey, telefone);
+    }
+
+    /** Mesmo pareamento, mas de uma instancia qualquer (por token) - ver obterQrCode(2 args). */
+    @SuppressWarnings("unchecked")
+    public String solicitarPareamento(String tokenInstancia, String telefone) {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
         }
@@ -239,7 +261,7 @@ public class EvolutionApiClient {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("apikey", apiKey);
+            headers.set("apikey", tokenInstancia);
             Map<String, Object> body = Map.of("phone", numero, "subscribe", List.of());
             ResponseEntity<Map> resp = restTemplate.postForEntity(
                     baseUrl + "/instance/pair", new HttpEntity<>(body, headers), Map.class);
@@ -259,6 +281,32 @@ public class EvolutionApiClient {
         } catch (RestClientException ex) {
             log.warn("Falha ao solicitar pairing code para {}: {}", numero, ex.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel gerar o codigo de pareamento. Tente novamente.");
+        }
+    }
+
+    /**
+     * Cria uma instancia nova na Evolution (POST /instance/create, autenticado
+     * pelo GLOBAL_API_KEY - unico endpoint de gerenciamento usado por este app
+     * que exige essa chave em vez do token da propria instancia). Usado ao
+     * cadastrar um numero secundario novo (WhatsAppNumero) - antes disso so era
+     * possivel registrar uma instancia ja criada por fora, manualmente.
+     */
+    public void criarInstancia(String nome, String tokenInstancia) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
+        }
+        if (globalApiKey == null || globalApiKey.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "GLOBAL_API_KEY nao configurada - nao e possivel criar instancia nova.");
+        }
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apikey", globalApiKey);
+            Map<String, Object> body = Map.of("name", nome, "token", tokenInstancia);
+            restTemplate.postForEntity(baseUrl + "/instance/create", new HttpEntity<>(body, headers), String.class);
+        } catch (RestClientException ex) {
+            log.warn("Falha ao criar instancia Evolution '{}': {}", nome, ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel criar a instancia na Evolution. Tente novamente.");
         }
     }
 

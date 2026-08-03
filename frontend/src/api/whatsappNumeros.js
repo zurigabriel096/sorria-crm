@@ -2,9 +2,17 @@ import { api } from "./client";
 
 // Numeros ADICIONAIS de WhatsApp (alem do numero principal, gerenciado em
 // api/whatsapp.js). Usados pra escolher por qual numero disparar cada campanha.
+// createNumero so precisa do nome agora - o backend gera o token e ja cria a
+// instancia na Evolution (antes precisava ser criada por fora, manualmente).
 export const listNumeros = () => api.get("/api/whatsapp/numeros");
-export const createNumero = (numero) => api.post("/api/whatsapp/numeros", numero);
+export const createNumero = (nome) => api.post("/api/whatsapp/numeros", { nome });
 export const deleteNumero = (id) => api.del(`/api/whatsapp/numeros/${id}`);
+
+// Conectar um numero secundario direto pelo app (QR/pareamento/desconectar),
+// mesmas acoes do numero principal (api/whatsapp.js) mas por id.
+export const gerarQrCodeNumero = (id) => api.post(`/api/whatsapp/numeros/${id}/qrcode`);
+export const solicitarPareamentoNumero = (id, telefone) => api.post(`/api/whatsapp/numeros/${id}/pareamento`, { telefone });
+export const desconectarNumero = (id) => api.post(`/api/whatsapp/numeros/${id}/desconectar`);
 
 // Leads que ja trocaram mensagem por um numero especifico - base do filtro do
 // Kanban de conversas por numero. id null/omitido = numero principal.

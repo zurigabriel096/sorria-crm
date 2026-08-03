@@ -47,4 +47,25 @@ public class WhatsAppNumeroController {
         service.remover(id);
         return Map.of("ok", true);
     }
+
+    // Conectar numero secundario direto pelo app - mesmas acoes sensiveis do
+    // numero principal (WhatsAppController), so que por id em vez de fixo.
+    @PostMapping("/{id}/qrcode")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, String> qrCode(@PathVariable Long id) {
+        return Map.of("qrcode", service.gerarQrCode(id));
+    }
+
+    @PostMapping("/{id}/pareamento")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, String> pareamento(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        return Map.of("pairingCode", service.solicitarPareamento(id, body.get("telefone")));
+    }
+
+    @PostMapping("/{id}/desconectar")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Boolean> desconectar(@PathVariable Long id) {
+        service.desconectar(id);
+        return Map.of("ok", true);
+    }
 }
