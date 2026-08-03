@@ -6,4 +6,5 @@ import java.util.Optional;
 
 public interface TagRepository extends JpaRepository<Tag, Long> {
     Optional<Tag> findByEtapaId(Long etapaId);
+    Optional<Tag> findByNomeIgnoreCase(String nome);
 }
