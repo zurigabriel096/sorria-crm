@@ -92,13 +92,10 @@ export function Segmentacoes({
     if (!tagLote.tag) return showToast("Escolha uma tag", "warn");
     setAplicandoLote(true);
     try {
-      const afetados = await onAplicarTagEmLote(tagLote.seg, tagLote.tag, tagLote.remover);
-      showToast(
-        afetados > 0
-          ? `Tag "${tagLote.tag}" ${tagLote.remover ? "removida de" : "adicionada em"} ${contagemLabel(afetados)}`
-          : "Nenhum lead afetado",
-        "ok"
-      );
+      // Roda em background - o modal fecha na hora, o progresso aparece na
+      // barra no canto da tela (ver JobsProgress em App.jsx), sem travar aqui.
+      await onAplicarTagEmLote(tagLote.seg, tagLote.tag, tagLote.remover);
+      showToast(`Aplicando tag "${tagLote.tag}" em segundo plano...`, "ok");
       setTagLote(null);
     } catch (e) {
       showToast(e.message || "Erro ao aplicar tag em massa", "warn");

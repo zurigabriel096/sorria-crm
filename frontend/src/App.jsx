@@ -5,6 +5,7 @@ import { s } from "./styles/s";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
 import { Toast } from "./components/ui/Toast";
+import { JobsProgress } from "./components/ui/JobsProgress";
 import { PatientDetailModal } from "./components/PatientDetailModal";
 
 import { Login } from "./pages/Login";
@@ -25,7 +26,7 @@ import { Suporte } from "./pages/Suporte";
 import { Config } from "./pages/Config";
 
 import { logout as apiLogout } from "./api/auth";
-import { listContacts, createContact, updateContact, createContactsLote, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote } from "./api/contacts";
+import { listContacts, createContact, updateContact, createContactsLote, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus } from "./api/contacts";
 import { matchSeg } from "./utils/patients";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
@@ -61,6 +62,7 @@ export default function App() {
   const [objetivos, setObjetivos] = useState(["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"]);
 
   const [toast, setToast] = useState(null);
+  const [jobs, setJobs] = useState([]); // acoes em massa rodando em background (ver JobsProgress)
   const [disparoCampanha, setDisparoCampanha] = useState(null);
   const [pacienteAberto, setPacienteAberto] = useState(null);
   const [conversaParaAbrir, setConversaParaAbrir] = useState(null);
@@ -179,14 +181,39 @@ export default function App() {
   };
 
   // Aplica uma tag em massa em todo mundo que uma Segmentacao captura hoje
-  // (mesmos leads que a contagem "Captura agora: N leads" mostra).
+  // (mesmos leads que a contagem "Captura agora: N leads" mostra). Roda em
+  // background no servidor - so inicia o job e devolve na hora, sem travar a
+  // tela; o progresso e' acompanhado pelo <JobsProgress> (ver useEffect abaixo).
   const aplicarTagSegmentacao = async (seg, tag, remover) => {
     const ids = patients.filter((p) => matchSeg(p, seg)).map((p) => p.id);
-    const { afetados } = await aplicarTagEmLote(ids, tag, remover);
-    const pacientesAtualizados = await listContacts();
-    setPatients(pacientesAtualizados);
-    return afetados;
+    const { jobId, total } = await aplicarTagEmLote(ids, tag, remover);
+    setJobs((js) => [...js, {
+      id: jobId, label: `${remover ? "Removendo" : "Adicionando"} tag "${tag}"`,
+      total, processados: 0, afetados: 0, concluido: total === 0,
+    }]);
   };
+
+  // Consulta o progresso de todo job de tag em massa ainda rodando a cada
+  // 1.2s - quando termina, recarrega a lista de contatos (tags mudaram) e
+  // deixa a barra com "Concluído" ate o usuario fechar (nao some sozinha,
+  // pra dar tempo de ver o resultado mesmo se a pessoa nao tiver olhando).
+  useEffect(() => {
+    const emAndamento = jobs.filter((j) => !j.concluido);
+    if (!emAndamento.length) return;
+    const t = setInterval(() => {
+      emAndamento.forEach(async (j) => {
+        try {
+          const s = await getTagLoteStatus(j.id);
+          setJobs((js) => js.map((x) => (x.id === j.id ? { ...x, processados: s.processados, afetados: s.afetados, concluido: s.concluido } : x)));
+          if (s.concluido) listContacts().then(setPatients);
+        } catch {
+          setJobs((js) => js.filter((x) => x.id !== j.id));
+        }
+      });
+    }, 1200);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs]);
 
   const abrirPaciente = (paciente, aba = "dados") => setPacienteAberto({ paciente, aba });
 
@@ -376,12 +403,13 @@ export default function App() {
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} />}
           {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} />}
-          {view === "plano" && <Plano showToast={showToast} />}
+          {view === "plano" && <Plano showToast={showToast} usuario={usuario} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
           {view === "config" && <Config showToast={showToast} usuario={usuario} />}
         </div>
       </div>
       {toast && <Toast toast={toast} />}
+      <JobsProgress jobs={jobs} onDismiss={(id) => setJobs((js) => js.filter((j) => j.id !== id))} />
       {pacienteAberto && (
         <PatientDetailModal
           paciente={pacienteAberto.paciente}

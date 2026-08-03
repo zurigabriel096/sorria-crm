@@ -8,7 +8,8 @@ import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Metric } from "../components/ui/Metric";
 
-export function Plano({ showToast }) {
+export function Plano({ showToast, usuario }) {
+  const souAdmin = usuario?.papel === "ADMIN";
   const [per, setPer] = useState(Object.keys(PERIODOS)[0]);
   const d = PERIODOS[per];
   const msgsWhats = d.mkt + d.util;
@@ -16,7 +17,19 @@ export function Plano({ showToast }) {
   const total = PRECOS.mensalidade + custoMsgs;
 
   return (
-    <div style={{ display: "grid", gap: 18, maxWidth: 780 }}>
+    <div style={{ position: "relative" }}>
+      {!souAdmin && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 10, display: "grid", placeItems: "center",
+          background: "rgba(255,255,255,.55)", backdropFilter: "blur(6px)", borderRadius: 12,
+        }}>
+          <div style={{ background: "#fff", border: `1px solid ${T.line}`, borderRadius: 12, padding: "18px 24px", boxShadow: "0 10px 30px rgba(20,40,55,.14)", textAlign: "center", maxWidth: 320 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: T.ink }}>Visível só para administradores</div>
+            <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 4 }}>Fale com o administrador da conta se precisar de informações sobre o plano.</div>
+          </div>
+        </div>
+      )}
+      <div style={{ display: "grid", gap: 18, maxWidth: 780, ...(!souAdmin ? { filter: "blur(6px)", pointerEvents: "none", userSelect: "none" } : {}) }}>
       <div style={s.aviso}>Todas as faturas são enviadas no dia 02 para o email cadastrado. Se não estiver recebendo, fale com o suporte para atualizarmos o email do setor financeiro.</div>
       <div style={s.planHero}>
         <div>
@@ -51,6 +64,7 @@ export function Plano({ showToast }) {
           </tbody>
         </table>
       </Card>
+      </div>
     </div>
   );
 }

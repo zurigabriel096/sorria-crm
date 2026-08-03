@@ -20,6 +20,7 @@ import java.util.Map;
 public class ContatoController {
 
     private final ContatoService contatoService;
+    private final TagLoteJobService tagLoteJobService;
 
     @GetMapping
     public List<ContatoDTO> listar(Authentication auth) {
@@ -72,12 +73,27 @@ public class ContatoController {
     // Adiciona/remove uma tag em varios leads de uma vez (ex.: todo mundo que
     // uma Segmentacao captura hoje) - restrito a ADMIN por mexer em varios
     // cadastros de uma vez, mesmo raciocinio do unificar-duplicados acima.
+    // Roda em background (TagLoteJobService/TagLoteWorker) - responde na hora
+    // com um jobId, sem prender a requisicao ate processar todo mundo (cada
+    // linha e' um round-trip pro banco, uma base grande levaria minutos).
     @PostMapping("/tags/lote")
     @PreAuthorize("hasRole('ADMIN')")
-    public Map<String, Integer> aplicarTagEmLote(@RequestBody AplicarTagLoteRequest req) {
-        int afetados = req.remover()
-                ? contatoService.removerTagEmLote(req.contatoIds(), req.tag())
-                : contatoService.adicionarTagEmLote(req.contatoIds(), req.tag());
-        return Map.of("afetados", afetados);
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Map<String, Object> aplicarTagEmLote(@RequestBody AplicarTagLoteRequest req) {
+        String jobId = tagLoteJobService.iniciar(req.contatoIds(), req.tag(), req.remover());
+        int total = req.contatoIds() != null ? req.contatoIds().size() : 0;
+        return Map.of("jobId", jobId, "total", total);
+    }
+
+    @GetMapping("/tags/lote/{jobId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Object> statusTagEmLote(@PathVariable String jobId) {
+        TagLoteJobStatus status = tagLoteJobService.status(jobId);
+        return Map.of(
+                "total", status.getTotal(),
+                "processados", status.getProcessados(),
+                "afetados", status.getAfetados(),
+                "concluido", status.isConcluido()
+        );
     }
 }

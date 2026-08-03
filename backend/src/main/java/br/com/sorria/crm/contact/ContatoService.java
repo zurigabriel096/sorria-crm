@@ -20,7 +20,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 // @Transactional na classe: sem isso, a colecao lazy `tags` (@ElementCollection) e
@@ -148,30 +147,6 @@ public class ContatoService {
         contatoRepository.save(contato);
     }
 
-    // Aplicar tag em varios contatos de uma vez (ex.: todos que uma Segmentacao
-    // captura hoje) - reusa adicionarTag/removerTag (mesma idempotencia), so
-    // pula quem sumiu entre a lista ser montada no frontend e a acao rodar.
-    public int adicionarTagEmLote(List<Long> contatoIds, String tag) {
-        return aplicarEmLote(contatoIds, tag, this::adicionarTag);
-    }
-
-    public int removerTagEmLote(List<Long> contatoIds, String tag) {
-        return aplicarEmLote(contatoIds, tag, this::removerTag);
-    }
-
-    private int aplicarEmLote(List<Long> contatoIds, String tag, BiConsumer<Long, String> acao) {
-        if (vazio(tag) || contatoIds == null) return 0;
-        int afetados = 0;
-        for (Long id : contatoIds) {
-            try {
-                acao.accept(id, tag);
-                afetados++;
-            } catch (NoSuchElementException ignorado) {
-                // contato pode ter sido excluido entre a lista ser montada e a acao rodar
-            }
-        }
-        return afetados;
-    }
 
     // Limpeza dos duplicados que ja existem na base (ex.: dois cadastros pro
     // mesmo lead, criados antes desta trava existir). Agrupa por telefone; de

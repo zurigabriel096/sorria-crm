@@ -70,6 +70,10 @@ export const createContactsLote = async (patients) => (await api.post("/api/cont
 export const unificarDuplicados = () => api.post("/api/contacts/unificar-duplicados", {});
 
 // Adiciona/remove uma tag em varios contatos de uma vez (ex.: todos que uma
-// Segmentacao captura hoje) - restrito a ADMIN no backend.
+// Segmentacao captura hoje) - restrito a ADMIN no backend. Roda em background
+// no servidor: retorna na hora com {jobId, total}, sem esperar processar todo
+// mundo - acompanhar com getTagLoteStatus.
 export const aplicarTagEmLote = (contatoIds, tag, remover) =>
   api.post("/api/contacts/tags/lote", { contatoIds, tag, remover });
+
+export const getTagLoteStatus = (jobId) => api.get(`/api/contacts/tags/lote/${jobId}`);
