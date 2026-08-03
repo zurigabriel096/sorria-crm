@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { PRECOS } from "../data/seed";
-import { brl, num } from "../utils/format";
+import { brl, num, numAbrev } from "../utils/format";
 import { getDashboardKpis, getDisparosPorCategoria } from "../api/dashboard";
 import { Card } from "../components/ui/Card";
 import { Metric } from "../components/ui/Metric";
@@ -73,23 +73,20 @@ export function Plano({ showToast, usuario }) {
       </div>
       <div style={s.volGrid}>
         <PriceCard label="Mensalidade" value={brl(PRECOS.mensalidade)} />
-        <PriceCard label="Volumetria incluída" value={`${num(PRECOS.volumetriaIncluida)} msgs/mês`} sub="Marketing R$0,24 · Utilidade R$0,15 no excedente" />
+        <PriceCard label="Volumetria incluída" value={`${numAbrev(PRECOS.volumetriaIncluida)} msgs/mês`} />
         <PriceCard label="Mensagem Email" value="Em breve" valueColor="#FF6500" />
       </div>
       <Card title="Consumo do período">
         <div style={s.summaryRow}>
           <Metric label="Leads na base" value={num(kpis.totalContatos)} />
-          <Metric label="Mensagens enviadas" value={num(ex.total)} sub="WhatsApp Marketing + Utilidade" />
-        </div>
-        <div style={{ ...s.summaryRow, marginTop: 16 }}>
-          <Metric label="WhatsApp Marketing" value={num(ex.mkt)} />
-          <Metric label="WhatsApp Utilidade" value={num(ex.util)} />
-          <Metric label="WhatsApp Autenticação" value={num(autenticacao)} accent={T.inkSoft} sub="em desenvolvimento" />
+          <Metric label="Msgs. enviadas" value={num(ex.total)} />
+          <Metric label="Msgs. marketing" value={num(ex.mkt)} />
+          <Metric label="Msgs. utilidade" value={num(ex.util)} />
         </div>
       </Card>
       <Card title="Volumetria e excedente do período">
         <div style={s.summaryRow}>
-          <Metric label="Incluído no plano" value={`${num(PRECOS.volumetriaIncluida)} msgs`} />
+          <Metric label="Incluído no plano" value={`${numAbrev(PRECOS.volumetriaIncluida)} msgs`} />
           <Metric label="Disparado no período" value={num(ex.total)} />
           <Metric label="Excedente total" value={num(ex.excedenteTotal)} accent={ex.excedenteTotal > 0 ? T.gold : T.ink} />
         </div>

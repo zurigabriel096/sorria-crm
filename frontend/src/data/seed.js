@@ -30,7 +30,7 @@ export const OPS_SEM_VALOR = ["está preenchido", "não está preenchido"];
 export const FIELD_META = {
   financ: { label: "Financeiro", ops: ["é", "não é", ...OPS_SEM_VALOR], values: ["Adimplente", "Inadimplente"] },
   diasInadimplente: { label: "Inadimplente há (dias)", ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" },
-  recencia: { label: "Recência (dias)", ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" },
+  recencia: { label: "Tempo sem atendimento (dias)", ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" },
   elegivel: { label: "Elegível", ops: ["é", "não é"], values: ["Sim", "Não"] },
   tag: { label: "Tag", ops: ["contém", "não contém"], value: "text" },
 };
@@ -76,7 +76,7 @@ export const PRECOS = {
   msgMarketing: 0.24,
   msgUtilidade: 0.15,
   msgAutenticacao: 0.08, // "Autenticação" ainda nao e' funcional - ver Templates.jsx
-  volumetriaIncluida: 1000,
+  volumetriaIncluida: 5000,
 };
 
 export function precoPorCategoria(categoria) {

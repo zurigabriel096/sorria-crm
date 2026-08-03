@@ -1,5 +1,13 @@
 export const brl = (n) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(n || 0);
 export const num = (n) => new Intl.NumberFormat("pt-BR").format(Math.round(n || 0));
+
+// "5 mil" em vez de "5.000" - usado em cartões de plano/volumetria, onde o
+// numero exato importa menos que a leitura rapida.
+export const numAbrev = (n) => {
+  const v = Math.round(n || 0);
+  if (v >= 1000 && v % 1000 === 0) return `${v / 1000} mil`;
+  return num(v);
+};
 export const pct = (n) => `${Math.round(n || 0)}%`;
 
 // Ex.: "01/08/2026 às 14:35" — usado no histórico de disparos, pra rastreabilidade
