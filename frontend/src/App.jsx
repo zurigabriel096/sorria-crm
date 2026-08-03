@@ -25,6 +25,7 @@ import { Colaboradores } from "./pages/Colaboradores";
 import { Plano } from "./pages/Plano";
 import { Suporte } from "./pages/Suporte";
 import { Config } from "./pages/Config";
+import { Aquecimento } from "./pages/Aquecimento";
 
 import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact, deleteContact, iniciarImportacaoLote, getImportLoteStatus, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus, excluirContatosEmLote, getExcluirLoteStatus, atribuirResponsavelEmLote, getResponsavelLoteStatus } from "./api/contacts";
@@ -515,6 +516,7 @@ export default function App() {
           {view === "plano" && <Plano showToast={showToast} usuario={usuario} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
           {view === "config" && <Config showToast={showToast} usuario={usuario} />}
+          {view === "aquecimento" && <Aquecimento showToast={showToast} />}
         </div>
       </div>
       {toast && <Toast toast={toast} />}

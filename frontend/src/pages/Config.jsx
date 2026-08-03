@@ -274,6 +274,7 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
   const [numeros, setNumeros] = useState(null);
   const [formAberto, setFormAberto] = useState(false);
   const [nome, setNome] = useState("");
+  const [finalidade, setFinalidade] = useState("DISPARO");
   const [salvando, setSalvando] = useState(false);
   const [numeroParaConectar, setNumeroParaConectar] = useState(null);
 
@@ -284,8 +285,8 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
     if (!nome.trim()) return showToast("Dê um nome pra esse número", "warn");
     setSalvando(true);
     try {
-      const criado = await createNumero(nome.trim());
-      setNome(""); setFormAberto(false);
+      const criado = await createNumero(nome.trim(), finalidade);
+      setNome(""); setFinalidade("DISPARO"); setFormAberto(false);
       showToast("Número criado — agora conecte escaneando o QR", "ok");
       carregar();
       setNumeroParaConectar(criado.id);
@@ -322,7 +323,10 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
             <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, background: T.bg }}>
               <span style={{ ...s.channelIcon, background: T.wa + "1A" }}><WhatsAppLogo size={20} /></span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, color: T.ink, fontSize: 13.5 }}>{n.nome}</div>
+                <div style={{ fontWeight: 700, color: T.ink, fontSize: 13.5, display: "flex", alignItems: "center", gap: 6 }}>
+                  {n.nome}
+                  {n.finalidade === "AQUECIMENTO" && <span style={{ ...s.tagMuted, fontSize: 10.5 }}>Aquecimento</span>}
+                </div>
                 <div style={{ fontSize: 11.5, color: T.inkSoft }}>{n.conectado ? (n.nomeConectado || "Conectado") : "Desconectado"}</div>
               </div>
               <span style={{ ...s.tagOk, ...(n.conectado ? {} : { color: T.coral, background: T.coral + "1A" }) }}>
@@ -343,6 +347,12 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
           <div style={{ display: "grid", gap: 10, marginTop: 14, padding: 12, borderRadius: 10, border: `1px solid ${T.line}` }}>
             <Field label="Nome (pra identificar nas campanhas)">
               <input style={s.input} placeholder="Ex.: Sarah - Atendimento" value={nome} onChange={(e) => setNome(e.target.value)} />
+            </Field>
+            <Field label="Finalidade">
+              <select style={{ ...s.select, width: "100%" }} value={finalidade} onChange={(e) => setFinalidade(e.target.value)}>
+                <option value="DISPARO">Disparo (campanhas normais)</option>
+                <option value="AQUECIMENTO">Aquecimento (Sorr.ia Protect — nunca dispara campanha)</option>
+              </select>
             </Field>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={{ ...s.btnGhostSm, flex: 1, justifyContent: "center" }} onClick={() => setFormAberto(false)}>Cancelar</button>

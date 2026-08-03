@@ -24,6 +24,10 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
   const [fObjetivo, setFObjetivo] = useState("Todos");
   const [verArquivadas, setVerArquivadas] = useState(false);
   const [numeros, setNumeros] = useState([]);
+  // Numero de aquecimento (Sorr.ia Protect) nunca aparece como opcao de
+  // disparo de campanha/A-B-C - existe so pra trocar mensagem com outro
+  // numero de aquecimento, nunca com lead real.
+  const numerosDisparo = numeros.filter((n) => n.finalidade !== "AQUECIMENTO");
   const [performance, setPerformance] = useState({}); // {[campanhaId]: dados | "carregando"}
   const [abModal, setAbModal] = useState(null); // null | {segmentoId, variantes: [idA, idB, idC?], numeroIds: []}
   const [disparandoAB, setDisparandoAB] = useState(false);
@@ -307,14 +311,14 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
               {!ativos.length && <div style={{ fontSize: 11.5, color: T.coral, marginTop: 6 }}>Nenhum template ativo — crie um na aba Templates.</div>}
             </Field>
           )}
-          {f.canal === "WhatsApp" && !!numeros.length && (
+          {f.canal === "WhatsApp" && !!numerosDisparo.length && (
             <Field label="Número de disparo">
               <Select
                 block
                 value={f.whatsappNumeroId}
                 onChange={(v) => setF({ ...f, whatsappNumeroId: v ? Number(v) : "" })}
-                options={["", ...numeros.map((n) => n.id)]}
-                labels={{ "": "Atendimento Orthodontic - João", ...Object.fromEntries(numeros.map((n) => [n.id, n.nome])) }}
+                options={["", ...numerosDisparo.map((n) => n.id)]}
+                labels={{ "": "Número principal", ...Object.fromEntries(numerosDisparo.map((n) => [n.id, n.nome])) }}
               />
             </Field>
           )}
@@ -388,7 +392,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
                   <input type="checkbox" checked={abModal.numeroIds.includes("")} onChange={() => toggleNumero("")} />
                   Número principal
                 </label>
-                {numeros.map((n) => (
+                {numerosDisparo.map((n) => (
                   <label key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
                     <input type="checkbox" checked={abModal.numeroIds.includes(n.id)} onChange={() => toggleNumero(n.id)} />
                     {n.nome}

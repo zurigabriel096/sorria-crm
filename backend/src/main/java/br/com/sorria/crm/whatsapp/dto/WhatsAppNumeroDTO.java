@@ -11,6 +11,9 @@ public record WhatsAppNumeroDTO(
         @NotBlank String nome,
         String instancia,
         String token,
+        // "DISPARO" | "AQUECIMENTO" - null na criacao cai pro padrao DISPARO
+        // (ver WhatsAppNumeroService.criar).
+        String finalidade,
         LocalDateTime criadoEm,
         Boolean conectado,
         String nomeConectado

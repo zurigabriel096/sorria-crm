@@ -157,8 +157,8 @@ export function Templates({ templates, setTemplates, objetivos, objetivoObjetos,
               block
               value={testando.whatsappNumeroId}
               onChange={(v) => setTestando({ ...testando, whatsappNumeroId: v })}
-              options={[NUMERO_PRINCIPAL, ...numeros.map((n) => String(n.id))]}
-              labels={{ [NUMERO_PRINCIPAL]: "Número principal", ...Object.fromEntries(numeros.map((n) => [String(n.id), n.nome])) }}
+              options={[NUMERO_PRINCIPAL, ...numeros.filter((n) => n.finalidade !== "AQUECIMENTO").map((n) => String(n.id))]}
+              labels={{ [NUMERO_PRINCIPAL]: "Número principal", ...Object.fromEntries(numeros.filter((n) => n.finalidade !== "AQUECIMENTO").map((n) => [String(n.id), n.nome])) }}
             />
           </Field>
           <Field label="Telefone de destino (com DDD)">

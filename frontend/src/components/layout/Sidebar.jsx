@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { T } from "../../theme";
 import { s } from "../../styles/s";
 import { Logo } from "../Logo";
-import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam, IconCard, IconLife, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox, IconHome } from "../icons";
+import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam, IconCard, IconLife, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox, IconHome, IconShield } from "../icons";
 
 // Itens simples navegam direto; itens com "children" viram um grupo expansível
 // (acordeão inline), no espírito do menu de Campanhas da RD Station. O próprio
@@ -37,7 +37,12 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
   // ADMIN/GESTOR - ver App.jsx viewInicialPara. Antes so dava pra voltar
   // pra la deslogando e logando de novo, sem nenhuma entrada de menu.
   const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
-  const ITEMS = souAdminOuGestor ? ITEMS_BASE : [["inicio", "Início", IconHome], ...ITEMS_BASE];
+  // "Sorr.ia Protect" mexe em infraestrutura de WhatsApp (numeros dedicados
+  // a aquecimento) - so ADMIN ve, mesmo criterio de Configurações.
+  const itemsComProtect = usuario?.papel === "ADMIN"
+    ? [...ITEMS_BASE.slice(0, -1), ["aquecimento", "Sorr.ia Protect", IconShield], ITEMS_BASE[ITEMS_BASE.length - 1]]
+    : ITEMS_BASE;
+  const ITEMS = souAdminOuGestor ? itemsComProtect : [["inicio", "Início", IconHome], ...itemsComProtect];
 
   // Só semeia aberto se a página inicial já cair no grupo; depois disso o estado
   // de expandido/recolhido é só do usuário — nunca recalculado a partir da página

@@ -150,6 +150,55 @@ public class EvolutionApiClient {
         return "";
     }
 
+    /**
+     * Lista todas as instancias da Evolution (GET /instance/all, GLOBAL_API_KEY) -
+     * cada item traz "token" e "jid" (numero conectado). Usado pelo Sorr.ia
+     * Protect (AquecimentoService) pra descobrir o telefone real de cada
+     * numero de aquecimento a partir do token guardado no banco, sem precisar
+     * duplicar esse dado em WhatsAppNumero (o numero muda se reconectar).
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> listarInstancias() {
+        if (baseUrl == null || baseUrl.isBlank() || globalApiKey == null || globalApiKey.isBlank()) return List.of();
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("apikey", globalApiKey);
+            ResponseEntity<Map> resp = restTemplate.exchange(
+                    baseUrl + "/instance/all", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            List<Map<String, Object>> lista = (List<Map<String, Object>>) resp.getBody().get("data");
+            return lista != null ? lista : List.of();
+        } catch (RestClientException ex) {
+            log.warn("Falha ao listar instancias (instance/all): {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Extrai so os digitos do telefone a partir de um JID ("55129...:13@s.whatsapp.net"). */
+    public static String jidParaTelefone(String jid) {
+        if (jid == null || jid.isBlank() || "null".equals(jid)) return null;
+        String numero = jid.split("[:@]")[0].replaceAll("\\D", "");
+        return numero.isBlank() ? null : numero;
+    }
+
+    /**
+     * Simula o indicador "digitando..." antes de mandar mensagem (POST
+     * /instance/presence) - so estetico/comportamental, usado pelo Sorr.ia
+     * Protect pra não mandar mensagem "seca" demais entre os proprios
+     * numeros. Melhor esforco: falha aqui nunca deve impedir o envio real.
+     */
+    public void simularDigitando(String tokenInstancia, String telefoneDestino, int delayMs) {
+        if (baseUrl == null || baseUrl.isBlank()) return;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apikey", tokenInstancia);
+            Map<String, Object> body = Map.of("number", telefoneDestino, "state", "composing", "delay", delayMs);
+            restTemplate.postForEntity(baseUrl + "/instance/presence", new HttpEntity<>(body, headers), String.class);
+        } catch (RestClientException ex) {
+            log.warn("Falha ao simular 'digitando' pra {}: {}", telefoneDestino, ex.getMessage());
+        }
+    }
+
     private static String formatarTelefoneBr(String numero) {
         String digitos = numero.replaceAll("\\D", "");
         if (digitos.length() == 13 && digitos.startsWith("55")) {

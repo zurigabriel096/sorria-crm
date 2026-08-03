@@ -4,8 +4,10 @@ import { api } from "./client";
 // api/whatsapp.js). Usados pra escolher por qual numero disparar cada campanha.
 // createNumero so precisa do nome agora - o backend gera o token e ja cria a
 // instancia na Evolution (antes precisava ser criada por fora, manualmente).
+// finalidade: "DISPARO" (padrao) ou "AQUECIMENTO" (Sorr.ia Protect - nunca
+// aparece como opcao de disparo de campanha).
 export const listNumeros = () => api.get("/api/whatsapp/numeros");
-export const createNumero = (nome) => api.post("/api/whatsapp/numeros", { nome });
+export const createNumero = (nome, finalidade) => api.post("/api/whatsapp/numeros", { nome, finalidade });
 export const deleteNumero = (id) => api.del(`/api/whatsapp/numeros/${id}`);
 
 // Conectar um numero secundario direto pelo app (QR/pareamento/desconectar),

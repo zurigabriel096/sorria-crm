@@ -34,6 +34,9 @@ public class WhatsAppNumeroService {
         WhatsAppNumero numero = new WhatsAppNumero();
         numero.setNome(dto.nome());
         numero.setToken(UUID.randomUUID().toString());
+        boolean aquecimento = "AQUECIMENTO".equals(dto.finalidade());
+        numero.setFinalidade(aquecimento ? "AQUECIMENTO" : "DISPARO");
+        if (aquecimento) numero.setAquecimentoIniciadoEm(java.time.LocalDate.now());
         WhatsAppNumero salvo = repository.save(numero);
 
         String instancia = "SorriaNumero" + salvo.getId();
@@ -84,7 +87,7 @@ public class WhatsAppNumeroService {
         Map<String, Object> status = evolutionApiClient.obterStatus(n.getToken());
         boolean conectado = Boolean.TRUE.equals(status.get("connected")) && Boolean.TRUE.equals(status.get("loggedIn"));
         return new WhatsAppNumeroDTO(
-                n.getId(), n.getNome(), n.getInstancia(), null, n.getCriadoEm(),
+                n.getId(), n.getNome(), n.getInstancia(), null, n.getFinalidade(), n.getCriadoEm(),
                 conectado, String.valueOf(status.getOrDefault("nome", "")));
     }
 }
