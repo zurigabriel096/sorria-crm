@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @Entity
-@Table(name = "contatos")
+@Table(name = "contatos", indexes = @Index(name = "idx_contatos_telefone", columnList = "telefone"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -28,6 +28,12 @@ public class Contato {
     @Column(nullable = false)
     private String nome;
 
+    // Sem indice, ContatoService.criarOuMesclarEntidade (findByTelefone, chamado
+    // 1x por linha importada) varria a tabela inteira a cada linha - numa
+    // importacao grande, quanto mais linha ja processada, mais devagar ficava
+    // achar duplicado (tabela cresce durante a propria importacao), ate travar
+    // o processo no Render free tier (pouca memoria) perto do fim de uma base
+    // grande. @Index aqui faz o ddl-auto=update criar o indice no proximo boot.
     private String telefone;
 
     private String email;
