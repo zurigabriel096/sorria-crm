@@ -13,6 +13,7 @@ const IGNORAR = "ignorar";
 const TIPOS_CAMPO_IMPORT = [
   { valor: "TEXTO", rotulo: "Texto" },
   { valor: "NUMERO", rotulo: "Número" },
+  { valor: "MOEDA", rotulo: "Dinheiro (R$)" },
   { valor: "DATA", rotulo: "Data" },
 ];
 

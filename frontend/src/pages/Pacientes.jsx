@@ -3,6 +3,7 @@ import { T } from "../theme";
 import { listEtapas } from "../api/etapas";
 import { s } from "../styles/s";
 import { exportarXlsx } from "../utils/patients";
+import { brl } from "../utils/format";
 import { Card } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
 import { Field } from "../components/ui/Field";
@@ -14,6 +15,7 @@ import { IconSearch, IconDownload } from "../components/icons";
 const TIPOS_CAMPO = [
   { valor: "TEXTO", rotulo: "Texto" },
   { valor: "NUMERO", rotulo: "Número" },
+  { valor: "MOEDA", rotulo: "Dinheiro (R$)" },
   { valor: "DATA", rotulo: "Data" },
   { valor: "LISTA", rotulo: "Lista de opções" },
 ];
@@ -39,8 +41,12 @@ function colunaCustomizada(campo) {
   return {
     chave: `custom:${campo.nome}`,
     rotulo: campo.nome,
-    render: (p) => p.camposCustomizados?.[campo.nome] || "—",
-    numerica: campo.tipo === "NUMERO" || campo.tipo === "DATA",
+    render: (p) => {
+      const valor = p.camposCustomizados?.[campo.nome];
+      if (!valor) return "—";
+      return campo.tipo === "MOEDA" ? brl(Number(valor) || 0) : valor;
+    },
+    numerica: campo.tipo === "NUMERO" || campo.tipo === "MOEDA" || campo.tipo === "DATA",
   };
 }
 

@@ -112,7 +112,9 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
                   ) : (
                     <input
                       style={s.input}
-                      type={campo.tipo === "DATA" ? "date" : campo.tipo === "NUMERO" ? "number" : "text"}
+                      type={campo.tipo === "DATA" ? "date" : campo.tipo === "NUMERO" || campo.tipo === "MOEDA" ? "number" : "text"}
+                      step={campo.tipo === "MOEDA" ? "0.01" : undefined}
+                      placeholder={campo.tipo === "MOEDA" ? "Ex: 89.90" : undefined}
                       value={p.camposCustomizados?.[campo.nome] || ""}
                       onChange={(e) => setCampoCustomizado(campo.nome, e.target.value)}
                     />

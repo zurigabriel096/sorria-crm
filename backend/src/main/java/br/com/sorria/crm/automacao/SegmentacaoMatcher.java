@@ -97,7 +97,7 @@ public class SegmentacaoMatcher {
         if ("não está preenchido".equals(op)) return vazio(valor);
 
         return switch (tipo) {
-            case "NUMERO" -> {
+            case "NUMERO", "MOEDA" -> {
                 double atual = paraNumero(valor);
                 double comparado = paraNumero(value);
                 yield "maior".equals(op) ? atual > comparado : atual < comparado;

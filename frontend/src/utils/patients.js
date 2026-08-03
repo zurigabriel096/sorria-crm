@@ -16,7 +16,7 @@ function evalCondCustomizado(p, c) {
   const valor = p.camposCustomizados?.[nome];
   if (c.op === "está preenchido") return !vazio(valor);
   if (c.op === "não está preenchido") return vazio(valor);
-  if (tipo === "NUMERO") return c.op === "maior" ? (Number(valor) || 0) > +c.value : (Number(valor) || 0) < +c.value;
+  if (tipo === "NUMERO" || tipo === "MOEDA") return c.op === "maior" ? (Number(valor) || 0) > +c.value : (Number(valor) || 0) < +c.value;
   if (tipo === "DATA") return c.op === "maior" ? new Date(valor || 0) > new Date(c.value) : new Date(valor || 0) < new Date(c.value);
   if (tipo === "LISTA") return c.op === "é" ? valor === c.value : valor !== c.value;
   const contem = String(valor || "").toLowerCase().includes(String(c.value || "").toLowerCase());

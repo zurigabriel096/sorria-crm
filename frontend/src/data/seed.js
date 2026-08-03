@@ -50,7 +50,7 @@ export function montarFieldMeta(camposCustomizados) {
   const meta = { ...FIELD_META };
   (camposCustomizados || []).forEach((campo) => {
     const chave = `custom:${campo.tipo}:${campo.nome}`;
-    if (campo.tipo === "NUMERO") meta[chave] = { label: campo.nome, ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" };
+    if (campo.tipo === "NUMERO" || campo.tipo === "MOEDA") meta[chave] = { label: campo.nome, ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" };
     else if (campo.tipo === "DATA") meta[chave] = { label: campo.nome, ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "date" };
     else if (campo.tipo === "LISTA") meta[chave] = { label: campo.nome, ops: ["é", "não é", ...OPS_SEM_VALOR], values: campo.opcoes || [] };
     else meta[chave] = { label: campo.nome, ops: ["contém", "não contém"], value: "text" };
