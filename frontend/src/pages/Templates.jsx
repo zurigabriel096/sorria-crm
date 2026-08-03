@@ -10,7 +10,7 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { GuiaVariaveis } from "../components/ui/GuiaVariaveis";
 import { createTemplate, updateTemplate, deleteTemplate, archiveTemplate } from "../api/campaigns";
 
-export function Templates({ templates, setTemplates, objetivos, showToast }) {
+export function Templates({ templates, setTemplates, objetivos, setObjetivos, showToast }) {
   const [modal, setModal] = useState(null);
   const [fCat, setFCat] = useState("Todas");
   const [fCampanha, setFCampanha] = useState("Todas");
@@ -106,7 +106,7 @@ export function Templates({ templates, setTemplates, objetivos, showToast }) {
           </div>
         ))}
       </div>
-      {modal && <TemplateEditor tpl={modal} objetivos={objetivos} onSave={salvar} onClose={() => setModal(null)} />}
+      {modal && <TemplateEditor tpl={modal} objetivos={objetivos} setObjetivos={setObjetivos} onSave={salvar} onClose={() => setModal(null)} />}
     </div>
   );
 }
@@ -133,9 +133,21 @@ function ToolbarFormatacao({ x, y, onAplicar }) {
   );
 }
 
-function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
+function TemplateEditor({ tpl, objetivos, setObjetivos, onSave, onClose }) {
   const [t, setT] = useState(tpl);
+  const [novoObj, setNovoObj] = useState("");
   const set = (k, v) => setT((x) => ({ ...x, [k]: v }));
+
+  // Mesmo padrao de "criar novo objetivo" ja usado em Campanhas.jsx - sem
+  // isso, um objetivo digitado direto (ex.: pelo CampanhaSeedInitializer) nao
+  // aparecia como selecionado no <select> por nao estar na lista fixa.
+  const addObj = () => {
+    const o = novoObj.trim();
+    if (!o || objetivos.includes(o)) return;
+    setObjetivos((x) => [...x, o]);
+    set("campanha", o);
+    setNovoObj("");
+  };
   const imgFile = (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -182,7 +194,13 @@ function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field label="Nome do template"><input style={s.input} value={t.nome} onChange={(e) => set("nome", e.target.value)} placeholder="ex: anti_no_show" /></Field>
         <Field label="Categoria"><Select block value={t.categoria} onChange={(v) => set("categoria", v)} options={["Utilidade", "Marketing", "Autenticação"]} /></Field>
-        <Field label="Campanha / filtro"><Select block value={t.campanha} onChange={(v) => set("campanha", v)} options={objetivos} /></Field>
+        <Field label="Campanha / filtro">
+          <Select block value={t.campanha} onChange={(v) => set("campanha", v)} options={objetivos} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <input style={{ ...s.input, height: 38 }} placeholder="Criar novo objetivo..." value={novoObj} onChange={(e) => setNovoObj(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addObj()} />
+            <button style={s.btnGhostSm} onClick={addObj}>+ Add</button>
+          </div>
+        </Field>
         <Field label="Status"><Select block value={t.ativo ? "Ativo" : "Inativo"} onChange={(v) => set("ativo", v === "Ativo")} options={["Ativo", "Inativo"]} /></Field>
       </div>
       <Field label={
