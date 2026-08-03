@@ -3,11 +3,15 @@ package br.com.sorria.crm.dashboard;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.dashboard.dto.PainelCardDTO;
+import br.com.sorria.crm.dashboard.dto.PainelCardDTO.ValorContagemDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -49,28 +53,40 @@ public class PainelCardService {
 
     private void aplicar(PainelCardDTO dto, PainelCard card) {
         card.setCampoNome(dto.campoNome());
-        card.setValor(dto.valor());
-        card.setRotulo(dto.rotulo() != null && !dto.rotulo().isBlank() ? dto.rotulo() : dto.valor());
+        card.setRotulo(dto.rotulo());
     }
 
+    // Quebra automatica: agrupa todo Contato pelo valor que ele tem nesse campo
+    // e conta cada grupo - o card nao precisa mais de um valor cadastrado na
+    // mao, ele descobre sozinho todos os valores que existem na base agora.
     private PainelCardDTO toDTO(PainelCard c, List<Contato> contatos) {
-        long contagem = contatos.stream().filter(ct -> bate(ct, c.getCampoNome(), c.getValor())).count();
-        return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getValor(), c.getRotulo(), c.getOrdem(), contagem);
+        Map<String, Long> contagemPorValor = contatos.stream()
+                .collect(Collectors.groupingBy(ct -> valorDoCampo(ct, c.getCampoNome()), Collectors.counting()));
+        List<ValorContagemDTO> valores = contagemPorValor.entrySet().stream()
+                .map(e -> new ValorContagemDTO(e.getKey(), e.getValue()))
+                .sorted(Comparator.comparing(ValorContagemDTO::contagem).reversed())
+                .toList();
+        return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getRotulo(), c.getOrdem(), valores);
     }
 
     // campoNome com prefixo "fixo:" aponta pra um campo fixo do cadastro (ver
     // CAMPOS_FIXOS em Dashboard.jsx) em vez de um campo customizado de nome
     // livre - sem prefixo, continua o comportamento original (camposCustomizados).
-    private boolean bate(Contato c, String campoNome, String valor) {
+    // Vazio vira "(vazio)" pra nao sumir da contagem (senao o total dos grupos
+    // nunca bateria com o total de leads).
+    private String valorDoCampo(Contato c, String campoNome) {
+        String valor;
         if (campoNome.startsWith("fixo:")) {
-            return switch (campoNome.substring("fixo:".length())) {
-                case "financ" -> valor.equals(c.getFinanc());
-                case "estagio" -> valor.equals(c.getEstagio());
-                case "elegivel" -> "Sim".equals(valor) == c.isElegivel();
-                case "dentista" -> valor.equals(c.getDentista());
-                default -> false;
+            valor = switch (campoNome.substring("fixo:".length())) {
+                case "financ" -> c.getFinanc();
+                case "estagio" -> c.getEstagio();
+                case "elegivel" -> c.isElegivel() ? "Sim" : "Não";
+                case "dentista" -> c.getDentista();
+                default -> null;
             };
+        } else {
+            valor = c.getCamposCustomizados() != null ? c.getCamposCustomizados().get(campoNome) : null;
         }
-        return c.getCamposCustomizados() != null && valor.equals(c.getCamposCustomizados().get(campoNome));
+        return valor == null || valor.isBlank() ? "(vazio)" : valor;
     }
 }

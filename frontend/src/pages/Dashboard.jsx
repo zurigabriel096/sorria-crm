@@ -36,6 +36,12 @@ const CAMPOS_FIXOS = [
   { chave: "fixo:dentista", rotulo: "Dentista" },
 ];
 
+// Campo customizado usa o proprio nome como rotulo; campo fixo (prefixo
+// "fixo:") traduz pro rotulo amigavel de CAMPOS_FIXOS. Usado tanto na tela
+// principal (label de cada tile de quebra automatica) quanto no modal de
+// configuracao.
+const rotuloCampo = (campoNome) => CAMPOS_FIXOS.find((c) => c.chave === campoNome)?.rotulo || campoNome;
+
 export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [kpis, setKpis] = useState(null);
@@ -79,9 +85,9 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
       )}
       <div className="kpiRow" style={s.kpiRow}>
         {metricasAtivas.map((m) => <div key={m.chave}>{m.montar(kpis, ctx)}</div>)}
-        {cards.map((c) => (
-          <KpiCard key={c.id} label={c.rotulo || `${c.campoNome}: ${c.valor}`} value={num(c.contagem)} icon={<IconGrid color={T.primary} />} />
-        ))}
+        {cards.flatMap((c) => (c.valores || []).map((v) => (
+          <KpiCard key={`${c.id}-${v.valor}`} label={`${c.rotulo || rotuloCampo(c.campoNome)}: ${v.valor}`} value={num(v.contagem)} icon={<IconGrid color={T.primary} />} />
+        )))}
         {!!prospectsHistorico.length && (
           <KpiCard
             label="Enviado pra prospects"
@@ -147,7 +153,7 @@ async function listAtualizado(acao) {
 
 function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, camposCustomizados, onCriarCard, onAtualizarCard, onExcluirCard, showToast, onClose }) {
   const [selecao, setSelecao] = useState(metricasVisiveis);
-  const [novoCard, setNovoCard] = useState(null); // null | {campoNome, valor, rotulo}
+  const [novoCard, setNovoCard] = useState(null); // null | {campoNome, rotulo}
 
   const alternarMetrica = (chave) => setSelecao((sel) => (sel.includes(chave) ? sel.filter((x) => x !== chave) : [...sel, chave]));
 
@@ -160,21 +166,13 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
     }
   };
 
-  const campoEscolhido = camposCustomizados.find((c) => c.nome === novoCard?.campoNome);
-  const campoFixoEscolhido = CAMPOS_FIXOS.find((c) => c.chave === novoCard?.campoNome);
-  const opcoesValor = campoEscolhido?.tipo === "LISTA" ? campoEscolhido.opcoes : campoFixoEscolhido?.opcoes;
-
-  // Campo customizado usa o proprio nome como rotulo; campo fixo (prefixo
-  // "fixo:") traduz pro rotulo amigavel de CAMPOS_FIXOS.
-  const rotuloCampo = (campoNome) => CAMPOS_FIXOS.find((c) => c.chave === campoNome)?.rotulo || campoNome;
-
-  const abrirNovoCard = () => setNovoCard({ id: null, campoNome: camposCustomizados[0]?.nome || CAMPOS_FIXOS[0].chave, valor: "", rotulo: "" });
-  const abrirEdicaoCard = (card) => setNovoCard({ id: card.id, campoNome: card.campoNome, valor: card.valor, rotulo: card.rotulo || "" });
+  const abrirNovoCard = () => setNovoCard({ id: null, campoNome: camposCustomizados[0]?.nome || CAMPOS_FIXOS[0].chave, rotulo: "" });
+  const abrirEdicaoCard = (card) => setNovoCard({ id: card.id, campoNome: card.campoNome, rotulo: card.rotulo || "" });
 
   const salvarCard = async () => {
-    if (!novoCard.campoNome || !novoCard.valor) return showToast("Escolha o campo e o valor", "warn");
+    if (!novoCard.campoNome) return showToast("Escolha o campo", "warn");
     try {
-      const dto = { campoNome: novoCard.campoNome, valor: novoCard.valor, rotulo: novoCard.rotulo };
+      const dto = { campoNome: novoCard.campoNome, rotulo: novoCard.rotulo };
       if (novoCard.id) await onAtualizarCard(novoCard.id, dto);
       else await onCriarCard(dto);
       setNovoCard(null);
@@ -209,19 +207,26 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
       <div style={{ height: 1, background: T.line, margin: "18px 0" }} />
 
       <div style={{ fontSize: 13, fontWeight: 700, color: T.ink, marginBottom: 8 }}>
-        Cards personalizados (campo + valor → contagem)
+        Cards personalizados (quebra automática por valor do campo)
       </div>
       <div style={{ display: "grid", gap: 6, marginBottom: 10 }}>
         {!cards.length && <span style={{ fontSize: 13, color: T.inkSoft }}>Nenhum card criado ainda.</span>}
         {cards.map((c) => (
-          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: T.lineSoft, borderRadius: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, flex: 1 }}>{c.rotulo || `${rotuloCampo(c.campoNome)}: ${c.valor}`}</span>
-            <span style={{ fontSize: 11, color: T.inkSoft }}>{rotuloCampo(c.campoNome)} = {c.valor}</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: T.primary }}>{c.contagem}</span>
-            <DotMenu items={[
-              { label: "Editar", onClick: () => abrirEdicaoCard(c) },
-              { label: "Excluir", danger: true, onClick: () => excluirCard(c) },
-            ]} />
+          <div key={c.id} style={{ padding: "6px 10px", background: T.lineSoft, borderRadius: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, flex: 1 }}>{c.rotulo || rotuloCampo(c.campoNome)}</span>
+              <DotMenu items={[
+                { label: "Editar", onClick: () => abrirEdicaoCard(c) },
+                { label: "Excluir", danger: true, onClick: () => excluirCard(c) },
+              ]} />
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+              {(c.valores || []).map((v) => (
+                <span key={v.valor} style={{ fontSize: 11, color: T.inkSoft, background: "#fff", borderRadius: 6, padding: "2px 6px" }}>
+                  {v.valor}: <b style={{ color: T.primary }}>{v.contagem}</b>
+                </span>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -231,20 +236,16 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
             <Select
               block
               value={novoCard.campoNome}
-              onChange={(v) => setNovoCard({ ...novoCard, campoNome: v, valor: "" })}
+              onChange={(v) => setNovoCard({ ...novoCard, campoNome: v })}
               options={[...camposCustomizados.map((c) => c.nome), ...CAMPOS_FIXOS.map((c) => c.chave)]}
               labels={Object.fromEntries(CAMPOS_FIXOS.map((c) => [c.chave, `${c.rotulo} (campo fixo)`]))}
             />
           </Field>
-          <Field label="Valor">
-            {opcoesValor?.length ? (
-              <Select block value={novoCard.valor} onChange={(v) => setNovoCard({ ...novoCard, valor: v })} options={opcoesValor} />
-            ) : (
-              <input style={s.input} value={novoCard.valor} onChange={(e) => setNovoCard({ ...novoCard, valor: e.target.value })} placeholder="Ex: A protestar" />
-            )}
-          </Field>
+          <p style={{ fontSize: 11.5, color: T.inkSoft, margin: 0 }}>
+            O card mostra sozinho a contagem de cada valor diferente encontrado nesse campo - não precisa cadastrar valor por valor.
+          </p>
           <Field label="Rótulo do card (opcional)">
-            <input style={s.input} value={novoCard.rotulo} onChange={(e) => setNovoCard({ ...novoCard, rotulo: e.target.value })} placeholder="Ex: A protestar" />
+            <input style={s.input} value={novoCard.rotulo} onChange={(e) => setNovoCard({ ...novoCard, rotulo: e.target.value })} placeholder="Ex: Situação financeira" />
           </Field>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setNovoCard(null)}>Cancelar</button>
