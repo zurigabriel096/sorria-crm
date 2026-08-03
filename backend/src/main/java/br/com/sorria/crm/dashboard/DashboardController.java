@@ -61,6 +61,11 @@ public class DashboardController {
     // template ATUAL da campanha (nao ha snapshot de qual template foi usado
     // no momento do disparo - mesma limitacao de campanhaNome ja ser
     // snapshot mas templateId nao).
+    //
+    // Inclui tambem disparo_prospect_historico (campanhas "modoProspects",
+    // pra gente fora do CRM) - sem isso, esses envios (normalmente Marketing,
+    // ver DisparoProspectController) consumiam WhatsApp de verdade mas
+    // ficavam invisiveis na volumetria/excedente do plano.
     @GetMapping("/disparos-por-categoria")
     public Map<String, Long> disparosPorCategoria() {
         Map<String, Long> resultado = new LinkedHashMap<>();
@@ -79,6 +84,20 @@ public class DashboardController {
             String categoria = String.valueOf(linha.get("categoria"));
             if (resultado.containsKey(categoria)) {
                 resultado.put(categoria, ((Number) linha.get("total")).longValue());
+            }
+        }
+        List<Map<String, Object>> linhasProspects = jdbcTemplate.queryForList(
+                "SELECT t.categoria AS categoria, SUM(dph.total_prospects) AS total "
+                        + "FROM disparo_prospect_historico dph "
+                        + "JOIN templates t ON t.id = dph.template_id "
+                        + "WHERE t.categoria IS NOT NULL "
+                        + "GROUP BY t.categoria"
+        );
+        for (Map<String, Object> linha : linhasProspects) {
+            String categoria = String.valueOf(linha.get("categoria"));
+            if (resultado.containsKey(categoria)) {
+                long atual = resultado.get(categoria);
+                resultado.put(categoria, atual + ((Number) linha.get("total")).longValue());
             }
         }
         return resultado;
