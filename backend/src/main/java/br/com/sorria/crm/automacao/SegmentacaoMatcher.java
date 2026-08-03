@@ -50,14 +50,22 @@ public class SegmentacaoMatcher {
         if (field.startsWith("custom:")) return avaliarCondicaoCustomizada(contato, field, op, value);
 
         return switch (field) {
-            case "financ" -> "é".equals(op) ? igual(contato.getFinanc(), value) : !igual(contato.getFinanc(), value);
+            case "financ" -> {
+                if ("está preenchido".equals(op)) yield !vazio(contato.getFinanc()) && !"—".equals(contato.getFinanc());
+                if ("não está preenchido".equals(op)) yield vazio(contato.getFinanc()) || "—".equals(contato.getFinanc());
+                yield "é".equals(op) ? igual(contato.getFinanc(), value) : !igual(contato.getFinanc(), value);
+            }
             case "diasInadimplente" -> {
+                if ("está preenchido".equals(op)) yield contato.getInadimplenteDesde() != null;
+                if ("não está preenchido".equals(op)) yield contato.getInadimplenteDesde() == null;
                 if (contato.getInadimplenteDesde() == null) yield false;
                 long dias = ChronoUnit.DAYS.between(contato.getInadimplenteDesde(), LocalDate.now());
                 double comparado = paraNumero(value);
                 yield "maior".equals(op) ? dias > comparado : dias < comparado;
             }
             case "recencia" -> {
+                if ("está preenchido".equals(op)) yield contato.getRecencia() != null;
+                if ("não está preenchido".equals(op)) yield contato.getRecencia() == null;
                 int recencia = contato.getRecencia() != null ? contato.getRecencia() : 0;
                 double comparado = paraNumero(value);
                 yield "maior".equals(op) ? recencia > comparado : recencia < comparado;
@@ -85,6 +93,9 @@ public class SegmentacaoMatcher {
         String nome = partes[2];
         String valor = contato.getCamposCustomizados() != null ? contato.getCamposCustomizados().get(nome) : null;
 
+        if ("está preenchido".equals(op)) return !vazio(valor);
+        if ("não está preenchido".equals(op)) return vazio(valor);
+
         return switch (tipo) {
             case "NUMERO" -> {
                 double atual = paraNumero(valor);
@@ -107,6 +118,12 @@ public class SegmentacaoMatcher {
 
     private static boolean igual(String atual, Object esperado) {
         return atual != null ? atual.equals(esperado) : esperado == null;
+    }
+
+    // Mesma semantica do "vazio" em frontend/src/utils/patients.js - usado
+    // pelos ops "esta preenchido"/"nao esta preenchido".
+    private static boolean vazio(String valor) {
+        return valor == null || valor.isBlank();
     }
 
     private static double paraNumero(Object valor) {

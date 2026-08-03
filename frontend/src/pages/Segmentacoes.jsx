@@ -352,7 +352,6 @@ function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, on
     const valorPadrao = m.value === "number" ? 0
       : m.value === "date" ? ""
       : m.value === "text" ? ""
-      : field === "tag" ? (tags[0] || "")
       : (m.values[0] || "");
     setCond(gi, ci, { field, op: m.ops[0], value: valorPadrao });
   };
@@ -397,7 +396,9 @@ function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, on
                     <select value={c.op} onChange={(e) => setCond(gi, ci, { op: e.target.value })} style={s.condSelect}>
                       {m.ops.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
                     </select>
-                    {m.value === "number" ? (
+                    {OPS_SEM_VALOR.includes(c.op) ? (
+                      <span style={{ ...s.condSelect, display: "flex", alignItems: "center", color: T.inkSoft, background: "transparent", border: "none" }}>sem valor</span>
+                    ) : m.value === "number" ? (
                       <input type="number" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
                     ) : m.value === "date" ? (
                       <input type="date" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 150 }} />
@@ -405,7 +406,7 @@ function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, on
                       <input type="text" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} placeholder="Valor..." style={s.condSelect} />
                     ) : (
                       <select value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={s.condSelect}>
-                        {(c.field === "tag" ? tags : m.values).map((v) => <option key={v} value={v}>{v}</option>)}
+                        {m.values.map((v) => <option key={v} value={v}>{v}</option>)}
                       </select>
                     )}
                     <button onClick={() => removeCondicao(gi, ci)} style={s.condRm}>×</button>

@@ -4,10 +4,18 @@ import { HOJE } from "../theme";
 // Condicoes de campo customizado carregam o tipo na propria chave
 // ("custom:TIPO:nome" - ver data/seed.js montarFieldMeta), entao dao pra
 // avaliar aqui sem precisar consultar a lista de CampoCustomizado de novo.
+// "" (string vazia), null e undefined contam como "nao preenchido" - usado
+// pelos ops "esta preenchido"/"nao esta preenchido" (ver OPS_SEM_VALOR em
+// data/seed.js), que nao se aplicam a campo de texto (tag/custom TEXTO ja
+// resolvem isso via contem/nao contem).
+const vazio = (valor) => valor === undefined || valor === null || String(valor).trim() === "";
+
 function evalCondCustomizado(p, c) {
   const [, tipo, ...resto] = c.field.split(":");
   const nome = resto.join(":");
   const valor = p.camposCustomizados?.[nome];
+  if (c.op === "está preenchido") return !vazio(valor);
+  if (c.op === "não está preenchido") return vazio(valor);
   if (tipo === "NUMERO") return c.op === "maior" ? (Number(valor) || 0) > +c.value : (Number(valor) || 0) < +c.value;
   if (tipo === "DATA") return c.op === "maior" ? new Date(valor || 0) > new Date(c.value) : new Date(valor || 0) < new Date(c.value);
   if (tipo === "LISTA") return c.op === "é" ? valor === c.value : valor !== c.value;
@@ -18,13 +26,21 @@ function evalCondCustomizado(p, c) {
 export function evalCond(p, c) {
   if (c.field.startsWith("custom:")) return evalCondCustomizado(p, c);
   switch (c.field) {
-    case "financ": return c.op === "é" ? p.financ === c.value : p.financ !== c.value;
+    case "financ":
+      if (c.op === "está preenchido") return !vazio(p.financ) && p.financ !== "—";
+      if (c.op === "não está preenchido") return vazio(p.financ) || p.financ === "—";
+      return c.op === "é" ? p.financ === c.value : p.financ !== c.value;
     case "diasInadimplente": {
+      if (c.op === "está preenchido") return !!p.inadimplenteDesde;
+      if (c.op === "não está preenchido") return !p.inadimplenteDesde;
       if (!p.inadimplenteDesde) return false;
       const dias = Math.floor((Date.now() - new Date(p.inadimplenteDesde).getTime()) / 864e5);
       return c.op === "maior" ? dias > +c.value : dias < +c.value;
     }
-    case "recencia": return c.op === "maior" ? (p.recencia || 0) > +c.value : (p.recencia || 0) < +c.value;
+    case "recencia":
+      if (c.op === "está preenchido") return p.recencia != null;
+      if (c.op === "não está preenchido") return p.recencia == null;
+      return c.op === "maior" ? (p.recencia || 0) > +c.value : (p.recencia || 0) < +c.value;
     case "elegivel": { const y = c.value === "Sim"; return c.op === "é" ? p.elegivel === y : p.elegivel !== y; }
     case "tag": return c.op === "contém" ? (p.tags || []).includes(c.value) : !(p.tags || []).includes(c.value);
     default: return false;

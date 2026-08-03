@@ -20,30 +20,39 @@ export const TEMPLATES_SEED = [
 
 export const OBJETIVOS_BASE = ["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"];
 
+// Ops que nao precisam de valor nenhum (so checam se o campo tem algo
+// preenchido ou nao) - so fazem sentido pra campo que pode genuinamente estar
+// vazio. Fora dos campos de texto (tag/custom TEXTO), que ja tem "contém"/"não
+// contém" cobrindo esse caso (contém "" seria redundante) - por isso esses
+// dois nunca ganham "está preenchido" aqui.
+export const OPS_SEM_VALOR = ["está preenchido", "não está preenchido"];
+
 export const FIELD_META = {
-  financ: { label: "Financeiro", ops: ["é", "não é"], values: ["Adimplente", "Inadimplente"] },
-  diasInadimplente: { label: "Inadimplente há (dias)", ops: ["maior", "menor"], value: "number" },
-  recencia: { label: "Recência (dias)", ops: ["maior", "menor"], value: "number" },
+  financ: { label: "Financeiro", ops: ["é", "não é", ...OPS_SEM_VALOR], values: ["Adimplente", "Inadimplente"] },
+  diasInadimplente: { label: "Inadimplente há (dias)", ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" },
+  recencia: { label: "Recência (dias)", ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" },
   elegivel: { label: "Elegível", ops: ["é", "não é"], values: ["Sim", "Não"] },
-  tag: { label: "Tag", ops: ["contém", "não contém"], values: [] },
+  tag: { label: "Tag", ops: ["contém", "não contém"], value: "text" },
 };
 
 export const OP_LABEL = {
   "é": "é", "não é": "não é", maior: "maior que", menor: "menor que",
   contém: "contém", "não contém": "não contém",
+  "está preenchido": "está preenchido", "não está preenchido": "não está preenchido",
 };
 
 // Estende FIELD_META com um campo por CampoCustomizado ativo, pra virar
 // condição de verdade no construtor de Segmentações. Chave carrega o tipo
 // (custom:TIPO:nome) pra evalCond saber comparar sem precisar de outra
-// consulta - ver utils/patients.js.
+// consulta - ver utils/patients.js. TEXTO fica de fora do OPS_SEM_VALOR
+// (mesmo motivo de tag - contém/não contém ja cobre o caso vazio).
 export function montarFieldMeta(camposCustomizados) {
   const meta = { ...FIELD_META };
   (camposCustomizados || []).forEach((campo) => {
     const chave = `custom:${campo.tipo}:${campo.nome}`;
-    if (campo.tipo === "NUMERO") meta[chave] = { label: campo.nome, ops: ["maior", "menor"], value: "number" };
-    else if (campo.tipo === "DATA") meta[chave] = { label: campo.nome, ops: ["maior", "menor"], value: "date" };
-    else if (campo.tipo === "LISTA") meta[chave] = { label: campo.nome, ops: ["é", "não é"], values: campo.opcoes || [] };
+    if (campo.tipo === "NUMERO") meta[chave] = { label: campo.nome, ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" };
+    else if (campo.tipo === "DATA") meta[chave] = { label: campo.nome, ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "date" };
+    else if (campo.tipo === "LISTA") meta[chave] = { label: campo.nome, ops: ["é", "não é", ...OPS_SEM_VALOR], values: campo.opcoes || [] };
     else meta[chave] = { label: campo.nome, ops: ["contém", "não contém"], value: "text" };
   });
   return meta;
