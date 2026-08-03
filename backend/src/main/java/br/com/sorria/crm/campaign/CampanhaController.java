@@ -66,8 +66,9 @@ public class CampanhaController {
     @PostMapping("/{id}/dispatch")
     public DispatchResultDTO disparar(@PathVariable Long id,
                                        @RequestParam(required = false) Long templateId,
-                                       @RequestParam(required = false) List<Long> contatoIds) {
-        return campanhaService.disparar(id, templateId, contatoIds);
+                                       @RequestParam(required = false) List<Long> contatoIds,
+                                       @RequestParam(required = false) Long whatsappNumeroId) {
+        return campanhaService.disparar(id, templateId, contatoIds, whatsappNumeroId);
     }
 
     // Disparo pra prospects (fora do CRM) - so campanhas com modoProspects=true.

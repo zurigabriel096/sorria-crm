@@ -110,6 +110,14 @@ public class CampanhaService {
     // pra campanhas grandes), uma transacao unica ficaria com a conexao do banco presa
     // o tempo todo. Cada envio ja persiste (contato + historico) de forma independente.
     public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos) {
+        return disparar(id, templateIdEscolhido, contatoIdsEscolhidos, null);
+    }
+
+    // whatsappNumeroIdOverride (opcional): usado pelo Disparo A/B/C com escolha
+    // de numero (ver Campanhas.jsx) pra mandar ESSE disparo especifico por um
+    // numero diferente do configurado na campanha, sem alterar o cadastro dela -
+    // null continua usando o numero salvo na campanha (resolverTokenInstancia).
+    public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos, Long whatsappNumeroIdOverride) {
         Campanha campanha = buscarEntidade(id);
         if (templateIdEscolhido != null && !templateIdEscolhido.equals(campanha.getTemplateId())) {
             campanha.setTemplateId(templateIdEscolhido);
@@ -135,7 +143,9 @@ public class CampanhaService {
         int falhas = 0;
         int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
                 ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
-        String tokenInstancia = resolverTokenInstancia(campanha);
+        String tokenInstancia = whatsappNumeroIdOverride != null
+                ? whatsAppNumeroRepository.findById(whatsappNumeroIdOverride).map(WhatsAppNumero::getToken).orElse(null)
+                : resolverTokenInstancia(campanha);
 
         for (int i = 0; i < elegiveis.size(); i++) {
             Contato contato = elegiveis.get(i);

@@ -11,10 +11,14 @@ export const archiveCampaign = (id, arquivado) => api.patch(`/api/campaigns/${id
 // templateId (opcional): o template escolhido na tela de revisão do disparo.
 // contatoIds (opcional): quando a campanha tem uma segmentação associada, restringe o
 // disparo só a esses contatos em vez de toda a base elegível/pendente.
+// whatsappNumeroId (opcional): manda ESSE disparo por um número diferente do
+// configurado na campanha, sem alterar o cadastro dela - usado pelo Disparo A/B/C
+// com escolha de número (ver Campanhas.jsx).
 // O backend fala com a Evolution API GO de verdade (ver /backend/whatsapp).
-export const dispatchCampaign = (id, templateId, contatoIds) => {
+export const dispatchCampaign = (id, templateId, contatoIds, whatsappNumeroId) => {
   const params = new URLSearchParams();
   if (templateId) params.set("templateId", templateId);
+  if (whatsappNumeroId) params.set("whatsappNumeroId", whatsappNumeroId);
   (contatoIds || []).forEach((cid) => params.append("contatoIds", cid));
   const qs = params.toString();
   return api.post(`/api/campaigns/${id}/dispatch${qs ? `?${qs}` : ""}`);

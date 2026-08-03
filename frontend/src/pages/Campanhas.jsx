@@ -25,7 +25,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
   const [verArquivadas, setVerArquivadas] = useState(false);
   const [numeros, setNumeros] = useState([]);
   const [performance, setPerformance] = useState({}); // {[campanhaId]: dados | "carregando"}
-  const [abModal, setAbModal] = useState(null); // null | {campanhaAId, campanhaBId, segmentoId}
+  const [abModal, setAbModal] = useState(null); // null | {segmentoId, variantes: [idA, idB, idC?], numeroIds: []}
   const [disparandoAB, setDisparandoAB] = useState(false);
   const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
@@ -48,30 +48,45 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
     }
   };
 
-  // Disparo A/B: divide quem a segmentacao captura hoje aleatoriamente ao meio
-  // e dispara cada metade pra uma campanha diferente (as 2 variantes) - cada
-  // campanha ja e' seu proprio grupo/historico, sem precisar de nenhum campo
-  // novo de "variante". Confirma direto aqui (sem passar pela tela de revisão
-  // do Disparo normal) - a propria janela funciona como confirmação.
+  // Disparo A/B(/C): divide quem a segmentacao captura hoje em N variantes
+  // (blocos aleatorios do mesmo tamanho) e dispara cada uma pra uma campanha
+  // diferente - cada campanha ja e' seu proprio grupo/historico, sem precisar
+  // de nenhum campo novo de "variante". Se mais de 1 numero for escolhido,
+  // CADA variante e' dividida de novo entre os numeros (ex.: 2 variantes x 2
+  // numeros = 4 blocos), via o override de whatsappNumeroId no dispatch -
+  // nao muda o numero salvo na campanha, so esse disparo especifico.
+  // Confirma direto aqui (sem passar pela tela de revisão do Disparo normal).
   const confirmarDisparoAB = async () => {
-    if (!abModal.campanhaAId || !abModal.campanhaBId || abModal.campanhaAId === abModal.campanhaBId) {
-      return showToast("Escolha 2 campanhas diferentes", "warn");
-    }
+    const variantesValidas = abModal.variantes.filter(Boolean);
+    if (variantesValidas.length < 2) return showToast("Escolha pelo menos 2 variantes", "warn");
+    if (new Set(variantesValidas).size !== variantesValidas.length) return showToast("Escolha uma campanha diferente pra cada variante", "warn");
     if (!abModal.segmentoId) return showToast("Escolha uma segmentação", "warn");
+    if (!abModal.numeroIds.length) return showToast("Escolha por qual número disparar", "warn");
     const segmento = segmentos.find((sg) => sg.id === abModal.segmentoId);
     const capturados = patients.filter((p) => matchSeg(p, segmento));
     if (!capturados.length) return showToast("Nenhum lead capturado por essa segmentação", "warn");
     setDisparandoAB(true);
     try {
       const embaralhados = [...capturados].sort(() => Math.random() - 0.5);
-      const metade = Math.ceil(embaralhados.length / 2);
-      const grupoA = embaralhados.slice(0, metade).map((p) => p.id);
-      const grupoB = embaralhados.slice(metade).map((p) => p.id);
-      const [resA, resB] = await Promise.all([
-        dispatchCampaign(abModal.campanhaAId, null, grupoA),
-        dispatchCampaign(abModal.campanhaBId, null, grupoB),
-      ]);
-      showToast(`Disparo A/B feito — A: ${resA.entregues}/${grupoA.length} entregues, B: ${resB.entregues}/${grupoB.length} entregues`, "ok");
+      const nV = variantesValidas.length;
+      const nN = abModal.numeroIds.length;
+      const chamadas = [];
+      variantesValidas.forEach((campanhaId, vi) => {
+        const inicioV = Math.floor((vi * embaralhados.length) / nV);
+        const fimV = Math.floor(((vi + 1) * embaralhados.length) / nV);
+        const grupoVariante = embaralhados.slice(inicioV, fimV);
+        abModal.numeroIds.forEach((numeroId, ni) => {
+          const inicioN = Math.floor((ni * grupoVariante.length) / nN);
+          const fimN = Math.floor(((ni + 1) * grupoVariante.length) / nN);
+          const ids = grupoVariante.slice(inicioN, fimN).map((p) => p.id);
+          if (ids.length) chamadas.push(dispatchCampaign(campanhaId, null, ids, numeroId || null));
+        });
+      });
+      const resultados = await Promise.all(chamadas);
+      const totalEntregues = resultados.reduce((acc, r) => acc + (r.entregues || 0), 0);
+      const totalGeral = resultados.reduce((acc, r) => acc + (r.total || 0), 0);
+      const letras = "ABC".slice(0, nV).split("").join("/");
+      showToast(`Disparo ${letras} feito — ${totalEntregues}/${totalGeral} entregues, em ${nN} número(s)`, "ok");
       setAbModal(null);
     } catch (e) {
       showToast(e.message || "Erro no disparo A/B", "warn");
@@ -177,7 +192,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           <button style={{ ...s.toggleBtn, ...(verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(true)}>Arquivadas</button>
         </div>
         <div style={{ flex: 1 }} />
-        <button style={s.btnGhostSm} onClick={() => setAbModal({ campanhaAId: "", campanhaBId: "", segmentoId: "" })}>Disparo A/B</button>
+        <button style={s.btnGhostSm} onClick={() => setAbModal({ segmentoId: "", variantes: ["", ""], numeroIds: [] })}>Disparo A/B</button>
         <button style={s.btnPrimarySm} onClick={abrirNovo}>+ Nova campanha</button>
       </div>
       {!lista.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivadas ? "Nenhuma campanha arquivada." : "Nenhuma campanha ativa. Crie a primeira."}</div></Card>}
@@ -326,38 +341,65 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
         const candidatas = campanhas.filter((c) => c.canal === "WhatsApp" && !c.arquivado && !c.modoProspects);
         const segmento = segmentos.find((sg) => sg.id === abModal.segmentoId);
         const capturados = segmento ? patients.filter((p) => matchSeg(p, segmento)) : [];
+        const nV = abModal.variantes.length;
+        const letras = "ABC".slice(0, nV).split("");
+        const setVariante = (i, v) => setAbModal({ ...abModal, variantes: abModal.variantes.map((x, xi) => (xi === i ? (v ? Number(v) : "") : x)) });
+        const toggleNumero = (id) => setAbModal({
+          ...abModal,
+          numeroIds: abModal.numeroIds.includes(id) ? abModal.numeroIds.filter((x) => x !== id) : [...abModal.numeroIds, id],
+        });
         return (
-          <Modal title="Disparo A/B" onClose={() => setAbModal(null)}>
+          <Modal title={`Disparo ${letras.join("/")}`} onClose={() => setAbModal(null)}>
             <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
-              Divide quem a segmentação captura hoje em 2 metades aleatórias e dispara cada uma pra
-              uma campanha diferente — cada campanha vira uma variante, dá pra comparar performance
-              depois (botão "Ver performance" no card).
+              Divide quem a segmentação captura hoje em {nV} grupos aleatórios do mesmo tamanho e
+              dispara cada um pra uma campanha diferente (variante) — dá pra comparar performance
+              depois (botão "Ver performance" no card). Se escolher mais de 1 número, cada variante
+              também é dividida entre os números escolhidos.
             </div>
             <Field label="Segmentação">
               <select style={{ ...s.select, width: "100%" }} value={abModal.segmentoId || ""} onChange={(e) => setAbModal({ ...abModal, segmentoId: e.target.value ? Number(e.target.value) : "" })}>
                 <option value="">Selecione...</option>
                 {segmentos.filter((sg) => !sg.arquivado).map((sg) => <option key={sg.id} value={sg.id}>{sg.nome}</option>)}
               </select>
-              {segmento && <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>{capturados.length} lead(s) capturado(s) — ~{Math.ceil(capturados.length / 2)} pra cada variante.</div>}
+              {segmento && <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>{capturados.length} lead(s) capturado(s) — ~{Math.ceil(capturados.length / nV)} pra cada variante.</div>}
             </Field>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Variante A">
-                <select style={{ ...s.select, width: "100%" }} value={abModal.campanhaAId || ""} onChange={(e) => setAbModal({ ...abModal, campanhaAId: e.target.value ? Number(e.target.value) : "" })}>
-                  <option value="">Selecione...</option>
-                  {candidatas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </Field>
-              <Field label="Variante B">
-                <select style={{ ...s.select, width: "100%" }} value={abModal.campanhaBId || ""} onChange={(e) => setAbModal({ ...abModal, campanhaBId: e.target.value ? Number(e.target.value) : "" })}>
-                  <option value="">Selecione...</option>
-                  {candidatas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </select>
-              </Field>
+            <div style={{ display: "grid", gridTemplateColumns: nV === 3 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 12 }}>
+              {abModal.variantes.map((valor, i) => (
+                <Field key={i} label={`Variante ${letras[i]}`}>
+                  <select style={{ ...s.select, width: "100%" }} value={valor || ""} onChange={(e) => setVariante(i, e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {candidatas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                </Field>
+              ))}
             </div>
+            {nV < 3 ? (
+              <button style={{ ...s.btnGhostSm, marginTop: 8 }} onClick={() => setAbModal({ ...abModal, variantes: [...abModal.variantes, ""] })}>
+                + Adicionar variante C (opcional)
+              </button>
+            ) : (
+              <button style={{ ...s.btnGhostSm, marginTop: 8 }} onClick={() => setAbModal({ ...abModal, variantes: abModal.variantes.slice(0, 2) })}>
+                Remover variante C
+              </button>
+            )}
+            <Field label="Você quer disparar por qual número?">
+              <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
+                  <input type="checkbox" checked={abModal.numeroIds.includes("")} onChange={() => toggleNumero("")} />
+                  Número principal
+                </label>
+                {numeros.map((n) => (
+                  <label key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
+                    <input type="checkbox" checked={abModal.numeroIds.includes(n.id)} onChange={() => toggleNumero(n.id)} />
+                    {n.nome}
+                  </label>
+                ))}
+              </div>
+            </Field>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setAbModal(null)}>Cancelar</button>
               <button style={{ ...s.btnWa, flex: 1, opacity: disparandoAB ? .6 : 1 }} onClick={confirmarDisparoAB} disabled={disparandoAB}>
-                {disparandoAB ? "Disparando..." : "Disparar A/B"}
+                {disparandoAB ? "Disparando..." : `Disparar ${letras.join("/")}`}
               </button>
             </div>
           </Modal>
