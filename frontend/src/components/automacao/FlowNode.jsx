@@ -42,8 +42,23 @@ function corpoConfiguravel(id, data) {
   }
   if (data.tipo === "aguardar_mensagem") {
     return (
-      <div style={{ fontSize: 12, color: "#5C6E7E", lineHeight: 1.5 }}>
-        Pausa o fluxo até o lead responder qualquer mensagem no WhatsApp.
+      <div>
+        <div style={{ fontSize: 12, color: "#5C6E7E", lineHeight: 1.5, marginBottom: 8 }}>
+          Pausa o fluxo até o lead responder qualquer mensagem no WhatsApp.
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12, color: "#5C6E7E" }}>Prazo:</span>
+          <input
+            className="nodrag" type="number" min={0} max={365} style={{ ...inputEstilo, width: 60 }}
+            value={data.prazoDias ?? 0} onChange={(e) => mudar({ prazoDias: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}
+          />
+          <span style={{ fontSize: 12, color: "#5C6E7E" }}>dias</span>
+        </div>
+        <div style={{ fontSize: 11, color: "#8A9AA6", marginTop: 4 }}>
+          {Number(data.prazoDias) > 0
+            ? `Se não responder em ${data.prazoDias} dia(s), segue pro próximo passo mesmo assim (marcado como "sem resposta").`
+            : "0 = espera pra sempre, sem prazo (não segue sozinho se o lead nunca responder)."}
+        </div>
       </div>
     );
   }

@@ -44,9 +44,13 @@ import java.util.stream.Collectors;
 //   editor, ver CONTEXTO_PROJETO.md) - fluxos configurados assim nunca ganham execucao nova.
 // - No de mensagem: so o campo "texto" e' enviado de verdade - "imagem"/"blocosConteudo" (anexos)
 //   nao tem suporte no EvolutionApiClient hoje (so /send/text, sem endpoint de midia).
-// - No "aguardar_mensagem": so marca a execucao como parada (status "aguardando_resposta") - quem
-//   retoma e' MensagemService.retomarExecucoesAguardandoResposta (Fase 4), chamado toda vez que o
-//   webhook do Evolution recebe uma resposta de verdade do contato.
+// - No "aguardar_mensagem": marca a execucao como parada (status "aguardando_resposta"). Quem
+//   retoma de verdade e' MensagemService.retomarExecucoesAguardandoResposta (Fase 4), chamado toda
+//   vez que o webhook do Evolution recebe uma resposta real do contato (tag "Automação: respondeu").
+//   Com um prazo configurado no no (FlowNode.jsx), processarAvancos tambem retoma sozinho quando o
+//   prazo estoura sem resposta (tag "Automação: sem resposta") - ainda sem ramificacao de verdade no
+//   grafo (o motor so segue a primeira aresta de cada no), entao os dois casos seguem o MESMO
+//   caminho depois - a diferenca fica registrada so pela tag, pra filtrar/comparar em Segmentacoes.
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -128,20 +132,35 @@ public class AutomacaoEngineService {
 
     // Avanca UM no do grafo pra cada execucao cuja hora ja chegou. Uma execucao por vez, uma
     // exception numa nao derruba as outras (mesmo padrao de isolamento de processarEntradas).
+    // Tambem pega execucoes "aguardando_resposta" cujo PRAZO configurado no no (ver
+    // executarNoAcao/"aguardar_mensagem") ja passou - sem prazo configurado, proximaExecucaoEm
+    // fica null e a linha nunca cai aqui (continua esperando pra sempre, comportamento antigo).
     private void processarAvancos() {
         LocalDateTime agora = LocalDateTime.now();
         List<ExecucaoFluxo> pendentes = execucaoFluxoRepository.findByStatusAndProximaExecucaoEmLessThanEqual("ativo", agora);
+        List<ExecucaoFluxo> expiradas = execucaoFluxoRepository.findByStatusAndProximaExecucaoEmLessThanEqual("aguardando_resposta", agora);
         for (ExecucaoFluxo execucao : pendentes) {
             try {
-                avancarUmPasso(execucao);
+                avancarUmPasso(execucao, false);
             } catch (Exception e) {
                 log.error("Falha ao avancar execucao {} (fluxo {}, contato {}): {}",
                         execucao.getId(), execucao.getFluxoId(), execucao.getContatoId(), e.getMessage(), e);
             }
         }
+        for (ExecucaoFluxo execucao : expiradas) {
+            try {
+                avancarUmPasso(execucao, true);
+            } catch (Exception e) {
+                log.error("Falha ao avancar execucao {} apos prazo esgotado (fluxo {}, contato {}): {}",
+                        execucao.getId(), execucao.getFluxoId(), execucao.getContatoId(), e.getMessage(), e);
+            }
+        }
     }
 
-    private void avancarUmPasso(ExecucaoFluxo execucao) throws JsonProcessingException {
+    private static final String TAG_SEM_RESPOSTA = "Automação: sem resposta";
+    private static final String TAG_RESPONDEU = "Automação: respondeu";
+
+    private void avancarUmPasso(ExecucaoFluxo execucao, boolean prazoEsgotado) throws JsonProcessingException {
         FluxoAutomacao fluxo = fluxoAutomacaoRepository.findById(execucao.getFluxoId()).orElse(null);
         if (fluxo == null || !Boolean.TRUE.equals(fluxo.getAtivo())) {
             concluir(execucao);
@@ -151,6 +170,13 @@ public class AutomacaoEngineService {
         if (contato == null) {
             concluir(execucao);
             return;
+        }
+        // Percepcao de resposta: marca o desfecho do "aguardar_mensagem" antes de
+        // seguir pro proximo no - nao muda o caminho do grafo (o motor ainda nao
+        // suporta ramificacao de verdade), mas deixa o resultado rastreavel/
+        // filtravel em Segmentacoes (contem "Automação: sem resposta" etc.).
+        if (prazoEsgotado) {
+            contatoService.adicionarTag(contato.getId(), TAG_SEM_RESPOSTA);
         }
 
         List<NoFluxo> nos = parseNodes(fluxo.getNodesJson());
@@ -185,7 +211,11 @@ public class AutomacaoEngineService {
 
         execucao.setNoAtualId(proximo.id());
         execucao.setStatus(resultado.status());
-        execucao.setProximaExecucaoEm("aguardando_resposta".equals(resultado.status()) ? null : resultado.proximaExecucaoEm());
+        // proximaExecucaoEm serve pros dois propositos aqui: pro tick normal ("ativo"),
+        // quando avancar de novo; pro "aguardando_resposta", o PRAZO (se configurado) -
+        // null significa espera pra sempre, um valor real vira o timeout que processarAvancos
+        // usa pra pegar essa linha de volta mesmo sem resposta nenhuma do lead.
+        execucao.setProximaExecucaoEm(resultado.proximaExecucaoEm());
         execucaoFluxoRepository.save(execucao);
     }
 
@@ -215,15 +245,21 @@ public class AutomacaoEngineService {
                 return new ResultadoNo("ativo", LocalDateTime.now().plusSeconds(segundos));
             }
             case "aguardar_mensagem" -> {
-                return new ResultadoNo("aguardando_resposta", null);
+                // prazoDias=0 (ou ausente) mantem o comportamento antigo: espera pra
+                // sempre, sem timeout (ver FlowNode.jsx). Com prazo > 0, processarAvancos
+                // pega essa linha de volta mesmo sem resposta - ver TAG_SEM_RESPOSTA.
+                int prazoDias = comoInteiro(data.get("prazoDias"), 0);
+                LocalDateTime prazo = prazoDias > 0 ? LocalDateTime.now().plusDays(prazoDias) : null;
+                return new ResultadoNo("aguardando_resposta", prazo);
             }
             default -> log.warn("Tipo de acao desconhecido \"{}\" no fluxo {}, no {}", tipo, fluxo.getId(), no.id());
         }
         return new ResultadoNo("ativo", LocalDateTime.now());
     }
 
-    // Par (status, proximo horario) que uma execucao de no devolve - status "aguardando_resposta"
-    // ignora proximaExecucaoEm (fica null, so a Fase 4/webhook retoma).
+    // Par (status, proximo horario) que uma execucao de no devolve - com status
+    // "aguardando_resposta", proximaExecucaoEm null = espera pra sempre (so a Fase
+    // 4/webhook retoma), um valor real = prazo/timeout (ver processarAvancos).
     private record ResultadoNo(String status, LocalDateTime proximaExecucaoEm) {
     }
 

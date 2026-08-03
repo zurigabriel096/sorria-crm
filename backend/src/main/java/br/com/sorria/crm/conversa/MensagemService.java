@@ -181,6 +181,11 @@ public class MensagemService {
     // tick do AutomacaoEngineService.executar() (@Scheduled a cada 30s).
     private void retomarExecucoesAguardandoResposta(Long contatoId) {
         List<ExecucaoFluxo> paradas = execucaoFluxoRepository.findByContatoIdAndStatus(contatoId, "aguardando_resposta");
+        if (paradas.isEmpty()) return;
+        // Percepcao de resposta: marca que essa resposta chegou dentro do prazo
+        // (contraste com "Automação: sem resposta" no timeout, ver
+        // AutomacaoEngineService) - da pra filtrar/comparar depois em Segmentacoes.
+        contatoService.adicionarTag(contatoId, "Automação: respondeu");
         for (ExecucaoFluxo execucao : paradas) {
             execucao.setStatus("ativo");
             execucao.setProximaExecucaoEm(LocalDateTime.now());
