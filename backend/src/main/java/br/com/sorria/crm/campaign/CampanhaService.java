@@ -259,7 +259,11 @@ public class CampanhaService {
         campanha.setInicio(dto.inicio());
         campanha.setEmailMsg(dto.emailMsg());
         campanha.setTemplateId(dto.templateId());
-        campanha.setIntervaloSegundos(dto.intervaloSegundos());
+        // Piso de 3s tambem no backend, nao so no input do frontend (min=3) -
+        // rajada sem intervalo e' o que mais aumenta risco do numero ser
+        // marcado como spam pelo WhatsApp, e o valor viria direto de quem
+        // chamar a API sem passar pela tela se so validasse no frontend.
+        campanha.setIntervaloSegundos(dto.intervaloSegundos() != null ? Math.max(3, dto.intervaloSegundos()) : null);
         campanha.setWhatsappNumeroId(dto.whatsappNumeroId());
         campanha.setModoProspects(dto.modoProspects() != null && dto.modoProspects());
     }

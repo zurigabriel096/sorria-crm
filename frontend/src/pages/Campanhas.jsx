@@ -205,16 +205,16 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
                 value={f.whatsappNumeroId}
                 onChange={(v) => setF({ ...f, whatsappNumeroId: v ? Number(v) : "" })}
                 options={["", ...numeros.map((n) => n.id)]}
-                labels={{ "": "Padrão (número principal)", ...Object.fromEntries(numeros.map((n) => [n.id, n.nome])) }}
+                labels={{ "": "Atendimento Orthodontic - João", ...Object.fromEntries(numeros.map((n) => [n.id, n.nome])) }}
               />
             </Field>
           )}
           {f.canal === "WhatsApp" && (
             <Field label="Intervalo entre envios (segundos)">
               <input
-                type="number" min={1} max={30} style={{ ...s.input, maxWidth: 120 }}
+                type="number" min={3} max={30} style={{ ...s.input, maxWidth: 120 }}
                 value={f.intervaloSegundos}
-                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(1, Math.min(30, Number(e.target.value) || 1)) })}
+                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(3, Math.min(30, Number(e.target.value) || 3)) })}
               />
               <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
                 Pausa entre uma mensagem e outra. Recomendado: 3s ou mais — rajadas sem
