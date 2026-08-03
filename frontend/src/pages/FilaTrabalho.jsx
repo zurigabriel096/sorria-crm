@@ -5,6 +5,7 @@ import { dataHora, tempoDesde } from "../utils/format";
 import { iniciais } from "../utils/usuario";
 import { listEtapas } from "../api/etapas";
 import { Card } from "../components/ui/Card";
+import { IconUserPlaceholder } from "../components/icons";
 
 function pontuarPrioridade(p) {
   let score = 0;
@@ -134,7 +135,13 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
                 width: 30, height: 30, borderRadius: "50%", background: colaborador?.corPerfil || T.inkSoft, color: "#fff",
                 display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, overflow: "hidden",
               }}>
-                {colaborador?.avatarUrl ? <img src={colaborador.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : iniciais(colaborador?.nome || "?")}
+                {colaborador?.avatarUrl ? (
+                  <img src={colaborador.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : colaborador ? (
+                  iniciais(colaborador.nome)
+                ) : (
+                  <IconUserPlaceholder width={16} height={16} />
+                )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{p.nome}</div>

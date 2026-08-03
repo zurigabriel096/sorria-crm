@@ -47,6 +47,14 @@ export const IconZap = (p) => <svg {...I(p)}><path d="M13 2L4 14h6l-1 8 9-12h-6l
 export const IconKanban = (p) => <svg {...I(p)}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15 4v16" /></svg>;
 export const IconInbox = (p) => <svg {...I(p)}><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" /></svg>;
 export const IconHome = (p) => <svg {...I(p)}><path d="M3 11l9-8 9 8" /><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10" /></svg>;
+// Silhueta solida (preenchida, nao contorno) - usada como placeholder de
+// avatar quando o lead nao tem responsavel atribuido (ver FilaTrabalho.jsx).
+export const IconUserPlaceholder = (p) => (
+  <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill={p.color || "#fff"}>
+    <circle cx="12" cy="7.5" r="4.5" />
+    <path d="M12 13c-5.2 0-9.3 2.9-9.3 7.2V21a1 1 0 001 1h16.6a1 1 0 001-1v-.8c0-4.3-4.1-7.2-9.3-7.2z" />
+  </svg>
+);
 export const Dot = ({ color }) => <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />;
 
 // Bolinha de status com leve brilho pulsante (verde = ativo, vermelho = inativo).
