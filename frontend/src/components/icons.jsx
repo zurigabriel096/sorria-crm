@@ -49,10 +49,30 @@ export const IconInbox = (p) => <svg {...I(p)}><path d="M22 12h-6l-2 3h-4l-2-3H2
 export const IconHome = (p) => <svg {...I(p)}><path d="M3 11l9-8 9 8" /><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10" /></svg>;
 // Silhueta solida (preenchida, nao contorno) - usada como placeholder de
 // avatar quando o lead nao tem responsavel atribuido (ver FilaTrabalho.jsx).
+// Corpo desenhado como 1 arco eliptico so (M...A...Z) de proposito - garante
+// simetria perfeita em torno do eixo x=12, sem risco de ficar "torto" como um
+// path desenhado a mao com curvas bezier assimetricas.
 export const IconUserPlaceholder = (p) => (
   <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill={p.color || "#fff"}>
-    <circle cx="12" cy="7.5" r="4.5" />
-    <path d="M12 13c-5.2 0-9.3 2.9-9.3 7.2V21a1 1 0 001 1h16.6a1 1 0 001-1v-.8c0-4.3-4.1-7.2-9.3-7.2z" />
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 20A8 6 0 0 1 20 20Z" />
+  </svg>
+);
+// Moeda - usada no card "Financeiro" do Painel Executivo.
+export const IconCoin = (p) => (
+  <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill="none" stroke={p.color || T.inkSoft} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9 15.5c0 1.1 1.3 2 3 2s3-.7 3-1.6c0-2.5-6-1.3-6-3.9 0-.9 1.3-1.6 3-1.6s3 .9 3 2M12 7.5v1M12 15.5v1" />
+  </svg>
+);
+// Martelo de juiz (gavel) - usado no card de campos tipo "Situação" no Painel.
+// Desenhado so com formas basicas (retangulo + linha) de proposito - path a
+// mao livre sem conseguir renderizar pra conferir e' risco demais de sair
+// torto (ver IconUserPlaceholder acima, mesmo aprendizado).
+export const IconGavel = (p) => (
+  <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill="none" stroke={p.color || T.inkSoft} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="7" y="2" width="6" height="13" rx="2" transform="rotate(45 10 8.5)" />
+    <line x1="4" y1="20" x2="16" y2="20" />
   </svg>
 );
 export const Dot = ({ color }) => <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />;

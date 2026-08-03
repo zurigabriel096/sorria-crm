@@ -420,8 +420,13 @@ export default function App() {
     updateCorPerfil(cor).catch(() => {});
   };
 
-  const irParaPacientes = (filtroEleg) => {
-    setFiltroPacientesInicial(filtroEleg ? { eleg: filtroEleg } : null);
+  // Aceita tanto o formato antigo (string = filtro de elegibilidade, ex.:
+  // "Elegíveis") quanto o novo ({campo, valor} - clique num valor de card
+  // personalizado do Painel, ver Dashboard.jsx) - Pacientes.jsx sabe aplicar
+  // os dois.
+  const irParaPacientes = (filtro) => {
+    if (typeof filtro === "string") setFiltroPacientesInicial({ eleg: filtro });
+    else setFiltroPacientesInicial(filtro || null);
     setView("pacientes");
   };
 

@@ -13,34 +13,30 @@ import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
-import { IconUsers, IconCheck, IconSend, IconGrid } from "../components/icons";
+import { IconUsers, IconCheck, IconSend, IconGrid, IconCoin, IconGavel } from "../components/icons";
+import { CAMPOS_FIXOS, rotuloCampo } from "../utils/painelCampos";
 
-// Catálogo de métricas de volume de disparo/mensagem que o ADMIN pode
-// mostrar/esconder (ConfigPainelMetricas) - cada uma sabe montar seu próprio KpiCard.
+// "disparados" (Mensagens disparadas) fica de fora deste catalogo de proposito -
+// e' tratado a parte pra sempre ficar por ULTIMO na fileira, com estilo proprio
+// (ver render principal abaixo). "totalContatos" (Leads na base) tambem e'
+// especial: sempre PRIMEIRO.
 const METRICAS = [
   { chave: "totalContatos", rotulo: "Leads na base", montar: (kpis, ctx) => <KpiCard label="Leads na base" value={num(kpis.totalContatos)} icon={<IconUsers color={T.primary} />} onClick={() => ctx.irParaPacientes()} /> },
   { chave: "elegiveis", rotulo: "Elegíveis p/ disparo", montar: (kpis, ctx) => <KpiCard label="Elegíveis p/ disparo" value={num(kpis.elegiveis)} sub="telefone válido" icon={<IconCheck color={T.wa} />} onClick={() => ctx.irParaPacientes("Elegíveis")} /> },
-  { chave: "disparados", rotulo: "Mensagens disparadas", montar: (kpis, ctx) => <KpiCard label="Mensagens disparadas" value={num(kpis.disparados)} icon={<IconSend color={T.gold} />} onClick={() => ctx.setView("disparos")} /> },
+  { chave: "disparados", rotulo: "Mensagens disparadas", montar: (kpis, ctx) => <KpiCard label="Mensagens disparadas" value={num(kpis.disparados)} icon={<IconSend color={T.primary} />} borderColor={T.primary} onClick={() => ctx.setView("disparos")} /> },
   { chave: "entregues", rotulo: "Entregues", montar: (kpis, ctx) => <KpiCard label="Entregues" value={num(kpis.entregues)} highlight icon={<IconCheck color="#fff" />} onClick={() => ctx.setView("disparos")} /> },
   { chave: "taxaEntrega", rotulo: "Taxa de entrega", montar: (kpis, ctx) => <KpiCard label="Taxa de entrega" value={`${num(kpis.taxaEntregaPct)}%`} icon={<IconCheck color={T.primary} />} onClick={() => ctx.setView("disparos")} /> },
 ];
 
-// Campos fixos do cadastro que tambem podem virar card personalizado, alem
-// dos campos customizados que o proprio usuario cria (ver CampoCustomizado) -
-// prefixo "fixo:" no campoNome distingue dos nomes livres de campo
-// customizado (ver PainelCardService.bate no backend).
-const CAMPOS_FIXOS = [
-  { chave: "fixo:financ", rotulo: "Financeiro", opcoes: ["Adimplente", "Inadimplente", "—"] },
-  { chave: "fixo:estagio", rotulo: "Estágio" },
-  { chave: "fixo:elegivel", rotulo: "Elegível", opcoes: ["Sim", "Não"] },
-  { chave: "fixo:dentista", rotulo: "Dentista" },
-];
-
-// Campo customizado usa o proprio nome como rotulo; campo fixo (prefixo
-// "fixo:") traduz pro rotulo amigavel de CAMPOS_FIXOS. Usado tanto na tela
-// principal (label de cada tile de quebra automatica) quanto no modal de
-// configuracao.
-const rotuloCampo = (campoNome) => CAMPOS_FIXOS.find((c) => c.chave === campoNome)?.rotulo || campoNome;
+// Icone do card personalizado por campo - Financeiro vira moeda, qualquer
+// campo chamado "Situação" (fixo ou personalizado) vira martelo de juiz;
+// os demais caem no icone generico (grade).
+function iconeDoCard(campoNome) {
+  if (campoNome === "fixo:financ") return IconCoin;
+  const rotulo = rotuloCampo(campoNome).toLowerCase();
+  if (rotulo === "situação" || rotulo === "situacao") return IconGavel;
+  return IconGrid;
+}
 
 export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo }) {
   const souAdmin = usuario?.papel === "ADMIN";
@@ -81,6 +77,10 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
 
   const ctx = { irParaPacientes, setView };
   const metricasAtivas = METRICAS.filter((m) => metricasVisiveis.includes(m.chave));
+  // "Mensagens disparadas" sempre por ultimo (pedido explicito) - o resto
+  // mantem a ordem do catalogo, que ja comeca com "Leads na base".
+  const metricasSemDisparados = metricasAtivas.filter((m) => m.chave !== "disparados");
+  const metricaDisparados = metricasAtivas.find((m) => m.chave === "disparados");
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
@@ -90,10 +90,19 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
         </div>
       )}
       <div className="kpiRow" style={s.kpiRow}>
-        {metricasAtivas.map((m) => <div key={m.chave}>{m.montar(kpis, ctx)}</div>)}
-        {cards.flatMap((c) => (c.valores || []).map((v) => (
-          <KpiCard key={`${c.id}-${v.valor}`} label={`${c.rotulo || rotuloCampo(c.campoNome)}: ${v.valor}`} value={num(v.contagem)} icon={<IconGrid color={T.primary} />} />
-        )))}
+        {metricasSemDisparados.map((m) => <div key={m.chave}>{m.montar(kpis, ctx)}</div>)}
+        {cards.flatMap((c) => (c.valores || []).map((v) => {
+          const Icone = iconeDoCard(c.campoNome);
+          return (
+            <KpiCard
+              key={`${c.id}-${v.valor}`}
+              label={`${c.rotulo || rotuloCampo(c.campoNome)}: ${v.valor}`}
+              value={num(v.contagem)}
+              icon={<Icone color={T.primary} />}
+              onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
+            />
+          );
+        }))}
         {!!prospectsHistorico.length && (
           <KpiCard
             label="Enviado pra prospects"
@@ -102,21 +111,32 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
             icon={<IconSend color={T.gold} />}
           />
         )}
+        {metricaDisparados && <div key={metricaDisparados.chave}>{metricaDisparados.montar(kpis, ctx)}</div>}
       </div>
-      {metricasVisiveis.includes("baseEstagio") && (
-        <Card title="Base por estágio">
-          {Object.entries(kpis.porEstagio || {}).map(([etapa, qtd]) => {
-            const col = T.estagio[etapa] || T.estagio.Lead;
-            return (
-              <div key={etapa} style={s.segRow}>
-                <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{etapa}</span>
-                <div style={s.segBarTrack}>
-                  <div style={{ ...s.segBarFill, width: `${(qtd / (kpis.totalContatos || 1)) * 100}%`, background: col.fg }} />
+      {metricasVisiveis.includes("baseEstagio") && !!cards.length && (
+        <Card>
+          <div style={{ display: "grid", gap: 20 }}>
+            {cards.map((c) => (
+              <div key={c.id}>
+                <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink, marginBottom: 8 }}>{c.rotulo || rotuloCampo(c.campoNome)}</div>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {(c.valores || []).map((v) => (
+                    <div
+                      key={v.valor}
+                      style={{ ...s.segRow, cursor: "pointer" }}
+                      onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
+                    >
+                      <span style={{ ...s.segBadge, color: T.ink, background: T.lineSoft }}>{v.valor}</span>
+                      <div style={s.segBarTrack}>
+                        <div style={{ ...s.segBarFill, width: `${(v.contagem / (kpis.totalContatos || 1)) * 100}%`, background: T.primary }} />
+                      </div>
+                      <b style={{ fontSize: 13, color: T.ink, width: 34, textAlign: "right" }}>{v.contagem}</b>
+                    </div>
+                  ))}
                 </div>
-                <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{qtd}</b>
               </div>
-            );
-          })}
+            ))}
+          </div>
           <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
         </Card>
       )}
@@ -211,7 +231,7 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
         ))}
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
           <input type="checkbox" checked={selecao.includes("baseEstagio")} onChange={() => alternarMetrica("baseEstagio")} />
-          Base por estágio
+          Detalhamento dos cards (barras)
         </label>
       </div>
       <button style={s.btnPrimarySm} onClick={salvarMetricas}>Salvar métricas</button>

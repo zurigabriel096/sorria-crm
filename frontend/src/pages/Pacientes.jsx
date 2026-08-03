@@ -4,6 +4,7 @@ import { listEtapas } from "../api/etapas";
 import { s } from "../styles/s";
 import { exportarXlsx } from "../utils/patients";
 import { brl } from "../utils/format";
+import { rotuloCampo, valorDoCampoPainel } from "../utils/painelCampos";
 import { Card } from "../components/ui/Card";
 import { Select } from "../components/ui/Select";
 import { Field } from "../components/ui/Field";
@@ -60,6 +61,10 @@ export function Pacientes({
   const [fEstagio, setFEstagio] = useState("Todos");
   const [fEleg, setFEleg] = useState(filtroInicial?.eleg || "Todos");
   const [fTag, setFTag] = useState("Todas");
+  // Filtro vindo de um clique num card personalizado do Painel Executivo
+  // (ver Dashboard.jsx irParaPacientes) - {campo, valor} no mesmo formato de
+  // PainelCard, resolvido com o mesmo valorDoCampoPainel usado la.
+  const [fCampoValor, setFCampoValor] = useState(filtroInicial?.campo ? { campo: filtroInicial.campo, valor: filtroInicial.valor } : null);
   const [q, setQ] = useState("");
   const [etapas, setEtapas] = useState([]);
   const [unificando, setUnificando] = useState(false);
@@ -143,13 +148,14 @@ export function Pacientes({
 
   useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
 
-  const limpar = () => { setFEstagio("Todos"); setFEleg("Todos"); setFTag("Todas"); setQ(""); };
+  const limpar = () => { setFEstagio("Todos"); setFEleg("Todos"); setFTag("Todas"); setQ(""); setFCampoValor(null); };
 
   const filtered = patients.filter((p) => {
     if (fEstagio !== "Todos" && p.estagio !== fEstagio) return false;
     if (fEleg === "Elegíveis" && !p.elegivel) return false;
     if (fEleg === "A corrigir" && p.elegivel) return false;
     if (fTag !== "Todas" && !(p.tags || []).includes(fTag)) return false;
+    if (fCampoValor && valorDoCampoPainel(p, fCampoValor.campo) !== fCampoValor.valor) return false;
     if (q && !p.nome.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
@@ -168,6 +174,14 @@ export function Pacientes({
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
+      {fCampoValor && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ ...s.tagOk, display: "inline-flex", alignItems: "center", gap: 6 }}>
+            Filtro: {rotuloCampo(fCampoValor.campo)} = {fCampoValor.valor}
+            <button onClick={() => setFCampoValor(null)} style={{ color: "inherit", fontSize: 13, lineHeight: 1 }} title="Remover filtro">×</button>
+          </span>
+        </div>
+      )}
       <div style={{ ...s.toolbar, alignItems: "flex-end" }}>
         <div>
           <div style={s.fieldLabel}>Buscar</div>

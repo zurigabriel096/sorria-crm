@@ -39,12 +39,12 @@ export function Suporte({ showToast }) {
         <div style={s.slaCard}>
           <div style={{ fontWeight: 700, color: T.ink, fontSize: 14, marginBottom: 6 }}>Status dos sistemas</div>
           {[
-            { nome: "Disparo WhatsApp", cor: T.wa },
-            { nome: "Envio de email", cor: T.angry },
-            { nome: "Painel", cor: T.wa },
-          ].map(({ nome, cor }) => (
+            { nome: "Disparo WhatsApp", ativo: true },
+            { nome: "Envio de email", ativo: false },
+            { nome: "Painel", ativo: true },
+          ].map(({ nome, ativo }) => (
             <div key={nome} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.inkSoft, padding: "4px 0" }}>
-              <Dot color={cor} /> {nome}<span style={{ marginLeft: "auto", color: cor, fontWeight: 600 }}>Operacional</span>
+              <Dot color={ativo ? T.wa : T.angry} /> {nome}<span style={{ marginLeft: "auto", color: ativo ? T.wa : T.angry, fontWeight: 600 }}>{ativo ? "Ativo" : "Inativo"}</span>
             </div>
           ))}
         </div>

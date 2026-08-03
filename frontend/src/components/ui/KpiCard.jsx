@@ -1,10 +1,10 @@
 import { T } from "../../theme";
 import { s } from "../../styles/s";
 
-export function KpiCard({ label, value, sub, icon, highlight, onClick }) {
+export function KpiCard({ label, value, sub, icon, highlight, borderColor, onClick }) {
   return (
     <div
-      style={{ ...s.kpiCard, ...(highlight ? s.kpiHi : {}), ...(onClick ? { cursor: "pointer" } : {}) }}
+      style={{ ...s.kpiCard, ...(highlight ? s.kpiHi : {}), ...(borderColor ? { border: `1.5px solid ${borderColor}` } : {}), ...(onClick ? { cursor: "pointer" } : {}) }}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}

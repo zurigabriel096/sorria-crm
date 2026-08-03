@@ -56,13 +56,19 @@ public class PainelCardService {
         card.setRotulo(dto.rotulo());
     }
 
+    private static final String VAZIO = "(vazio)";
+
     // Quebra automatica: agrupa todo Contato pelo valor que ele tem nesse campo
     // e conta cada grupo - o card nao precisa mais de um valor cadastrado na
     // mao, ele descobre sozinho todos os valores que existem na base agora.
+    // O balde "(vazio)" fica de fora do resultado de proposito (pedido do
+    // usuario) - ele so existia pra nao perder contagem, mas poluia o card
+    // (ex.: 4 valores obrigatorios quando so 3 tem sentido de negocio).
     private PainelCardDTO toDTO(PainelCard c, List<Contato> contatos) {
         Map<String, Long> contagemPorValor = contatos.stream()
                 .collect(Collectors.groupingBy(ct -> valorDoCampo(ct, c.getCampoNome()), Collectors.counting()));
         List<ValorContagemDTO> valores = contagemPorValor.entrySet().stream()
+                .filter(e -> !VAZIO.equals(e.getKey()))
                 .map(e -> new ValorContagemDTO(e.getKey(), e.getValue()))
                 .sorted(Comparator.comparing(ValorContagemDTO::contagem).reversed())
                 .toList();
@@ -87,6 +93,6 @@ public class PainelCardService {
         } else {
             valor = c.getCamposCustomizados() != null ? c.getCamposCustomizados().get(campoNome) : null;
         }
-        return valor == null || valor.isBlank() ? "(vazio)" : valor;
+        return valor == null || valor.isBlank() ? VAZIO : valor;
     }
 }
