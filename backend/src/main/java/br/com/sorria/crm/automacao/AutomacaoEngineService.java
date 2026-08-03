@@ -193,7 +193,7 @@ public class AutomacaoEngineService {
         Object textoBruto = data.get("texto");
         String texto = textoBruto != null ? String.valueOf(textoBruto) : null;
         if (texto != null && !texto.isBlank()) {
-            enviarMensagemComPacing(contato, texto);
+            enviarMensagemComPacing(contato, texto.replace("{nome}", primeiroNome(contato.getNome())));
         }
         Map<String, Object> atraso = comoMapa(data.get("atraso"));
         long segundosAtraso = comoInteiro(atraso.get("dias"), 0) * 86400L
@@ -225,6 +225,11 @@ public class AutomacaoEngineService {
     // Par (status, proximo horario) que uma execucao de no devolve - status "aguardando_resposta"
     // ignora proximaExecucaoEm (fica null, so a Fase 4/webhook retoma).
     private record ResultadoNo(String status, LocalDateTime proximaExecucaoEm) {
+    }
+
+    private String primeiroNome(String nomeCompleto) {
+        if (nomeCompleto == null || nomeCompleto.isBlank()) return "";
+        return nomeCompleto.trim().split("\\s+")[0];
     }
 
     private void enviarMensagemComPacing(Contato contato, String texto) {
