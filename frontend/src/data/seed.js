@@ -22,6 +22,7 @@ export const OBJETIVOS_BASE = ["Reativação", "Anti no-show", "Cobrança", "Ups
 
 export const FIELD_META = {
   financ: { label: "Financeiro", ops: ["é", "não é"], values: ["Adimplente", "Inadimplente"] },
+  diasInadimplente: { label: "Inadimplente há (dias)", ops: ["maior", "menor"], value: "number" },
   recencia: { label: "Recência (dias)", ops: ["maior", "menor"], value: "number" },
   elegivel: { label: "Elegível", ops: ["é", "não é"], values: ["Sim", "Não"] },
   tag: { label: "Tag", ops: ["contém", "não contém"], values: [] },

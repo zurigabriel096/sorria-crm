@@ -14,6 +14,8 @@ function fromApi(c) {
     telValido: !!c.telefone,
     email: c.email || "",
     financ: c.financ || "—",
+    // Somente leitura - gravado/limpo pelo backend quando financ muda pra/sai de "Inadimplente".
+    inadimplenteDesde: c.inadimplenteDesde || null,
     dentista: c.dentista || "",
     ultAtend: c.ultAtendimento || "",
     recencia: c.recencia,
@@ -66,3 +68,8 @@ export const createContactsLote = async (patients) => (await api.post("/api/cont
 // Mescla cadastros duplicados (mesmo telefone) que ja existiam antes da
 // trava de criacao existir - nao apaga dado, so unifica.
 export const unificarDuplicados = () => api.post("/api/contacts/unificar-duplicados", {});
+
+// Adiciona/remove uma tag em varios contatos de uma vez (ex.: todos que uma
+// Segmentacao captura hoje) - restrito a ADMIN no backend.
+export const aplicarTagEmLote = (contatoIds, tag, remover) =>
+  api.post("/api/contacts/tags/lote", { contatoIds, tag, remover });

@@ -19,6 +19,11 @@ export function evalCond(p, c) {
   if (c.field.startsWith("custom:")) return evalCondCustomizado(p, c);
   switch (c.field) {
     case "financ": return c.op === "é" ? p.financ === c.value : p.financ !== c.value;
+    case "diasInadimplente": {
+      if (!p.inadimplenteDesde) return false;
+      const dias = Math.floor((Date.now() - new Date(p.inadimplenteDesde).getTime()) / 864e5);
+      return c.op === "maior" ? dias > +c.value : dias < +c.value;
+    }
     case "recencia": return c.op === "maior" ? (p.recencia || 0) > +c.value : (p.recencia || 0) < +c.value;
     case "elegivel": { const y = c.value === "Sim"; return c.op === "é" ? p.elegivel === y : p.elegivel !== y; }
     case "tag": return c.op === "contém" ? (p.tags || []).includes(c.value) : !(p.tags || []).includes(c.value);

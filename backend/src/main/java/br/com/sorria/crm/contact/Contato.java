@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,6 +33,13 @@ public class Contato {
     private String email;
 
     private String financ;
+
+    // Desde quando o financ atual e' "Inadimplente" - null quando financ nao e'
+    // "Inadimplente" (ContatoService.aplicar/mesclarNoExistente/mesclarEntidades
+    // gravam/limpam sozinhos toda vez que financ muda, mesmo raciocinio de
+    // sincronizarTagDeEtapa). Usado pra Segmentacoes filtrar "inadimplente ha
+    // mais de X dias"/"ha menos de Y dias" (dias = hoje - inadimplenteDesde).
+    private LocalDate inadimplenteDesde;
 
     private String dentista;
 

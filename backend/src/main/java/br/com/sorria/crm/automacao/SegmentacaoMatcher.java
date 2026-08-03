@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +51,12 @@ public class SegmentacaoMatcher {
 
         return switch (field) {
             case "financ" -> "é".equals(op) ? igual(contato.getFinanc(), value) : !igual(contato.getFinanc(), value);
+            case "diasInadimplente" -> {
+                if (contato.getInadimplenteDesde() == null) yield false;
+                long dias = ChronoUnit.DAYS.between(contato.getInadimplenteDesde(), LocalDate.now());
+                double comparado = paraNumero(value);
+                yield "maior".equals(op) ? dias > comparado : dias < comparado;
+            }
             case "recencia" -> {
                 int recencia = contato.getRecencia() != null ? contato.getRecencia() : 0;
                 double comparado = paraNumero(value);

@@ -2,6 +2,7 @@ package br.com.sorria.crm.contact.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,9 @@ public record ContatoDTO(
         String telefone,
         String email,
         String financ,
+        // Somente leitura - gravado/limpo so pelo ContatoService quando financ muda,
+        // ignorado se vier num PUT/POST (ver ContatoService.aplicar).
+        LocalDate inadimplenteDesde,
         String dentista,
         String ultAtendimento,
         Integer recencia,

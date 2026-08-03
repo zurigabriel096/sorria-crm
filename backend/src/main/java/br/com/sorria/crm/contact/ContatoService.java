@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 // @Transactional na classe: sem isso, a colecao lazy `tags` (@ElementCollection) e
@@ -146,6 +148,31 @@ public class ContatoService {
         contatoRepository.save(contato);
     }
 
+    // Aplicar tag em varios contatos de uma vez (ex.: todos que uma Segmentacao
+    // captura hoje) - reusa adicionarTag/removerTag (mesma idempotencia), so
+    // pula quem sumiu entre a lista ser montada no frontend e a acao rodar.
+    public int adicionarTagEmLote(List<Long> contatoIds, String tag) {
+        return aplicarEmLote(contatoIds, tag, this::adicionarTag);
+    }
+
+    public int removerTagEmLote(List<Long> contatoIds, String tag) {
+        return aplicarEmLote(contatoIds, tag, this::removerTag);
+    }
+
+    private int aplicarEmLote(List<Long> contatoIds, String tag, BiConsumer<Long, String> acao) {
+        if (vazio(tag) || contatoIds == null) return 0;
+        int afetados = 0;
+        for (Long id : contatoIds) {
+            try {
+                acao.accept(id, tag);
+                afetados++;
+            } catch (NoSuchElementException ignorado) {
+                // contato pode ter sido excluido entre a lista ser montada e a acao rodar
+            }
+        }
+        return afetados;
+    }
+
     // Limpeza dos duplicados que ja existem na base (ex.: dois cadastros pro
     // mesmo lead, criados antes desta trava existir). Agrupa por telefone; de
     // cada grupo, o cadastro mais antigo (menor id) vira o "principal" e
@@ -186,9 +213,11 @@ public class ContatoService {
 
     private void mesclarNoExistente(Contato existente, ContatoDTO novo) {
         String estagioAntigo = existente.getEstagio();
+        String financAntigo = existente.getFinanc();
         if (vazio(existente.getCod())) existente.setCod(novo.cod());
         if (vazio(existente.getEmail())) existente.setEmail(novo.email());
         if (vazio(existente.getFinanc()) || "—".equals(existente.getFinanc())) existente.setFinanc(novo.financ());
+        sincronizarInadimplenciaDesde(existente, financAntigo, existente.getFinanc());
         if (vazio(existente.getDentista())) existente.setDentista(novo.dentista());
         if (vazio(existente.getUltAtendimento())) existente.setUltAtendimento(novo.ultAtendimento());
         if (existente.getRecencia() == null) existente.setRecencia(novo.recencia());
@@ -214,7 +243,14 @@ public class ContatoService {
         String estagioAntigo = principal.getEstagio();
         if (vazio(principal.getCod())) principal.setCod(duplicado.getCod());
         if (vazio(principal.getEmail())) principal.setEmail(duplicado.getEmail());
-        if (vazio(principal.getFinanc()) || "—".equals(principal.getFinanc())) principal.setFinanc(duplicado.getFinanc());
+        // duplicado e' uma entidade real (nao um DTO de import) - se ja tinha
+        // inadimplenteDesde de verdade, herda a data original em vez de
+        // resetar pra hoje (sincronizarInadimplenciaDesde e' pra transicao de
+        // valor vinda de fora, nao pra fundir historico de duplicado).
+        if (vazio(principal.getFinanc()) || "—".equals(principal.getFinanc())) {
+            principal.setFinanc(duplicado.getFinanc());
+            principal.setInadimplenteDesde(duplicado.getInadimplenteDesde());
+        }
         if (vazio(principal.getDentista())) principal.setDentista(duplicado.getDentista());
         if (vazio(principal.getUltAtendimento())) principal.setUltAtendimento(duplicado.getUltAtendimento());
         if (principal.getRecencia() == null) principal.setRecencia(duplicado.getRecencia());
@@ -251,13 +287,30 @@ public class ContatoService {
         contato.setTags(tags);
     }
 
+    // Rastreia desde quando o financ atual e' "Inadimplente" (base do filtro
+    // "inadimplente ha mais de X dias" em Segmentacoes). So grava a data na
+    // TRANSICAO pra Inadimplente (nao reseta toda vez que aplicar() roda com o
+    // mesmo valor) e limpa quando sai desse estado - mesmo raciocinio de
+    // sincronizarTagDeEtapa, uma regra so cobrindo cadastro manual e importacao.
+    private void sincronizarInadimplenciaDesde(Contato contato, String financAntigo, String financNovo) {
+        boolean eraInadimplente = "Inadimplente".equals(financAntigo);
+        boolean ehInadimplente = "Inadimplente".equals(financNovo);
+        if (ehInadimplente && !eraInadimplente) {
+            contato.setInadimplenteDesde(LocalDate.now());
+        } else if (!ehInadimplente) {
+            contato.setInadimplenteDesde(null);
+        }
+    }
+
     private void aplicar(ContatoDTO dto, Contato contato) {
         String estagioAntigo = contato.getEstagio();
+        String financAntigo = contato.getFinanc();
         contato.setCod(dto.cod());
         contato.setNome(dto.nome());
         contato.setTelefone(normalizarTelefone(dto.telefone()));
         contato.setEmail(dto.email());
         contato.setFinanc(dto.financ());
+        sincronizarInadimplenciaDesde(contato, financAntigo, dto.financ());
         contato.setDentista(dto.dentista());
         contato.setUltAtendimento(dto.ultAtendimento());
         contato.setRecencia(dto.recencia());
@@ -275,7 +328,7 @@ public class ContatoService {
 
     private ContatoDTO toDTO(Contato c) {
         return new ContatoDTO(
-                c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(),
+                c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(), c.getInadimplenteDesde(),
                 c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getEstagio(),
                 c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban(),
                 c.getCamposCustomizados(), c.getUltimaMensagemEm(), c.getUltimaMensagemDirecao(), c.getProximaAcaoEm()

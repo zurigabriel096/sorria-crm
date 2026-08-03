@@ -26,8 +26,10 @@ export function Segmentacoes({
   patients, segmentos, onCriar, onAtualizar, onExcluir, onArquivar,
   tags, tagObjetos, onCriarTag, onAtualizarTag, onExcluirTag,
   camposCustomizados, onCriarCampo, onAtualizarCampo, onExcluirCampo,
+  onAplicarTagEmLote, usuario,
   showToast,
 }) {
+  const souAdmin = usuario?.papel === "ADMIN";
   const [builder, setBuilder] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [novaTag, setNovaTag] = useState("");
@@ -37,6 +39,8 @@ export function Segmentacoes({
   const [tagEditCor, setTagEditCor] = useState(T.primary);
   const [verArquivadas, setVerArquivadas] = useState(false);
   const [campoForm, setCampoForm] = useState(null); // null | {id,nome,tipo,opcoes}
+  const [tagLote, setTagLote] = useState(null); // null | {seg, remover, tag}
+  const [aplicandoLote, setAplicandoLote] = useState(false);
 
   const fieldMeta = montarFieldMeta(camposCustomizados);
 
@@ -79,6 +83,27 @@ export function Segmentacoes({
       showToast(seg.arquivado ? "Segmentação reativada" : "Segmentação arquivada", "ok");
     } catch (e) {
       showToast(e.message || "Erro ao arquivar segmentação", "warn");
+    }
+  };
+
+  const abrirTagLote = (seg, remover) => setTagLote({ seg, remover, tag: tags[0] || "" });
+
+  const confirmarTagLote = async () => {
+    if (!tagLote.tag) return showToast("Escolha uma tag", "warn");
+    setAplicandoLote(true);
+    try {
+      const afetados = await onAplicarTagEmLote(tagLote.seg, tagLote.tag, tagLote.remover);
+      showToast(
+        afetados > 0
+          ? `Tag "${tagLote.tag}" ${tagLote.remover ? "removida de" : "adicionada em"} ${contagemLabel(afetados)}`
+          : "Nenhum lead afetado",
+        "ok"
+      );
+      setTagLote(null);
+    } catch (e) {
+      showToast(e.message || "Erro ao aplicar tag em massa", "warn");
+    } finally {
+      setAplicandoLote(false);
     }
   };
 
@@ -196,6 +221,10 @@ export function Segmentacoes({
                     items={[
                       { label: "Editar", onClick: () => setBuilder(JSON.parse(JSON.stringify(seg))) },
                       { label: "Duplicar", onClick: () => duplicar(seg) },
+                      ...(souAdmin ? [
+                        { label: "Adicionar tag a estes leads", onClick: () => abrirTagLote(seg, false) },
+                        { label: "Remover tag destes leads", onClick: () => abrirTagLote(seg, true) },
+                      ] : []),
                       { label: seg.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(seg) },
                       { label: "Excluir", danger: true, onClick: () => excluir(seg) },
                     ]}
@@ -302,6 +331,31 @@ export function Segmentacoes({
         </Card>
       </div>
       {builder && <SegBuilder builder={builder} setBuilder={setBuilder} tags={tags} fieldMeta={fieldMeta} patients={patients} onSave={salvar} onClose={() => setBuilder(null)} salvando={salvando} />}
+      {tagLote && (
+        <Modal title={`${tagLote.remover ? "Remover" : "Adicionar"} tag em massa`} onClose={() => setTagLote(null)}>
+          <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
+            {tagLote.remover ? "Remove" : "Adiciona"} a tag escolhida em todo mundo que <b>{tagLote.seg.nome}</b> captura agora
+            ({contagemLabel(patients.filter((p) => matchSeg(p, tagLote.seg)).length)}).
+          </div>
+          {tags.length === 0 ? (
+            <div style={{ fontSize: 13, color: T.inkSoft }}>Crie uma tag primeiro (painel ao lado).</div>
+          ) : (
+            <Field label="Tag">
+              <Select block value={tagLote.tag} onChange={(v) => setTagLote({ ...tagLote, tag: v })} options={tags} />
+            </Field>
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setTagLote(null)}>Cancelar</button>
+            <button
+              style={{ ...s.btnPrimary, flex: 1, opacity: aplicandoLote ? .6 : 1 }}
+              onClick={confirmarTagLote}
+              disabled={aplicandoLote || tags.length === 0}
+            >
+              {aplicandoLote ? "Aplicando..." : "Confirmar"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

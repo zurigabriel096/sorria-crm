@@ -1,5 +1,6 @@
 package br.com.sorria.crm.contact;
 
+import br.com.sorria.crm.contact.dto.AplicarTagLoteRequest;
 import br.com.sorria.crm.contact.dto.ContatoDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -66,5 +67,17 @@ public class ContatoController {
     @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Integer> unificarDuplicados() {
         return Map.of("unificados", contatoService.unificarDuplicados());
+    }
+
+    // Adiciona/remove uma tag em varios leads de uma vez (ex.: todo mundo que
+    // uma Segmentacao captura hoje) - restrito a ADMIN por mexer em varios
+    // cadastros de uma vez, mesmo raciocinio do unificar-duplicados acima.
+    @PostMapping("/tags/lote")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Integer> aplicarTagEmLote(@RequestBody AplicarTagLoteRequest req) {
+        int afetados = req.remover()
+                ? contatoService.removerTagEmLote(req.contatoIds(), req.tag())
+                : contatoService.adicionarTagEmLote(req.contatoIds(), req.tag());
+        return Map.of("afetados", afetados);
     }
 }
