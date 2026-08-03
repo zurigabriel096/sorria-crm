@@ -7,6 +7,7 @@ import { Topbar } from "./components/layout/Topbar";
 import { Toast } from "./components/ui/Toast";
 import { JobsProgress } from "./components/ui/JobsProgress";
 import { PatientDetailModal } from "./components/PatientDetailModal";
+import { EasterEggJogo } from "./components/ui/EasterEggJogo";
 
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
@@ -48,6 +49,8 @@ export default function App() {
   const [sistemaAtivo, setSistemaAtivo] = useState(true);
   const [usuario, setUsuario] = useState(null);
   const [filtroPacientesInicial, setFiltroPacientesInicial] = useState(null);
+  const [cliquesEasterEgg, setCliquesEasterEgg] = useState(0);
+  const [jogoAberto, setJogoAberto] = useState(false);
 
   const [patients, setPatients] = useState([]);
   const [campanhas, setCampanhas] = useState([]);
@@ -437,6 +440,13 @@ export default function App() {
     setView("conversas");
   };
 
+  // Easter egg: 10 cliques no selo "dados salvos no servidor" abre o joguinho.
+  const cliqueSeloProto = () => {
+    const n = cliquesEasterEgg + 1;
+    if (n >= 10) { setCliquesEasterEgg(0); setJogoAberto(true); }
+    else setCliquesEasterEgg(n);
+  };
+
   if (!authed) {
     return <Login onEnter={onLoginOk} onSupport={() => { setAuthed(true); setView("suporte"); }} />;
   }
@@ -491,7 +501,8 @@ export default function App() {
           onClose={() => setPacienteAberto(null)}
         />
       )}
-      <span style={s.protoTag}>Sorr.ia · dados salvos no servidor</span>
+      {jogoAberto && <EasterEggJogo onClose={() => setJogoAberto(false)} />}
+      <span style={{ ...s.protoTag, cursor: "pointer" }} onClick={cliqueSeloProto}>Sorr.ia · dados salvos no servidor</span>
     </div>
   );
 }
