@@ -34,15 +34,17 @@ public class EtapaKanbanService {
 
     // Toda coluna nova ganha uma tag automatica vinculada (Tag.etapaId) - e'
     // ela que os leads recebem/perdem sozinhos ao mudar de etapa (ver
-    // ContatoService.sincronizarTagDeEtapa).
-    public EtapaKanbanDTO criar(String nome) {
+    // ContatoService.sincronizarTagDeEtapa). nomeTag em branco cai pro nome
+    // da propria coluna (comportamento antigo); o ADMIN pode escolher um
+    // nome de tag diferente do nome da coluna.
+    public EtapaKanbanDTO criar(String nome, String nomeTag) {
         int proximaOrdem = repository.findAllByOrderByOrdemAsc().stream()
                 .mapToInt(EtapaKanban::getOrdem).max().orElse(-1) + 1;
         EtapaKanban etapa = new EtapaKanban();
         etapa.setNome(nome);
         etapa.setOrdem(proximaOrdem);
         EtapaKanban salva = repository.save(etapa);
-        criarTagVinculada(salva);
+        criarTagVinculada(salva, (nomeTag == null || nomeTag.isBlank()) ? nome : nomeTag);
         return toDTO(salva);
     }
 
@@ -61,7 +63,7 @@ public class EtapaKanbanService {
                 tag.setNome(novoNome);
                 tagRepository.save(tag);
             } else {
-                criarTagVinculada(salva);
+                criarTagVinculada(salva, novoNome);
             }
             renomearReferenciasNosContatos(nomeAntigo, novoNome);
         }
@@ -108,10 +110,10 @@ public class EtapaKanbanService {
         return toDTO(repository.save(etapa));
     }
 
-    private void criarTagVinculada(EtapaKanban etapa) {
+    private void criarTagVinculada(EtapaKanban etapa, String nomeTag) {
         if (tagRepository.findByEtapaId(etapa.getId()).isPresent()) return;
         Tag tag = new Tag();
-        tag.setNome(etapa.getNome());
+        tag.setNome(nomeTag);
         tag.setCor(COR_PADRAO_TAG_ETAPA);
         tag.setEtapaId(etapa.getId());
         tagRepository.save(tag);

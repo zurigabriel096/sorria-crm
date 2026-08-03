@@ -1,5 +1,6 @@
 package br.com.sorria.crm.etapa;
 
+import br.com.sorria.crm.etapa.dto.CriarEtapaRequest;
 import br.com.sorria.crm.etapa.dto.EtapaKanbanDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +24,8 @@ public class EtapaKanbanController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public EtapaKanbanDTO criar(@Valid @RequestBody EtapaKanbanDTO dto) {
-        return service.criar(dto.nome());
+    public EtapaKanbanDTO criar(@Valid @RequestBody CriarEtapaRequest dto) {
+        return service.criar(dto.nome(), dto.nomeTag());
     }
 
     @PatchMapping("/{id}")

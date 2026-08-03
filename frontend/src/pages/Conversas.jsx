@@ -311,6 +311,8 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const [limiarEdicao, setLimiarEdicao] = useState("");
   const [novaColuna, setNovaColuna] = useState(false);
   const [nomeNovaColuna, setNomeNovaColuna] = useState("");
+  const [etapaNovaAguardandoTag, setEtapaNovaAguardandoTag] = useState(null); // nome da coluna, depois de confirmado
+  const [nomeNovaTag, setNomeNovaTag] = useState("");
   const [colaboradores, setColaboradores] = useState([]);
   const [filtroSemResponsavel, setFiltroSemResponsavel] = useState(false);
   const [filtroResponsaveisSel, setFiltroResponsaveisSel] = useState([]); // ids (string) selecionados no campo
@@ -428,12 +430,21 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     }
   };
 
-  const criarColuna = async () => {
+  // Passo 1: confirma o nome da coluna e abre o passo 2 (nome da tag), em vez
+  // de criar direto com o mesmo nome da coluna sem perguntar.
+  const confirmarNomeColuna = () => {
     if (!nomeNovaColuna.trim()) return;
+    setEtapaNovaAguardandoTag(nomeNovaColuna.trim());
+    setNomeNovaTag(nomeNovaColuna.trim());
+    setNomeNovaColuna("");
+    setNovaColuna(false);
+  };
+
+  const criarColuna = async () => {
     try {
-      await createEtapa(nomeNovaColuna.trim());
-      setNomeNovaColuna("");
-      setNovaColuna(false);
+      await createEtapa(etapaNovaAguardandoTag, nomeNovaTag.trim());
+      setEtapaNovaAguardandoTag(null);
+      setNomeNovaTag("");
       carregarEtapas();
     } catch (e) {
       showToast(e.message || "Erro ao criar coluna", "warn");
@@ -600,7 +611,22 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
           })}
           {souAdmin && (
             <div style={{ minWidth: 240, width: 240, flexShrink: 0 }}>
-              {novaColuna ? (
+              {etapaNovaAguardandoTag ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ fontSize: 11.5, color: T.inkSoft }}>Nome da tag da coluna "{etapaNovaAguardandoTag}"</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      autoFocus
+                      style={{ ...s.input, height: 34, fontSize: 13, flex: 1 }}
+                      placeholder="Nome da tag"
+                      value={nomeNovaTag}
+                      onChange={(e) => setNomeNovaTag(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") criarColuna(); if (e.key === "Escape") setEtapaNovaAguardandoTag(null); }}
+                    />
+                    <button style={s.btnPrimarySm} onClick={criarColuna}>Criar</button>
+                  </div>
+                </div>
+              ) : novaColuna ? (
                 <div style={{ display: "flex", gap: 6 }}>
                   <input
                     autoFocus
@@ -608,9 +634,9 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                     placeholder="Nome da coluna"
                     value={nomeNovaColuna}
                     onChange={(e) => setNomeNovaColuna(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") criarColuna(); if (e.key === "Escape") setNovaColuna(false); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") confirmarNomeColuna(); if (e.key === "Escape") setNovaColuna(false); }}
                   />
-                  <button style={s.btnPrimarySm} onClick={criarColuna}>OK</button>
+                  <button style={s.btnPrimarySm} onClick={confirmarNomeColuna}>OK</button>
                 </div>
               ) : (
                 <button style={{ ...s.btnGhostSm, width: "100%", justifyContent: "center" }} onClick={() => setNovaColuna(true)}>

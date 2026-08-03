@@ -11,24 +11,35 @@ import org.springframework.stereotype.Component;
 // ficariam sem nenhuma coluna correspondente na primeira carga.
 // @Order(1): precisa rodar antes do EtapaTagSyncInitializer, que depende das
 // etapas ja existirem pra criar as tags vinculadas.
+//
+// So semeia UMA VEZ NA VIDA (marcador em EtapaSeedMarcador, nao
+// repository.count()==0) - a versao antiga checava so a contagem, e isso
+// recriava as 3 colunas padrao (e suas tags, via EtapaTagSyncInitializer) TODA
+// VEZ que o ADMIN excluia todas as etapas e o backend reiniciava depois (cold
+// start do Render conta como reinicio) - a exclusao deliberada nunca deveria
+// voltar sozinha.
 @Component
 @Order(1)
 @RequiredArgsConstructor
 public class EtapaKanbanDataInitializer implements CommandLineRunner {
 
     private final EtapaKanbanRepository repository;
+    private final EtapaSeedMarcadorRepository marcadorRepository;
 
     @Override
     public void run(String... args) {
-        if (repository.count() > 0) {
+        if (marcadorRepository.count() > 0) {
             return;
         }
-        String[] padrao = {"Lead", "Lead Qualificado", "Cliente"};
-        for (int i = 0; i < padrao.length; i++) {
-            EtapaKanban etapa = new EtapaKanban();
-            etapa.setNome(padrao[i]);
-            etapa.setOrdem(i);
-            repository.save(etapa);
+        if (repository.count() == 0) {
+            String[] padrao = {"Lead", "Lead Qualificado", "Cliente"};
+            for (int i = 0; i < padrao.length; i++) {
+                EtapaKanban etapa = new EtapaKanban();
+                etapa.setNome(padrao[i]);
+                etapa.setOrdem(i);
+                repository.save(etapa);
+            }
         }
+        marcadorRepository.save(new EtapaSeedMarcador());
     }
 }
