@@ -61,9 +61,12 @@ export const createContact = async (patient) => fromApi(await api.post("/api/con
 export const updateContact = async (id, patient) => fromApi(await api.put(`/api/contacts/${id}`, toApi(patient)));
 export const deleteContact = (id) => api.del(`/api/contacts/${id}`);
 
-// Importação de planilha: 1 única requisição com todas as linhas, em vez de
-// uma por linha em paralelo (isso sobrecarregava o backend em bases grandes).
-export const createContactsLote = async (patients) => (await api.post("/api/contacts/lote", patients.map(toApi))).map(fromApi);
+// Importação de planilha: roda em background no servidor (mesma
+// infraestrutura de tag/excluir em lote) - retorna na hora com {jobId, total},
+// sem esperar processar a planilha inteira numa única requisição bloqueada
+// (isso travava a tela em bases maiores, sem nenhum feedback visual).
+export const iniciarImportacaoLote = (patients) => api.post("/api/contacts/lote", patients.map(toApi));
+export const getImportLoteStatus = (jobId) => api.get(`/api/contacts/lote/${jobId}`);
 
 // Mescla cadastros duplicados (mesmo telefone) que ja existiam antes da
 // trava de criacao existir - nao apaga dado, so unifica.

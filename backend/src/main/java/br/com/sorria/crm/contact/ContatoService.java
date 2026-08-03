@@ -74,17 +74,18 @@ public class ContatoService {
         return toDTO(criarOuMesclarEntidade(dto));
     }
 
-    // Importacao de planilha: continua 1 unica requisicao/transacao (nao volta
-    // a ser N chamadas HTTP), mas agora cada linha passa pela mesma checagem
-    // de telefone duplicado - linhas repetidas na propria planilha, ou que
-    // batem com um lead ja existente, se fundem em vez de duplicar.
-    public List<ContatoDTO> criarEmLote(List<ContatoDTO> dtos) {
-        List<Contato> resultado = new ArrayList<>();
-        for (ContatoDTO dto : dtos) {
-            if (dto.nome() == null || dto.nome().isBlank()) continue;
-            resultado.add(criarOuMesclarEntidade(dto));
-        }
-        return resultado.stream().map(this::toDTO).toList();
+    // Importacao de planilha: cada linha roda como um item de LoteJobService
+    // (mesma infraestrutura de tag/excluir em lote, ver ContatoController) -
+    // a requisicao HTTP so inicia o job e devolve na hora, sem prender a
+    // conexao ate processar a planilha inteira. Antes era 1 unica transacao
+    // bloqueante com todas as linhas juntas - numa base grande, no Render free
+    // tier, isso podia levar minutos presos numa unica chamada sem timeout no
+    // fetch do frontend, dando a impressao de tela travada. Mesma checagem de
+    // telefone duplicado de sempre: linha repetida na propria planilha, ou que
+    // bate com lead ja existente, se funde em vez de duplicar.
+    public void importarLinha(ContatoDTO dto) {
+        if (dto.nome() == null || dto.nome().isBlank()) return;
+        criarOuMesclarEntidade(dto);
     }
 
     private Contato criarOuMesclarEntidade(ContatoDTO dto) {

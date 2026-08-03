@@ -16,16 +16,16 @@ import java.util.function.Consumer;
 public class LoteJobWorker {
 
     @Async
-    public void processar(LoteJobStatus status, List<Long> ids, Consumer<Long> acaoPorItem) {
+    public <T> void processar(LoteJobStatus status, List<T> itens, Consumer<T> acaoPorItem) {
         int afetados = 0;
-        for (Long id : ids) {
+        for (T item : itens) {
             try {
-                acaoPorItem.accept(id);
+                acaoPorItem.accept(item);
                 afetados++;
             } catch (NoSuchElementException e) {
-                log.warn("Acao em lote: item {} nao encontrado, pulando", id);
+                log.warn("Acao em lote: item {} nao encontrado, pulando", item);
             } catch (Exception e) {
-                log.error("Acao em lote: falha ao processar item {}: {}", id, e.getMessage(), e);
+                log.error("Acao em lote: falha ao processar item {}: {}", item, e.getMessage(), e);
             }
             status.incrementarProcessados();
         }

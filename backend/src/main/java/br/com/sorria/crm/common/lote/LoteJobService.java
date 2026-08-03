@@ -11,11 +11,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 // Infraestrutura generica pra qualquer acao em massa (tag em lote, excluir
-// lead em lote, etc.) que precisa processar uma lista de ids sem prender a
-// requisicao HTTP - cada item pode ser um round-trip lento pro banco (Render
-// free tier), uma base grande levaria minutos presos numa unica chamada.
-// Roda em background (LoteJobWorker.@Async), quem chama consulta o progresso
-// pelo jobId devolvido (ver ContatoController).
+// lead em lote, importacao de planilha, etc.) que precisa processar uma lista
+// de itens sem prender a requisicao HTTP - cada item pode ser um round-trip
+// lento pro banco (Render free tier), uma base grande levaria minutos presos
+// numa unica chamada. Generico em T (Long pra ids, ContatoDTO pra importacao,
+// etc.) - roda em background (LoteJobWorker.@Async), quem chama consulta o
+// progresso pelo jobId devolvido (ver ContatoController).
 @Service
 @RequiredArgsConstructor
 public class LoteJobService {
@@ -23,13 +24,13 @@ public class LoteJobService {
     private final Map<String, LoteJobStatus> jobs = new ConcurrentHashMap<>();
     private final LoteJobWorker worker;
 
-    public String iniciar(List<Long> ids, Consumer<Long> acaoPorItem) {
-        int total = ids != null ? ids.size() : 0;
+    public <T> String iniciar(List<T> itens, Consumer<T> acaoPorItem) {
+        int total = itens != null ? itens.size() : 0;
         String jobId = UUID.randomUUID().toString();
         LoteJobStatus status = new LoteJobStatus(total);
         jobs.put(jobId, status);
         if (total > 0) {
-            worker.processar(status, ids, acaoPorItem);
+            worker.processar(status, itens, acaoPorItem);
         } else {
             status.marcarConcluido();
         }

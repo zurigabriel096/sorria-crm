@@ -149,7 +149,15 @@ export function Pacientes({
   });
 
   if (!patients.length) {
-    return <div style={{ maxWidth: 560, margin: "20px auto" }}><ImportBox onImport={onImport} showToast={showToast} /></div>;
+    return (
+      <div style={{ maxWidth: 560, margin: "20px auto", display: "grid", gap: 12, justifyItems: "center" }}>
+        <ImportBox onImport={onImport} showToast={showToast} />
+        {souAdmin && (
+          <button style={s.btnGhostSm} onClick={() => setNovoLead({ nome: "", tel: "" })}>+ Adicionar 1 lead manualmente</button>
+        )}
+        <NovoLeadModal novoLead={novoLead} setNovoLead={setNovoLead} salvandoLead={salvandoLead} salvarNovoLead={salvarNovoLead} />
+      </div>
+    );
   }
 
   return (
@@ -274,17 +282,26 @@ export function Pacientes({
         </MaisAcoesDrawer>
       )}
 
-      {novoLead && (
-        <Modal title="Novo lead" onClose={() => setNovoLead(null)}>
-          <Field label="Nome"><input style={s.input} value={novoLead.nome} onChange={(e) => setNovoLead({ ...novoLead, nome: e.target.value })} /></Field>
-          <Field label="Telefone (com DDD)"><input style={s.input} value={novoLead.tel} onChange={(e) => setNovoLead({ ...novoLead, tel: e.target.value })} placeholder="(12) 99999-9999" /></Field>
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setNovoLead(null)}>Cancelar</button>
-            <button style={{ ...s.btnPrimary, flex: 1, opacity: salvandoLead ? .6 : 1 }} onClick={salvarNovoLead} disabled={salvandoLead}>{salvandoLead ? "Salvando..." : "Criar lead"}</button>
-          </div>
-        </Modal>
-      )}
+      <NovoLeadModal novoLead={novoLead} setNovoLead={setNovoLead} salvandoLead={salvandoLead} salvarNovoLead={salvarNovoLead} />
     </div>
+  );
+}
+
+// Extraido pra ser usado tanto na tela normal quanto na tela vazia (so
+// ImportBox) - antes so existia depois do "return" da tela com dados, entao
+// sumia inteiro (junto com o botao "+ Novo lead") quando a base tinha 0 leads,
+// sem nenhum jeito de cadastrar 1 lead manual nesse estado.
+function NovoLeadModal({ novoLead, setNovoLead, salvandoLead, salvarNovoLead }) {
+  if (!novoLead) return null;
+  return (
+    <Modal title="Novo lead" onClose={() => setNovoLead(null)}>
+      <Field label="Nome"><input style={s.input} value={novoLead.nome} onChange={(e) => setNovoLead({ ...novoLead, nome: e.target.value })} /></Field>
+      <Field label="Telefone (com DDD)"><input style={s.input} value={novoLead.tel} onChange={(e) => setNovoLead({ ...novoLead, tel: e.target.value })} placeholder="(12) 99999-9999" /></Field>
+      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+        <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setNovoLead(null)}>Cancelar</button>
+        <button style={{ ...s.btnPrimary, flex: 1, opacity: salvandoLead ? .6 : 1 }} onClick={salvarNovoLead} disabled={salvandoLead}>{salvandoLead ? "Salvando..." : "Criar lead"}</button>
+      </div>
+    </Modal>
   );
 }
 

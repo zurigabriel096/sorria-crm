@@ -44,13 +44,23 @@ public class ContatoController {
         return contatoService.criar(dto);
     }
 
-    // Importacao de planilha: 1 requisicao com todas as linhas, em vez do
-    // frontend disparar centenas/milhares de POSTs simultaneos (isso chegava a
-    // sobrecarregar o backend em bases grandes - ver criarEmLote).
+    // Importacao de planilha: roda em background, mesma infraestrutura de
+    // tag/excluir em lote (ver LoteJobService) - responde na hora com um
+    // jobId, em vez de prender a requisicao ate processar a planilha inteira
+    // (uma base grande no Render free tier levaria minutos presos numa unica
+    // chamada, sem timeout no fetch do frontend - dava a impressao de tela
+    // travada). O frontend acompanha o progresso pelo GET abaixo.
     @PostMapping("/lote")
-    @ResponseStatus(HttpStatus.CREATED)
-    public List<ContatoDTO> criarEmLote(@RequestBody List<ContatoDTO> dtos) {
-        return contatoService.criarEmLote(dtos);
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Map<String, Object> criarEmLote(@RequestBody List<ContatoDTO> dtos) {
+        String jobId = loteJobService.iniciar(dtos, contatoService::importarLinha);
+        int total = dtos != null ? dtos.size() : 0;
+        return Map.of("jobId", jobId, "total", total);
+    }
+
+    @GetMapping("/lote/{jobId}")
+    public Map<String, Object> statusImportacaoLote(@PathVariable String jobId) {
+        return statusDTO(loteJobService.status(jobId));
     }
 
     @PutMapping("/{id}")

@@ -26,7 +26,7 @@ import { Suporte } from "./pages/Suporte";
 import { Config } from "./pages/Config";
 
 import { logout as apiLogout } from "./api/auth";
-import { listContacts, createContact, updateContact, deleteContact, createContactsLote, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus, excluirContatosEmLote, getExcluirLoteStatus } from "./api/contacts";
+import { listContacts, createContact, updateContact, deleteContact, iniciarImportacaoLote, getImportLoteStatus, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus, excluirContatosEmLote, getExcluirLoteStatus } from "./api/contacts";
 import { matchSeg } from "./utils/patients";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
@@ -145,15 +145,18 @@ export default function App() {
     return () => { cancelado = true; clearInterval(intervalo); };
   }, [authed]);
 
-  // 1 requisicao com a planilha inteira - antes disparava uma por linha em
-  // paralelo, o que sobrecarregava o backend em bases grandes (milhares de
-  // linhas = milhares de conexoes simultaneas).
+  // Roda em background no servidor - so inicia o job e devolve na hora, sem
+  // travar a tela; o progresso e' acompanhado pelo <JobsProgress> (ver
+  // useEffect abaixo), igual tag/excluir em lote. Antes era 1 unica requisicao
+  // esperando a planilha inteira processar (sem timeout, sem loading nenhum) -
+  // numa base maior isso parecia a tela travada num loop infinito.
   const onImport = async (res) => {
     try {
-      await createContactsLote(res.pacientes);
-      showToast(`Planilha "${res.tipo}" importada: ${res.pacientes.length} pacientes`, "ok");
-      const pacientesAtualizados = await listContacts();
-      setPatients(pacientesAtualizados);
+      const { jobId, total } = await iniciarImportacaoLote(res.pacientes);
+      setJobs((js) => [...js, {
+        id: jobId, tipo: "import", label: `Importando planilha (${res.pacientes.length} linhas)`,
+        total, processados: 0, afetados: 0, concluido: total === 0,
+      }]);
     } catch (e) {
       showToast(e.message || "Erro ao importar planilha", "warn");
     }
@@ -223,7 +226,7 @@ export default function App() {
     const t = setInterval(() => {
       emAndamento.forEach(async (j) => {
         try {
-          const s = await (j.tipo === "excluir" ? getExcluirLoteStatus(j.id) : getTagLoteStatus(j.id));
+          const s = await (j.tipo === "excluir" ? getExcluirLoteStatus(j.id) : j.tipo === "import" ? getImportLoteStatus(j.id) : getTagLoteStatus(j.id));
           setJobs((js) => js.map((x) => (x.id === j.id ? { ...x, processados: s.processados, afetados: s.afetados, concluido: s.concluido } : x)));
           if (s.concluido) listContacts().then(setPatients);
         } catch {
