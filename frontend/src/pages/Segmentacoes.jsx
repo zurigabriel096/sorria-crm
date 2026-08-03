@@ -11,13 +11,6 @@ import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { ColorPicker } from "../components/ui/ColorPicker";
 
-const TIPOS_CAMPO = [
-  { valor: "TEXTO", rotulo: "Texto" },
-  { valor: "NUMERO", rotulo: "Número" },
-  { valor: "DATA", rotulo: "Data" },
-  { valor: "LISTA", rotulo: "Lista de opções" },
-];
-
 const novaCondicao = () => ({ field: "financ", op: "é", value: "Adimplente" });
 const novoGrupo = () => [{ field: "recencia", op: "maior", value: 120 }];
 const contagemLabel = (n) => (n === 1 ? "1 lead" : `${n} leads`);
@@ -25,7 +18,7 @@ const contagemLabel = (n) => (n === 1 ? "1 lead" : `${n} leads`);
 export function Segmentacoes({
   patients, segmentos, onCriar, onAtualizar, onExcluir, onArquivar,
   tags, tagObjetos, onCriarTag, onAtualizarTag, onExcluirTag,
-  camposCustomizados, onCriarCampo, onAtualizarCampo, onExcluirCampo,
+  camposCustomizados,
   onAplicarTagEmLote, usuario,
   showToast,
 }) {
@@ -38,7 +31,6 @@ export function Segmentacoes({
   const [tagEditValor, setTagEditValor] = useState("");
   const [tagEditCor, setTagEditCor] = useState(T.primary);
   const [verArquivadas, setVerArquivadas] = useState(false);
-  const [campoForm, setCampoForm] = useState(null); // null | {id,nome,tipo,opcoes}
   const [tagLote, setTagLote] = useState(null); // null | {seg, remover, tag}
   const [aplicandoLote, setAplicandoLote] = useState(false);
 
@@ -145,33 +137,6 @@ export function Segmentacoes({
     }
   };
 
-  const salvarCampo = async () => {
-    if (!campoForm.nome.trim()) return showToast("Dê um nome pro campo", "warn");
-    const payload = {
-      nome: campoForm.nome.trim(),
-      tipo: campoForm.tipo,
-      opcoes: campoForm.tipo === "LISTA" ? campoForm.opcoes.split(",").map((o) => o.trim()).filter(Boolean) : [],
-    };
-    try {
-      if (campoForm.id) await onAtualizarCampo(campoForm.id, payload);
-      else await onCriarCampo(payload);
-      setCampoForm(null);
-      showToast("Campo salvo", "ok");
-    } catch (e) {
-      showToast(e.message || "Erro ao salvar campo", "warn");
-    }
-  };
-
-  const excluirCampo = async (campo) => {
-    if (!window.confirm(`Excluir o campo "${campo.nome}"? Valores já salvos nos leads não são apagados, só deixam de aparecer.`)) return;
-    try {
-      await onExcluirCampo(campo.id);
-      showToast("Campo removido", "ok");
-    } catch (e) {
-      showToast(e.message || "Erro ao remover campo", "warn");
-    }
-  };
-
   const busca = buscaTag === "Todas" ? [] : patients.filter((p) => (p.tags || []).includes(buscaTag));
 
   return (
@@ -273,41 +238,6 @@ export function Segmentacoes({
               )
             )}
           </div>
-        </Card>
-        <Card title="Campos personalizados">
-          <div style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>
-            Crie campos extras pro cadastro do lead — eles viram uma condição disponível aqui em Segmentações.
-          </div>
-          <div style={{ display: "grid", gap: 6, marginBottom: 10 }}>
-            {!camposCustomizados.length && <span style={{ fontSize: 13, color: T.inkSoft }}>Nenhum campo personalizado ainda.</span>}
-            {camposCustomizados.map((campo) => (
-              <div key={campo.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: T.lineSoft, borderRadius: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, flex: 1 }}>{campo.nome}</span>
-                <span style={{ fontSize: 11, color: T.inkSoft }}>{TIPOS_CAMPO.find((t) => t.valor === campo.tipo)?.rotulo}</span>
-                <DotMenu
-                  items={[
-                    { label: "Editar", onClick: () => setCampoForm({ id: campo.id, nome: campo.nome, tipo: campo.tipo, opcoes: (campo.opcoes || []).join(", ") }) },
-                    { label: "Excluir", danger: true, onClick: () => excluirCampo(campo) },
-                  ]}
-                />
-              </div>
-            ))}
-          </div>
-          {campoForm ? (
-            <div style={{ border: `1.5px dashed ${T.line}`, borderRadius: 10, padding: 10, display: "grid", gap: 8 }}>
-              <input style={s.input} placeholder="Nome do campo (ex: Convênio)" value={campoForm.nome} onChange={(e) => setCampoForm({ ...campoForm, nome: e.target.value })} />
-              <Select block value={campoForm.tipo} onChange={(v) => setCampoForm({ ...campoForm, tipo: v })} options={TIPOS_CAMPO.map((t) => t.valor)} labels={Object.fromEntries(TIPOS_CAMPO.map((t) => [t.valor, t.rotulo]))} />
-              {campoForm.tipo === "LISTA" && (
-                <input style={s.input} placeholder="Opções separadas por vírgula" value={campoForm.opcoes} onChange={(e) => setCampoForm({ ...campoForm, opcoes: e.target.value })} />
-              )}
-              <div style={{ display: "flex", gap: 8 }}>
-                <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setCampoForm(null)}>Cancelar</button>
-                <button style={{ ...s.btnPrimary, flex: 1 }} onClick={salvarCampo}>Salvar</button>
-              </div>
-            </div>
-          ) : (
-            <button style={s.btnGhostSm} onClick={() => setCampoForm({ id: null, nome: "", tipo: "TEXTO", opcoes: "" })}>+ Novo campo</button>
-          )}
         </Card>
         <Card title="Buscar por tag">
           <Select block value={buscaTag} onChange={setBuscaTag} options={["Todas", ...tags]} />

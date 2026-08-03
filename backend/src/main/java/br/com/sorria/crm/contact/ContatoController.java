@@ -55,7 +55,11 @@ public class ContatoController {
         return contatoService.atualizar(id, dto);
     }
 
+    // Restrito a ADMIN - excluir lead e' irreversivel, e o frontend so mostra
+    // esse botao pra ADMIN (essa anotacao evita que outro papel chame a rota
+    // direto, sem passar pela tela).
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> remover(@PathVariable Long id) {
         contatoService.remover(id);
         return ResponseEntity.noContent().build();
