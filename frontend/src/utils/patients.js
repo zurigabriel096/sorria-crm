@@ -43,6 +43,10 @@ export function evalCond(p, c) {
       return c.op === "maior" ? (p.recencia || 0) > +c.value : (p.recencia || 0) < +c.value;
     case "elegivel": { const y = c.value === "Sim"; return c.op === "é" ? p.elegivel === y : p.elegivel !== y; }
     case "tag": return c.op === "contém" ? (p.tags || []).includes(c.value) : !(p.tags || []).includes(c.value);
+    // Nao entra no fieldMeta compartilhado de Segmentacoes (data/seed.js) de
+    // proposito - so o filtro avancado da Base de Leads usa (ver Pacientes.jsx),
+    // que monta o proprio meta local com "estagio" incluido.
+    case "estagio": return c.op === "é" ? p.estagio === c.value : p.estagio !== c.value;
     default: return false;
   }
 }

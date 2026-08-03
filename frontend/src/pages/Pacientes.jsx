@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { T } from "../theme";
 import { listEtapas } from "../api/etapas";
 import { s } from "../styles/s";
-import { exportarXlsx, parseData } from "../utils/patients";
+import { exportarXlsx, parseData, evalCond } from "../utils/patients";
+import { montarFieldMeta, OP_LABEL, OPS_SEM_VALOR } from "../data/seed";
 import { brl } from "../utils/format";
 import { rotuloCampo, valorDoCampoPainel } from "../utils/painelCampos";
 import { Card } from "../components/ui/Card";
@@ -11,7 +12,18 @@ import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { ImportBox } from "../components/ui/ImportBox";
-import { IconSearch, IconDownload } from "../components/icons";
+import { IconSearch, IconDownload, IconFilter } from "../components/icons";
+
+// "Estagio" nao entra no FIELD_META compartilhado com Segmentacoes (data/seed.js)
+// de proposito - so o filtro avancado daqui embaixo usa, com os valores reais
+// das etapas do Kanban (carregadas via listEtapas). Ver caso "estagio" novo em
+// utils/patients.js evalCond.
+function montarFiltroFieldMeta(camposCustomizados, etapas) {
+  return {
+    estagio: { label: "Estágio", ops: ["é", "não é"], values: etapas.map((e) => e.nome) },
+    ...montarFieldMeta(camposCustomizados),
+  };
+}
 
 const TIPOS_CAMPO = [
   { valor: "TEXTO", rotulo: "Texto" },
@@ -66,12 +78,20 @@ export function Pacientes({
 }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
-  const [fEstagio, setFEstagio] = useState("Todos");
-  const [fEleg, setFEleg] = useState(filtroInicial?.eleg || "Todos");
-  const [fTag, setFTag] = useState("Todas");
+  // Filtro avancado (icone de funil) - lista de condicoes combinadas por E,
+  // reaproveita o mesmo motor de Segmentacoes (evalCond). Substituiu os 3
+  // <select> separados de Estagio/Elegibilidade/Tag que existiam antes.
+  const [condicoes, setCondicoes] = useState(
+    filtroInicial?.eleg === "Elegíveis" ? [{ field: "elegivel", op: "é", value: "Sim" }]
+      : filtroInicial?.eleg === "A corrigir" ? [{ field: "elegivel", op: "é", value: "Não" }]
+      : []
+  );
+  const [filtroAberto, setFiltroAberto] = useState(false);
   // Filtro vindo de um clique num card personalizado do Painel Executivo
   // (ver Dashboard.jsx irParaPacientes) - {campo, valor} no mesmo formato de
-  // PainelCard, resolvido com o mesmo valorDoCampoPainel usado la.
+  // PainelCard, resolvido com o mesmo valorDoCampoPainel usado la. Mecanismo
+  // separado do filtro avancado (endereça campo por convencao diferente,
+  // ver painelCampos.js) - os dois se combinam por E quando ativos juntos.
   const [fCampoValor, setFCampoValor] = useState(filtroInicial?.campo ? { campo: filtroInicial.campo, valor: filtroInicial.valor } : null);
   const [ordenacao, setOrdenacao] = useState(null); // null | {chave, direcao: "asc"|"desc"}
   const [q, setQ] = useState("");
@@ -84,6 +104,7 @@ export function Pacientes({
 
   const todasColunas = [...colunasFixas(), ...(camposCustomizados || []).map(colunaCustomizada)];
   const colunasParaMostrar = todasColunas.filter((c) => (colunasVisiveis || []).includes(c.chave));
+  const filtroFieldMeta = montarFiltroFieldMeta(camposCustomizados, etapas);
 
   const alternarColuna = (chave) => {
     const atuais = colunasVisiveis || [];
@@ -157,14 +178,35 @@ export function Pacientes({
 
   useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
 
-  const limpar = () => { setFEstagio("Todos"); setFEleg("Todos"); setFTag("Todas"); setQ(""); setFCampoValor(null); };
+  const filtroRef = useRef(null);
+  useEffect(() => {
+    if (!filtroAberto) return;
+    const h = (e) => { if (filtroRef.current && !filtroRef.current.contains(e.target)) setFiltroAberto(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [filtroAberto]);
+
+  const limpar = () => { setCondicoes([]); setQ(""); setFCampoValor(null); };
+
+  // Mesmo raciocinio de valorPadrao em Segmentacoes.jsx (SegBuilder.changeField) -
+  // ao trocar de campo, reseta o operador/valor pro que faz sentido nesse tipo.
+  const primeiroCampoFiltro = Object.keys(filtroFieldMeta)[0];
+  const adicionarCondicao = () => {
+    const m = filtroFieldMeta[primeiroCampoFiltro];
+    const valorPadrao = m.value === "number" ? 0 : m.value === "date" ? "" : m.value === "text" ? "" : (m.values?.[0] || "");
+    setCondicoes((cs) => [...cs, { field: primeiroCampoFiltro, op: m.ops[0], value: valorPadrao }]);
+  };
+  const removerCondicao = (i) => setCondicoes((cs) => cs.filter((_, k) => k !== i));
+  const mudarCampoCondicao = (i, field) => {
+    const m = filtroFieldMeta[field];
+    const valorPadrao = m.value === "number" ? 0 : m.value === "date" ? "" : m.value === "text" ? "" : (m.values?.[0] || "");
+    setCondicoes((cs) => cs.map((c, k) => (k === i ? { field, op: m.ops[0], value: valorPadrao } : c)));
+  };
+  const mudarCondicao = (i, patch) => setCondicoes((cs) => cs.map((c, k) => (k === i ? { ...c, ...patch } : c)));
 
   const filtered = patients.filter((p) => {
-    if (fEstagio !== "Todos" && p.estagio !== fEstagio) return false;
-    if (fEleg === "Elegíveis" && !p.elegivel) return false;
-    if (fEleg === "A corrigir" && p.elegivel) return false;
-    if (fTag !== "Todas" && !(p.tags || []).includes(fTag)) return false;
     if (fCampoValor && valorDoCampoPainel(p, fCampoValor.campo) !== fCampoValor.valor) return false;
+    if (!condicoes.every((c) => evalCond(p, c))) return false;
     if (q && !p.nome.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
@@ -223,9 +265,50 @@ export function Pacientes({
           <div style={s.fieldLabel}>Buscar</div>
           <div style={s.search}><IconSearch /><input placeholder="Nome do lead..." style={s.searchInput} value={q} onChange={(e) => setQ(e.target.value)} /></div>
         </div>
-        <div><div style={s.fieldLabel}>Estágio</div><Select value={fEstagio} onChange={setFEstagio} options={["Todos", ...etapas.map((e) => e.nome)]} /></div>
-        <div><div style={s.fieldLabel}>Elegibilidade</div><Select value={fEleg} onChange={setFEleg} options={["Todos", "Elegíveis", "A corrigir"]} /></div>
-        <div><div style={s.fieldLabel}>Tag</div><Select value={fTag} onChange={setFTag} options={["Todas", ...tags]} /></div>
+        <div style={{ position: "relative" }} ref={filtroRef}>
+          <div style={s.fieldLabel}>&nbsp;</div>
+          <button style={{ ...s.btnGhostSm, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setFiltroAberto((o) => !o)}>
+            <IconFilter color={T.ink} width={15} height={15} /> Filtro{!!condicoes.length && ` (${condicoes.length})`}
+          </button>
+          {filtroAberto && (
+            <div className="pop" style={{ position: "absolute", top: 40, left: 0, width: 440, maxHeight: 420, overflowY: "auto", background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10, boxShadow: "0 10px 30px rgba(20,40,55,.24)", zIndex: 40, padding: 14 }}>
+              {!condicoes.length && <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 8 }}>Nenhuma condição ainda - clique em "+ Condição".</div>}
+              <div style={{ display: "grid", gap: 8 }}>
+                {condicoes.map((c, i) => {
+                  const m = filtroFieldMeta[c.field] || filtroFieldMeta[primeiroCampoFiltro];
+                  return (
+                    <div key={i} style={s.condRow}>
+                      <select value={c.field} onChange={(e) => mudarCampoCondicao(i, e.target.value)} style={s.condSelect}>
+                        {Object.entries(filtroFieldMeta).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      </select>
+                      <select value={c.op} onChange={(e) => mudarCondicao(i, { op: e.target.value })} style={s.condSelect}>
+                        {m.ops.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
+                      </select>
+                      {OPS_SEM_VALOR.includes(c.op) ? (
+                        <span style={{ ...s.condSelect, display: "flex", alignItems: "center", color: T.inkSoft, background: "transparent", border: "none" }}>sem valor</span>
+                      ) : m.value === "number" ? (
+                        <input type="number" value={c.value} onChange={(e) => mudarCondicao(i, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
+                      ) : m.value === "date" ? (
+                        <input type="date" value={c.value} onChange={(e) => mudarCondicao(i, { value: e.target.value })} style={{ ...s.condSelect, width: 150 }} />
+                      ) : m.value === "text" ? (
+                        <input type="text" value={c.value} onChange={(e) => mudarCondicao(i, { value: e.target.value })} placeholder="Valor..." style={s.condSelect} />
+                      ) : (
+                        <select value={c.value} onChange={(e) => mudarCondicao(i, { value: e.target.value })} style={s.condSelect}>
+                          {(m.values || []).map((v) => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      )}
+                      <button onClick={() => removerCondicao(i)} style={s.condRm}>×</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                <button style={s.btnGhostSm} onClick={adicionarCondicao}>+ Condição</button>
+                {!!condicoes.length && <button style={{ ...s.btnGhostSm, color: T.coral }} onClick={() => setCondicoes([])}>Limpar condições</button>}
+              </div>
+            </div>
+          )}
+        </div>
         <button style={s.btnGhostSm} onClick={limpar}>Limpar filtros</button>
         <button style={s.btnGhostSm} onClick={() => setMaisAcoesAberto(true)}>+ Mais</button>
         <div style={{ flex: 1 }} />
