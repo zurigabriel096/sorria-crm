@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -75,9 +76,15 @@ public class Contato {
 
     // FetchType.EAGER: garante que tags sempre venham carregadas junto com o contato,
     // sem depender da sessao do Hibernate ainda estar aberta na hora de serializar pra JSON.
+    // @BatchSize: sem isso, listar N contatos dispara 1 SELECT extra por contato so
+    // pra buscar as tags (N+1) - numa base de centenas/milhares de leads, GET
+    // /api/contacts (listarVisiveisPara) virava mais de mil consultas sequenciais,
+    // travando a tela de "Carregando..." (mesmo raciocinio do camposCustomizados
+    // abaixo). Com @BatchSize, Hibernate busca as tags de ate 50 contatos de uma vez.
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "contato_tags", joinColumns = @JoinColumn(name = "contato_id"))
     @Column(name = "tag")
+    @BatchSize(size = 50)
     private List<String> tags = new ArrayList<>();
 
     private String origem;
@@ -100,9 +107,13 @@ public class Contato {
     // Valores dos campos customizados (ver br.com.sorria.crm.campo.CampoCustomizado),
     // chave = nome do campo. Guardado sempre como texto (a UI converte pro tipo
     // configurado - numero/data/lista) pra nao precisar de uma tabela por tipo.
+    // @BatchSize: mesmo motivo da colecao tags acima - evita mais 1 SELECT por
+    // contato so pra esse mapa (N+1 dobrado, ja que sao 2 colecoes EAGER na
+    // mesma entidade).
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "contato_campos_customizados", joinColumns = @JoinColumn(name = "contato_id"))
     @MapKeyColumn(name = "campo_nome")
     @Column(name = "valor")
+    @BatchSize(size = 50)
     private Map<String, String> camposCustomizados = new HashMap<>();
 }
