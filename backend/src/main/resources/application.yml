@@ -32,6 +32,11 @@ app:
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   cors:
     allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}
+  # URL publica deste backend, usada pra montar o webhook de cada instancia
+  # nova da Evolution (".../api/whatsapp/webhook?numeroId=X") - ver
+  # WhatsAppNumeroService.criar. O numero principal foi configurado assim
+  # manualmente por fora antes disso existir.
+  backend-url: ${BACKEND_URL:https://sorria-backend.onrender.com}
 
 evolution:
   base-url: ${EVOLUTION_API_URL:}
@@ -43,13 +48,6 @@ evolution:
   # Tambem usada agora pra criar instancia nova (POST /instance/create) ao
   # cadastrar um numero secundario direto pelo app - ver WhatsAppNumeroService.
   global-api-key: ${EVOLUTION_GLOBAL_API_KEY:}
-
-app:
-  # URL publica deste backend, usada pra montar o webhook de cada instancia
-  # nova da Evolution (".../api/whatsapp/webhook?numeroId=X") - ver
-  # WhatsAppNumeroService.criar. O numero principal foi configurado assim
-  # manualmente por fora antes disso existir.
-  backend-url: ${BACKEND_URL:https://sorria-backend.onrender.com}
 
 # Storage do Supabase pra foto de perfil dos colaboradores. Sem essas duas env vars
 # configuradas no Render, o upload responde 400 com uma mensagem explicando o motivo
