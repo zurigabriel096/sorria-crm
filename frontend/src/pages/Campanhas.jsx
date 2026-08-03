@@ -14,8 +14,9 @@ import { matchSeg } from "../utils/patients";
 
 const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3, whatsappNumeroId: "", modoProspects: false });
 
-export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, setObjetivos, segmentos, patients, onDisparar, showToast, usuario }) {
+export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, segmentos, patients, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
+  const souAdmin = usuario?.papel === "ADMIN";
   const [modal, setModal] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [f, setF] = useState(vazio());
@@ -138,13 +139,27 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
     }
   };
 
-  const addObj = () => {
+  const addObj = async () => {
     const o = novoObj.trim();
     if (!o || objetivos.includes(o)) return;
-    setObjetivos((x) => [...x, o]);
-    setF((x) => ({ ...x, objetivo: o }));
-    setNovoObj("");
-    showToast("Objetivo criado", "ok");
+    try {
+      await onCriarObjetivo(o);
+      setF((x) => ({ ...x, objetivo: o }));
+      setNovoObj("");
+      showToast("Objetivo criado", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao criar objetivo", "warn");
+    }
+  };
+
+  const excluirObj = async (obj) => {
+    if (!confirm(`Excluir o objetivo "${obj.nome}"?`)) return;
+    try {
+      await onExcluirObjetivo(obj.id);
+      if (f.objetivo === obj.nome) setF((x) => ({ ...x, objetivo: "" }));
+    } catch (e) {
+      showToast(e.message || "Erro ao excluir objetivo", "warn");
+    }
   };
 
   const lista = campanhas.filter((c) => {
@@ -222,6 +237,16 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
               <input style={{ ...s.input, height: 38 }} placeholder="Criar novo objetivo..." value={novoObj} onChange={(e) => setNovoObj(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addObj()} />
               <button style={s.btnGhostSm} onClick={addObj}>+ Add</button>
             </div>
+            {souAdmin && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                {objetivoObjetos.map((obj) => (
+                  <span key={obj.id} style={{ ...s.objTag, background: T.lineSoft, color: T.inkSoft, display: "flex", alignItems: "center", gap: 5 }}>
+                    {obj.nome}
+                    <span onClick={() => excluirObj(obj)} style={{ cursor: "pointer", fontWeight: 700 }} title="Excluir objetivo">×</span>
+                  </span>
+                ))}
+              </div>
+            )}
           </Field>
           <div style={{ border: `1.5px dashed ${T.coral}`, borderRadius: 10, padding: 10, marginBottom: 4 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: T.ink }}>

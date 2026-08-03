@@ -10,7 +10,7 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { GuiaVariaveis } from "../components/ui/GuiaVariaveis";
 import { createTemplate, updateTemplate, deleteTemplate, archiveTemplate } from "../api/campaigns";
 
-export function Templates({ templates, setTemplates, objetivos, setObjetivos, showToast }) {
+export function Templates({ templates, setTemplates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, usuario, showToast }) {
   const [modal, setModal] = useState(null);
   const [fCat, setFCat] = useState("Todas");
   const [fCampanha, setFCampanha] = useState("Todas");
@@ -106,7 +106,19 @@ export function Templates({ templates, setTemplates, objetivos, setObjetivos, sh
           </div>
         ))}
       </div>
-      {modal && <TemplateEditor tpl={modal} objetivos={objetivos} setObjetivos={setObjetivos} onSave={salvar} onClose={() => setModal(null)} />}
+      {modal && (
+        <TemplateEditor
+          tpl={modal}
+          objetivos={objetivos}
+          objetivoObjetos={objetivoObjetos}
+          onCriarObjetivo={onCriarObjetivo}
+          onExcluirObjetivo={onExcluirObjetivo}
+          souAdmin={usuario?.papel === "ADMIN"}
+          showToast={showToast}
+          onSave={salvar}
+          onClose={() => setModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -133,20 +145,34 @@ function ToolbarFormatacao({ x, y, onAplicar }) {
   );
 }
 
-function TemplateEditor({ tpl, objetivos, setObjetivos, onSave, onClose }) {
+function TemplateEditor({ tpl, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, souAdmin, showToast, onSave, onClose }) {
   const [t, setT] = useState(tpl);
   const [novoObj, setNovoObj] = useState("");
   const set = (k, v) => setT((x) => ({ ...x, [k]: v }));
 
-  // Mesmo padrao de "criar novo objetivo" ja usado em Campanhas.jsx - sem
-  // isso, um objetivo digitado direto (ex.: pelo CampanhaSeedInitializer) nao
-  // aparecia como selecionado no <select> por nao estar na lista fixa.
-  const addObj = () => {
+  // Mesmo padrao de "criar novo objetivo" ja usado em Campanhas.jsx - agora
+  // persiste no backend (antes so existia no estado local do frontend e se
+  // perdia a cada reload).
+  const addObj = async () => {
     const o = novoObj.trim();
     if (!o || objetivos.includes(o)) return;
-    setObjetivos((x) => [...x, o]);
-    set("campanha", o);
-    setNovoObj("");
+    try {
+      await onCriarObjetivo(o);
+      set("campanha", o);
+      setNovoObj("");
+    } catch (e) {
+      showToast(e.message || "Erro ao criar objetivo", "warn");
+    }
+  };
+
+  const excluirObj = async (obj) => {
+    if (!confirm(`Excluir o objetivo "${obj.nome}"?`)) return;
+    try {
+      await onExcluirObjetivo(obj.id);
+      if (t.campanha === obj.nome) set("campanha", "");
+    } catch (e) {
+      showToast(e.message || "Erro ao excluir objetivo", "warn");
+    }
   };
   const imgFile = (e) => {
     const f = e.target.files[0];
@@ -202,6 +228,16 @@ function TemplateEditor({ tpl, objetivos, setObjetivos, onSave, onClose }) {
             <input style={{ ...s.input, height: 38 }} placeholder="Criar novo objetivo..." value={novoObj} onChange={(e) => setNovoObj(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addObj()} />
             <button style={s.btnGhostSm} onClick={addObj}>+ Add</button>
           </div>
+          {souAdmin && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {objetivoObjetos.map((obj) => (
+                <span key={obj.id} style={{ ...s.objTag, background: T.lineSoft, color: T.inkSoft, display: "flex", alignItems: "center", gap: 5 }}>
+                  {obj.nome}
+                  <span onClick={() => excluirObj(obj)} style={{ cursor: "pointer", fontWeight: 700 }} title="Excluir objetivo">×</span>
+                </span>
+              ))}
+            </div>
+          )}
         </Field>
         <Field label="Status"><Select block value={t.ativo ? "Ativo" : "Inativo"} onChange={(v) => set("ativo", v === "Ativo")} options={["Ativo", "Inativo"]} /></Field>
       </div>

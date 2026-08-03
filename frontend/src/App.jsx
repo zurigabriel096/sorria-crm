@@ -34,6 +34,7 @@ import { listColaboradores, createColaborador, updateColaborador, deleteColabora
 import { listPapeisCargo, createPapelCargo, updatePapelCargo, deletePapelCargo } from "./api/papeisCargo";
 import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
 import { listTags, createTag, updateTag, deleteTag } from "./api/tags";
+import { listObjetivos, createObjetivo, deleteObjetivo } from "./api/objetivos";
 import { listCamposCustomizados, createCampoCustomizado, updateCampoCustomizado, deleteCampoCustomizado } from "./api/camposCustomizados";
 import { getColunasVisiveis, setColunasVisiveis as apiSetColunasVisiveis } from "./api/configColunas";
 import { getMe, updateCorPerfil } from "./api/me";
@@ -64,7 +65,8 @@ export default function App() {
   const [colunasVisiveis, setColunasVisiveisState] = useState([]);
   const [colaboradores, setColaboradores] = useState([]);
   const [papeisCargo, setPapeisCargo] = useState([]);
-  const [objetivos, setObjetivos] = useState(["Reativação", "Anti no-show", "Cobrança", "Upsell", "Relacionamento", "Aquisição"]);
+  const [objetivoObjetos, setObjetivoObjetos] = useState([]);
+  const objetivos = objetivoObjetos.map((o) => o.nome);
 
   const [toast, setToast] = useState(null);
   const [jobs, setJobs] = useState([]); // acoes em massa rodando em background (ver JobsProgress)
@@ -82,9 +84,9 @@ export default function App() {
     setCarregando(true);
     try {
       const precisaUsuario = !usuarioAtual;
-      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, papeisCargoRes, segmentosRes, tagsRes, camposRes, colunasRes, meRes] = await Promise.all([
+      const [pacientesRes, campanhasRes, templatesRes, historicoRes, colaboradoresRes, papeisCargoRes, segmentosRes, tagsRes, camposRes, colunasRes, objetivosRes, meRes] = await Promise.all([
         listContacts(), listCampaigns(), listTemplates(), listDispatchHistory(), listColaboradores(), listPapeisCargo(), listSegmentacoes(), listTags(),
-        listCamposCustomizados(), getColunasVisiveis(),
+        listCamposCustomizados(), getColunasVisiveis(), listObjetivos(),
         precisaUsuario ? getMe() : Promise.resolve(usuarioAtual),
       ]);
       setPatients(pacientesRes);
@@ -97,6 +99,7 @@ export default function App() {
       setTagObjetos(tagsRes);
       setCamposCustomizados(camposRes);
       setColunasVisiveisState(colunasRes);
+      setObjetivoObjetos(objetivosRes);
       if (precisaUsuario) {
         setUsuario(meRes);
         setAvatarColor(meRes.corPerfil || T.primary);
@@ -376,6 +379,17 @@ export default function App() {
     setTagObjetos((ts) => ts.filter((t) => t.id !== id));
   };
 
+  const criarObjetivoHandler = async (nome) => {
+    const criado = await createObjetivo(nome);
+    setObjetivoObjetos((os) => [...os, criado]);
+    return criado;
+  };
+
+  const excluirObjetivoHandler = async (id) => {
+    await deleteObjetivo(id);
+    setObjetivoObjetos((os) => os.filter((o) => o.id !== id));
+  };
+
   const criarCampoHandler = async (campo) => {
     const criado = await createCampoCustomizado(campo);
     setCamposCustomizados((cs) => [...cs, criado]);
@@ -476,8 +490,8 @@ export default function App() {
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
           {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} abrirContatoId={conversaParaAbrir} onAbriuContato={() => setConversaParaAbrir(null)} />}
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} colaboradores={colaboradores} onAtribuirResponsavelEmLote={atribuirResponsavelSegmentacao} usuario={usuario} showToast={showToast} />}
-          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
-          {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} setObjetivos={setObjetivos} showToast={showToast} />}
+          {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
+          {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} usuario={usuario} showToast={showToast} />}
           {view === "automacoes" && <Automacoes showToast={showToast} usuario={usuario} patients={patients} />}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} usuario={usuario} onLimparHistorico={limparTodoHistoricoDisparo} showToast={showToast} />}
