@@ -22,7 +22,7 @@ const rotuloNumero = { fontSize: 10.5, color: "#8A96A3", textAlign: "center", ma
 // De proposito SEM "+ Botao Adicionar": o WhatsApp bloqueia mensagem com botao
 // interativo fora da API Business oficial (mesma regra ja documentada no
 // EvolutionApiClient.java do sorria-crm).
-export function MensagemPanel({ data, onMudar, onFechar }) {
+export function MensagemPanel({ data, onMudar, onFechar, camposCustomizados }) {
   const [aviso, setAviso] = useState(null);
   const textoRef = useRef(null);
 
@@ -81,7 +81,7 @@ export function MensagemPanel({ data, onMudar, onFechar }) {
           style={{ width: "100%", border: "1px solid #E6EDEC", borderRadius: 10, padding: "10px 58px 10px 10px", fontSize: 13, resize: "vertical" }}
         />
         <div style={{ position: "absolute", right: 8, top: 8, display: "flex", alignItems: "center", gap: 8 }}>
-          <GuiaVariaveis textareaRef={textoRef} valor={data.texto || ""} onMudar={(v) => onMudar({ texto: v })} />
+          <GuiaVariaveis textareaRef={textoRef} valor={data.texto || ""} onMudar={(v) => onMudar({ texto: v })} camposCustomizados={camposCustomizados} />
           <label title="Anexar imagem a esta mensagem" style={{ cursor: "pointer", fontSize: 16 }}>
             🖼
             <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => anexarImagem(e.target.files[0], (img) => onMudar({ imagem: img }))} />

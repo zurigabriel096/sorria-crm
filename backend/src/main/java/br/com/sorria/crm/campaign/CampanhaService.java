@@ -6,6 +6,7 @@ import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
 import br.com.sorria.crm.campaign.dto.ProspectDTO;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
+import br.com.sorria.crm.contact.SubstituicaoVariaveis;
 import br.com.sorria.crm.conversa.MensagemRepository;
 import br.com.sorria.crm.conversa.MensagemService;
 import br.com.sorria.crm.dispatch.DisparoHistorico;
@@ -138,7 +139,7 @@ public class CampanhaService {
 
         for (int i = 0; i < elegiveis.size(); i++) {
             Contato contato = elegiveis.get(i);
-            String mensagem = corpoTemplate.replace("{nome}", primeiroNome(contato.getNome()));
+            String mensagem = SubstituicaoVariaveis.aplicar(corpoTemplate, contato);
             String status = !email ? evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem, tokenInstancia) : "Entregue";
 
             contato.setEnviado(status);

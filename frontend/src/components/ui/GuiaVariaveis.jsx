@@ -2,18 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import { T } from "../../theme";
 
 // Lista de variaveis realmente substituidas no backend na hora do envio
-// (CampanhaService.primeiroNome / AutomacaoEngineService.primeiroNome) - so
-// aparece aqui o que de fato funciona, pra nao repetir o bug de {nome} vs
+// (SubstituicaoVariaveis.aplicar, usada por CampanhaService/AutomacaoEngineService)
+// - so aparece aqui o que de fato funciona, pra nao repetir o bug de {nome} vs
 // {data}/{hora} que nunca foram implementados mas apareciam no placeholder.
-const VARIAVEIS_ATIVAS = [
-  { chave: "{nome}", desc: "Primeiro nome do contato" },
-];
+// {nome} e' fixo; qualquer Campo Personalizado tambem funciona como variavel
+// (SubstituicaoVariaveis resolve pelo NOME do campo, sem precisar de codigo
+// novo a cada campo criado) - por isso a lista completa depende de
+// camposCustomizados, passado por quem usa este componente.
+const VARIAVEL_NOME = { chave: "{nome}", desc: "Primeiro nome do contato" };
 
 // Icone "?" clicavel que abre um guia com as variaveis disponiveis pra usar
 // no texto - clicar numa variavel insere ela na posicao do cursor do
 // textarea (via ref) ou no final do texto, se nao tiver ref.
-export function GuiaVariaveis({ textareaRef, valor, onMudar }) {
+export function GuiaVariaveis({ textareaRef, valor, onMudar, camposCustomizados }) {
   const [aberto, setAberto] = useState(false);
+  const variaveisAtivas = [
+    VARIAVEL_NOME,
+    ...(camposCustomizados || []).map((c) => ({ chave: `{${c.nome}}`, desc: `Campo personalizado: ${c.nome}` })),
+  ];
   const wrapRef = useRef(null);
 
   useEffect(() => {
@@ -68,7 +74,7 @@ export function GuiaVariaveis({ textareaRef, valor, onMudar }) {
             Variáveis ativas
           </div>
           <div style={{ display: "grid", gap: 2 }}>
-            {VARIAVEIS_ATIVAS.map((v) => (
+            {variaveisAtivas.map((v) => (
               <button
                 key={v.chave}
                 type="button"

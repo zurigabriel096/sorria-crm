@@ -39,7 +39,7 @@ function formatarRelativo(segundos) {
 // Editor de um fluxo especifico - versao do canvas do protótipo sorria-automacao
 // portada pro sorria-crm: persiste de verdade em /api/automacoes (nao mais
 // localStorage), e o nome/ativo ja vem definidos da ListaFluxos antes de abrir aqui.
-function Editor({ fluxo, souAdmin, onVoltar, showToast, patients }) {
+function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomizados }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(fluxo.nodes?.length ? fluxo.nodes : [noInicioPadrao()]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(fluxo.edges || []);
   const [ativo, setAtivo] = useState(!!fluxo.ativo);
@@ -191,7 +191,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients }) {
       </div>
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {painelAtivo?.tipo === "mensagem" && (
-          <MensagemPanel data={nodes.find((n) => n.id === painelAtivo.nodeId)?.data || {}} onMudar={(patch) => mudarMensagem(painelAtivo.nodeId, patch)} onFechar={() => setPainelAtivo(null)} />
+          <MensagemPanel data={nodes.find((n) => n.id === painelAtivo.nodeId)?.data || {}} onMudar={(patch) => mudarMensagem(painelAtivo.nodeId, patch)} onFechar={() => setPainelAtivo(null)} camposCustomizados={camposCustomizados} />
         )}
         <div style={{ flex: 1, position: "relative" }}>
           <ReactFlow
@@ -213,7 +213,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients }) {
 
 // Wrapper que carrega o fluxo real da API antes de montar o editor (precisa
 // existir antes do useReactFlow ter contexto - por isso o ReactFlowProvider aqui).
-export function EditorFluxo({ fluxoId, souAdmin, onVoltar, showToast, patients }) {
+export function EditorFluxo({ fluxoId, souAdmin, onVoltar, showToast, patients, camposCustomizados }) {
   const [fluxo, setFluxo] = useState(null);
   const [erro, setErro] = useState(null);
 
@@ -226,7 +226,7 @@ export function EditorFluxo({ fluxoId, souAdmin, onVoltar, showToast, patients }
 
   return (
     <ReactFlowProvider>
-      <Editor fluxo={fluxo} souAdmin={souAdmin} onVoltar={onVoltar} showToast={showToast} patients={patients} />
+      <Editor fluxo={fluxo} souAdmin={souAdmin} onVoltar={onVoltar} showToast={showToast} patients={patients} camposCustomizados={camposCustomizados} />
     </ReactFlowProvider>
   );
 }

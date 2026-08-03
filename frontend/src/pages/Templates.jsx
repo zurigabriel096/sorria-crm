@@ -13,7 +13,7 @@ import { listNumeros } from "../api/whatsappNumeros";
 
 const NUMERO_PRINCIPAL = "";
 
-export function Templates({ templates, setTemplates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, usuario, showToast }) {
+export function Templates({ templates, setTemplates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, usuario, camposCustomizados, showToast }) {
   const [modal, setModal] = useState(null);
   const [fCat, setFCat] = useState("Todas");
   const [fCampanha, setFCampanha] = useState("Todas");
@@ -141,6 +141,7 @@ export function Templates({ templates, setTemplates, objetivos, objetivoObjetos,
           onCriarObjetivo={onCriarObjetivo}
           onExcluirObjetivo={onExcluirObjetivo}
           souAdmin={usuario?.papel === "ADMIN"}
+          camposCustomizados={camposCustomizados}
           showToast={showToast}
           onSave={salvar}
           onClose={() => setModal(null)}
@@ -203,7 +204,7 @@ function ToolbarFormatacao({ x, y, onAplicar }) {
   );
 }
 
-function TemplateEditor({ tpl, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, souAdmin, showToast, onSave, onClose }) {
+function TemplateEditor({ tpl, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, souAdmin, camposCustomizados, showToast, onSave, onClose }) {
   const [t, setT] = useState(tpl);
   const [novoObj, setNovoObj] = useState("");
   const set = (k, v) => setT((x) => ({ ...x, [k]: v }));
@@ -302,7 +303,7 @@ function TemplateEditor({ tpl, objetivos, objetivoObjetos, onCriarObjetivo, onEx
       <Field label={
         <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span>{`Corpo da mensagem (${t.corpo.length} caracteres — ideal ≤135)`}</span>
-          <GuiaVariaveis textareaRef={areaRef} valor={t.corpo} onMudar={(v) => set("corpo", v)} />
+          <GuiaVariaveis textareaRef={areaRef} valor={t.corpo} onMudar={(v) => set("corpo", v)} camposCustomizados={camposCustomizados} />
         </span>
       }>
         <div style={{ position: "relative" }}>

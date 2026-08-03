@@ -3,6 +3,7 @@ package br.com.sorria.crm.automacao;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.contact.ContatoService;
+import br.com.sorria.crm.contact.SubstituicaoVariaveis;
 import br.com.sorria.crm.conversa.MensagemService;
 import br.com.sorria.crm.segment.Segmentacao;
 import br.com.sorria.crm.segment.SegmentacaoRepository;
@@ -223,7 +224,7 @@ public class AutomacaoEngineService {
         Object textoBruto = data.get("texto");
         String texto = textoBruto != null ? String.valueOf(textoBruto) : null;
         if (texto != null && !texto.isBlank()) {
-            enviarMensagemComPacing(contato, texto.replace("{nome}", primeiroNome(contato.getNome())));
+            enviarMensagemComPacing(contato, SubstituicaoVariaveis.aplicar(texto, contato));
         }
         Map<String, Object> atraso = comoMapa(data.get("atraso"));
         long segundosAtraso = comoInteiro(atraso.get("dias"), 0) * 86400L
@@ -261,11 +262,6 @@ public class AutomacaoEngineService {
     // "aguardando_resposta", proximaExecucaoEm null = espera pra sempre (so a Fase
     // 4/webhook retoma), um valor real = prazo/timeout (ver processarAvancos).
     private record ResultadoNo(String status, LocalDateTime proximaExecucaoEm) {
-    }
-
-    private String primeiroNome(String nomeCompleto) {
-        if (nomeCompleto == null || nomeCompleto.isBlank()) return "";
-        return nomeCompleto.trim().split("\\s+")[0];
     }
 
     private void enviarMensagemComPacing(Contato contato, String texto) {
