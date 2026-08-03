@@ -12,6 +12,7 @@ public record SegmentacaoDTO(
         @NotBlank String nome,
         @NotNull Object groups,
         Boolean arquivado,
+        String origem,
         LocalDateTime atualizadoEm
 ) {
 }

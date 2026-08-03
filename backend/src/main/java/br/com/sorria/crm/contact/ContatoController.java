@@ -100,8 +100,10 @@ public class ContatoController {
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Map<String, Object> aplicarTagEmLote(@RequestBody AplicarTagLoteRequest req) {
-        String jobId = loteJobService.iniciar(req.contatoIds(), id ->
-                aplicarTagNoContato(id, req.tag(), req.remover()));
+        String jobId = loteJobService.iniciar(req.contatoIds(), id -> {
+            aplicarTagNoContato(id, req.tag(), req.remover());
+            return id;
+        });
         int total = req.contatoIds() != null ? req.contatoIds().size() : 0;
         return Map.of("jobId", jobId, "total", total);
     }
@@ -120,7 +122,10 @@ public class ContatoController {
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Map<String, Object> excluirEmLote(@RequestBody ExcluirLoteRequest req) {
-        String jobId = loteJobService.iniciar(req.contatoIds(), contatoService::remover);
+        String jobId = loteJobService.iniciar(req.contatoIds(), id -> {
+            contatoService.remover(id);
+            return id;
+        });
         int total = req.contatoIds() != null ? req.contatoIds().size() : 0;
         return Map.of("jobId", jobId, "total", total);
     }
@@ -154,7 +159,10 @@ public class ContatoController {
             pares.add(new ParContatoColaborador(embaralhados.get(i), colaboradorIds.get(i % colaboradorIds.size())));
         }
 
-        String jobId = loteJobService.iniciar(pares, par -> contatoService.atribuirResponsavel(par.contatoId(), par.colaboradorId()));
+        String jobId = loteJobService.iniciar(pares, par -> {
+            contatoService.atribuirResponsavel(par.contatoId(), par.colaboradorId());
+            return par.contatoId();
+        });
         return Map.of("jobId", jobId, "total", pares.size());
     }
 
@@ -172,12 +180,17 @@ public class ContatoController {
         else contatoService.adicionarTag(contatoId, tag);
     }
 
-    private Map<String, Object> statusDTO(LoteJobStatus status) {
-        return Map.of(
-                "total", status.getTotal(),
-                "processados", status.getProcessados(),
-                "afetados", status.getAfetados(),
-                "concluido", status.isConcluido()
-        );
+    // "resultados": ids devolvidos por cada item processado (ex.: contato
+    // criado/mesclado numa importacao) - usado por "Importações" em
+    // Segmentacoes.jsx pra criar a segmentacao da leva com os ids certos,
+    // sem precisar recarregar a base inteira e adivinhar quem entrou agora.
+    private Map<String, Object> statusDTO(LoteJobStatus<?> status) {
+        Map<String, Object> dto = new java.util.HashMap<>();
+        dto.put("total", status.getTotal());
+        dto.put("processados", status.getProcessados());
+        dto.put("afetados", status.getAfetados());
+        dto.put("concluido", status.isConcluido());
+        dto.put("resultados", status.getResultados());
+        return dto;
     }
 }

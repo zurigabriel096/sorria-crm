@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 // Bean separado de LoteJobService de proposito: @Async so funciona em chamada
 // externa (via proxy do Spring) - se o metodo estivesse na mesma classe que o
@@ -16,11 +16,12 @@ import java.util.function.Consumer;
 public class LoteJobWorker {
 
     @Async
-    public <T> void processar(LoteJobStatus status, List<T> itens, Consumer<T> acaoPorItem) {
+    public <T, R> void processar(LoteJobStatus<R> status, List<T> itens, Function<T, R> acaoPorItem) {
         int afetados = 0;
         for (T item : itens) {
             try {
-                acaoPorItem.accept(item);
+                R resultado = acaoPorItem.apply(item);
+                status.adicionarResultado(resultado);
                 afetados++;
             } catch (NoSuchElementException e) {
                 log.warn("Acao em lote: item {} nao encontrado, pulando", item);

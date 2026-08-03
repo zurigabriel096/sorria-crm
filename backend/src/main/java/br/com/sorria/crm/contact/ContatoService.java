@@ -83,9 +83,12 @@ public class ContatoService {
     // fetch do frontend, dando a impressao de tela travada. Mesma checagem de
     // telefone duplicado de sempre: linha repetida na propria planilha, ou que
     // bate com lead ja existente, se funde em vez de duplicar.
-    public void importarLinha(ContatoDTO dto) {
-        if (dto.nome() == null || dto.nome().isBlank()) return;
-        criarOuMesclarEntidade(dto);
+    // Retorna o id do Contato resultante (criado ou mesclado) - usado pra
+    // "Importações" em Segmentacoes.jsx criar uma segmentacao com exatamente
+    // os leads dessa leva, sem precisar adivinhar por telefone/nome depois.
+    public Long importarLinha(ContatoDTO dto) {
+        if (dto.nome() == null || dto.nome().isBlank()) return null;
+        return criarOuMesclarEntidade(dto).getId();
     }
 
     private Contato criarOuMesclarEntidade(ContatoDTO dto) {

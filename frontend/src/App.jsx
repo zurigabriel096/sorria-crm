@@ -162,6 +162,7 @@ export default function App() {
       setJobs((js) => [...js, {
         id: jobId, tipo: "import", label: `Importando planilha (${res.pacientes.length} linhas)`,
         total, processados: 0, afetados: 0, concluido: total === 0,
+        nomeImportacao: res.nomeImportacao,
       }]);
     } catch (e) {
       showToast(e.message || "Erro ao importar planilha", "warn");
@@ -252,7 +253,22 @@ export default function App() {
             : getTagLoteStatus(j.id)
           );
           setJobs((js) => js.map((x) => (x.id === j.id ? { ...x, processados: s.processados, afetados: s.afetados, concluido: s.concluido } : x)));
-          if (s.concluido) listContacts().then(setPatients);
+          if (s.concluido) {
+            listContacts().then(setPatients);
+            // Importacao com titulo preenchido (ver ImportMappingModal) vira
+            // segmentacao de verdade, travada nos ids que essa leva realmente
+            // afetou (s.resultados) - facilita reaproveitar o fluxo depois
+            // (disparo, tag em lote etc.) sem precisar recriar o filtro.
+            if (j.tipo === "import" && j.nomeImportacao && s.resultados?.length) {
+              criarSegmentacao({
+                nome: j.nomeImportacao,
+                groups: [[{ field: "id", op: "in", value: s.resultados }]],
+                origem: "IMPORTACAO",
+              })
+                .then(() => showToast(`Segmentação "${j.nomeImportacao}" criada (aba Importações)`, "ok"))
+                .catch(() => showToast(`Importação concluída, mas não consegui criar a segmentação "${j.nomeImportacao}"`, "warn"));
+            }
+          }
         } catch {
           setJobs((js) => js.filter((x) => x.id !== j.id));
         }
@@ -484,10 +500,10 @@ export default function App() {
       <div style={s.main}>
         <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
-          {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} />}
+          {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} />}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} />}
           {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} />}
-          {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
+          {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
           {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} abrirContatoId={conversaParaAbrir} onAbriuContato={() => setConversaParaAbrir(null)} />}
           {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} colaboradores={colaboradores} onAtribuirResponsavelEmLote={atribuirResponsavelSegmentacao} usuario={usuario} onAbrirPaciente={abrirPaciente} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}

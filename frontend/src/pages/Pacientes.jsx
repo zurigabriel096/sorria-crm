@@ -77,7 +77,7 @@ function colunaCustomizada(campo) {
 }
 
 export function Pacientes({
-  patients, tags, onImport, showToast, filtroInicial, onAbrirPaciente, onUnificarDuplicados,
+  patients, tags, tagObjetos, onCriarTag, onImport, showToast, filtroInicial, onAbrirPaciente, onUnificarDuplicados,
   usuario, camposCustomizados, onCriarCampo, onAtualizarCampo, onExcluirCampo,
   colunasVisiveis, onAtualizarColunas, onCriarPaciente, onExcluirPaciente,
 }) {
@@ -246,7 +246,7 @@ export function Pacientes({
   if (!patients.length) {
     return (
       <div style={{ maxWidth: 560, margin: "20px auto", display: "grid", gap: 12, justifyItems: "center" }}>
-        <ImportBox onImport={onImport} showToast={showToast} camposCustomizados={camposCustomizados} onCriarCampo={onCriarCampo} />
+        <ImportBox onImport={onImport} showToast={showToast} camposCustomizados={camposCustomizados} onCriarCampo={onCriarCampo} tags={tags} tagObjetos={tagObjetos} onCriarTag={onCriarTag} />
         {souAdmin && (
           <button style={s.btnGhostSm} onClick={() => setNovoLead({ nome: "", tel: "" })}>+ Adicionar 1 lead manualmente</button>
         )}
@@ -382,7 +382,7 @@ export function Pacientes({
 
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>Importar / exportar</div>
-            <ImportBox onImport={onImport} showToast={showToast} variant="button" camposCustomizados={camposCustomizados} onCriarCampo={onCriarCampo} />
+            <ImportBox onImport={onImport} showToast={showToast} variant="button" camposCustomizados={camposCustomizados} onCriarCampo={onCriarCampo} tags={tags} tagObjetos={tagObjetos} onCriarTag={onCriarTag} />
             <button style={{ ...s.btnGhostSm, justifyContent: "flex-start" }} onClick={() => exportarXlsx(patients)}><IconDownload color={T.ink} /> Exportar Lead</button>
             {souAdmin && (
               <button style={{ ...s.btnGhostSm, justifyContent: "flex-start" }} disabled={unificando} onClick={unificar} title="Junta cadastros com o mesmo telefone, sem apagar dado">

@@ -28,6 +28,12 @@ public class Segmentacao {
 
     private Boolean arquivado = false;
 
+    // "IMPORTACAO" quando criada automaticamente ao importar uma planilha
+    // com titulo preenchido (ver ImportMappingModal.jsx) - null pra qualquer
+    // segmentacao criada manualmente. So usado pra filtrar a aba
+    // "Importações" em Segmentacoes.jsx, nao afeta avaliacao de condicao.
+    private String origem;
+
     private LocalDateTime atualizadoEm;
 
     @PrePersist

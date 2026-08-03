@@ -31,7 +31,7 @@ export function Segmentacoes({
   const [tagEditando, setTagEditando] = useState(null);
   const [tagEditValor, setTagEditValor] = useState("");
   const [tagEditCor, setTagEditCor] = useState(T.primary);
-  const [verArquivadas, setVerArquivadas] = useState(false);
+  const [aba, setAba] = useState("ativas"); // "ativas" | "arquivadas" | "importacoes"
   const [tagLote, setTagLote] = useState(null); // null | {seg, remover, tag}
   const [aplicandoLote, setAplicandoLote] = useState(false);
   const [excluirLote, setExcluirLote] = useState(null); // null | {seg, quantidade, confirmacao}
@@ -217,6 +217,17 @@ export function Segmentacoes({
 
   const busca = buscaTag === "Todas" ? [] : patients.filter((p) => (p.tags || []).includes(buscaTag));
 
+  // "Importações": segmentação criada sozinha ao importar planilha com
+  // título preenchido (ver ImportMappingModal.jsx, origem="IMPORTACAO") -
+  // fica separada de "Ativas" pra não misturar com o que foi montado à mão,
+  // mesmo enquanto ainda não arquivada.
+  const naAba = (seg) => {
+    if (aba === "arquivadas") return !!seg.arquivado;
+    if (aba === "importacoes") return !seg.arquivado && seg.origem === "IMPORTACAO";
+    return !seg.arquivado && seg.origem !== "IMPORTACAO";
+  };
+  const segmentosDaAba = segmentos.filter(naAba);
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 18 }} className="dashGrid">
       <div style={{ display: "grid", gap: 14, alignContent: "start" }}>
@@ -224,16 +235,19 @@ export function Segmentacoes({
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Suas segmentações</div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={s.toggle}>
-              <button style={{ ...s.toggleBtn, ...(!verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(false)}>Ativas</button>
-              <button style={{ ...s.toggleBtn, ...(verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(true)}>Arquivadas</button>
+              <button style={{ ...s.toggleBtn, ...(aba === "ativas" ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setAba("ativas")}>Ativas</button>
+              <button style={{ ...s.toggleBtn, ...(aba === "arquivadas" ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setAba("arquivadas")}>Arquivadas</button>
+              <button style={{ ...s.toggleBtn, ...(aba === "importacoes" ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setAba("importacoes")}>Importações</button>
             </div>
             <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: null, nome: "", groups: [novoGrupo()] })}>+ Nova segmentação</button>
           </div>
         </div>
-        {segmentos.filter((seg) => !!seg.arquivado === verArquivadas).length === 0 && (
-          <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivadas ? "Nenhuma segmentação arquivada." : "Nenhuma segmentação ativa."}</div></Card>
+        {segmentosDaAba.length === 0 && (
+          <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>
+            {aba === "arquivadas" ? "Nenhuma segmentação arquivada." : aba === "importacoes" ? "Nenhuma importação com título ainda." : "Nenhuma segmentação ativa."}
+          </div></Card>
         )}
-        {segmentos.filter((seg) => !!seg.arquivado === verArquivadas).map((seg) => {
+        {segmentosDaAba.map((seg) => {
           const count = patients.filter((p) => matchSeg(p, seg)).length;
           return (
             <div key={seg.id} style={{ ...s.segCard, opacity: seg.arquivado ? .7 : 1 }}>

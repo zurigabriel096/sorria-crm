@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 // Infraestrutura generica pra qualquer acao em massa (tag em lote, excluir
 // lead em lote, importacao de planilha, etc.) que precisa processar uma lista
@@ -17,17 +17,21 @@ import java.util.function.Consumer;
 // numa unica chamada. Generico em T (Long pra ids, ContatoDTO pra importacao,
 // etc.) - roda em background (LoteJobWorker.@Async), quem chama consulta o
 // progresso pelo jobId devolvido (ver ContatoController).
+//
+// acaoPorItem e' Function (nao Consumer) pra dar pra coletar o que cada item
+// devolveu (ex.: id do Contato criado/mesclado numa importacao) - quem nao
+// precisa do resultado so retorna o proprio id/null, sem custo nenhum.
 @Service
 @RequiredArgsConstructor
 public class LoteJobService {
 
-    private final Map<String, LoteJobStatus> jobs = new ConcurrentHashMap<>();
+    private final Map<String, LoteJobStatus<?>> jobs = new ConcurrentHashMap<>();
     private final LoteJobWorker worker;
 
-    public <T> String iniciar(List<T> itens, Consumer<T> acaoPorItem) {
+    public <T, R> String iniciar(List<T> itens, Function<T, R> acaoPorItem) {
         int total = itens != null ? itens.size() : 0;
         String jobId = UUID.randomUUID().toString();
-        LoteJobStatus status = new LoteJobStatus(total);
+        LoteJobStatus<R> status = new LoteJobStatus<>(total);
         jobs.put(jobId, status);
         if (total > 0) {
             worker.processar(status, itens, acaoPorItem);
@@ -37,8 +41,8 @@ public class LoteJobService {
         return jobId;
     }
 
-    public LoteJobStatus status(String jobId) {
-        LoteJobStatus status = jobs.get(jobId);
+    public LoteJobStatus<?> status(String jobId) {
+        LoteJobStatus<?> status = jobs.get(jobId);
         if (status == null) {
             throw new NoSuchElementException("Job em lote nao encontrado: " + jobId);
         }
