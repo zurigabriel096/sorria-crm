@@ -47,6 +47,9 @@ export function evalCond(p, c) {
     // proposito - so o filtro avancado da Base de Leads usa (ver Pacientes.jsx),
     // que monta o proprio meta local com "estagio" incluido.
     case "estagio": return c.op === "é" ? p.estagio === c.value : p.estagio !== c.value;
+    // Lista fixa de ids (ex.: "Selecionar numero pra disparo" em Segmentacoes)
+    // - value e' um array de ids, nao um valor unico igual as outras condicoes.
+    case "id": return (c.value || []).includes(p.id);
     default: return false;
   }
 }

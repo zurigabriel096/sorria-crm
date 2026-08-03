@@ -32,7 +32,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class CampanhaService {
 
     private static final String CANAL_EMAIL = "Email";
-    private static final int INTERVALO_PADRAO_SEGUNDOS = 3;
+    private static final int INTERVALO_PADRAO_SEGUNDOS = 6;
+    private static final int INTERVALO_MINIMO_SEGUNDOS = 6;
 
     private final CampanhaRepository campanhaRepository;
     private final TemplateRepository templateRepository;
@@ -288,7 +289,7 @@ public class CampanhaService {
         // rajada sem intervalo e' o que mais aumenta risco do numero ser
         // marcado como spam pelo WhatsApp, e o valor viria direto de quem
         // chamar a API sem passar pela tela se so validasse no frontend.
-        campanha.setIntervaloSegundos(dto.intervaloSegundos() != null ? Math.max(3, dto.intervaloSegundos()) : null);
+        campanha.setIntervaloSegundos(dto.intervaloSegundos() != null ? Math.max(INTERVALO_MINIMO_SEGUNDOS, dto.intervaloSegundos()) : null);
         campanha.setWhatsappNumeroId(dto.whatsappNumeroId());
         campanha.setModoProspects(dto.modoProspects() != null && dto.modoProspects());
     }

@@ -36,6 +36,9 @@ export const listDispatchProspectHistory = () => api.get("/api/dispatch-prospect
 // antes de chamar (ver HistoricoDisparos.jsx).
 export const limparHistoricoDisparo = () => api.del("/api/dispatch-history");
 export const limparHistoricoProspects = () => api.del("/api/dispatch-prospect-history");
+// Remove so 1 registro (ex.: disparo de teste que inflou o total do Painel) -
+// restrito a ADMIN no backend.
+export const removerDisparoProspect = (id) => api.del(`/api/dispatch-prospect-history/${id}`);
 
 export const listDispatchHistory = async () =>
   (await api.get("/api/dispatch-history")).map((h) => ({

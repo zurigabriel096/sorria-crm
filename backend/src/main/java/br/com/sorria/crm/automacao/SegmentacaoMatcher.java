@@ -78,6 +78,9 @@ public class SegmentacaoMatcher {
                 boolean contem = contato.getTags() != null && contato.getTags().contains(String.valueOf(value));
                 yield "contém".equals(op) ? contem : !contem;
             }
+            // Lista fixa de ids (ex.: "Selecionar numero pra disparo" em
+            // Segmentacoes) - value e' uma lista de ids, nao um valor unico.
+            case "id" -> value instanceof List<?> ids && ids.stream().anyMatch(v -> paraNumero(v) == contato.getId());
             default -> false;
         };
     }

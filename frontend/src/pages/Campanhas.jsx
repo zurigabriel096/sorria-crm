@@ -12,7 +12,7 @@ import { listNumeros } from "../api/whatsappNumeros";
 import { dispatchCampaign, getCampaignPerformance } from "../api/campaigns";
 import { matchSeg } from "../utils/patients";
 
-const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3, whatsappNumeroId: "", modoProspects: false });
+const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 6, whatsappNumeroId: "", modoProspects: false });
 
 export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, segmentos, patients, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
@@ -82,7 +82,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
 
   const abrirNovo = () => { setF(vazio()); setModal("novo"); };
   const abrirEdicao = (c) => {
-    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 3, whatsappNumeroId: c.whatsappNumeroId || "", modoProspects: !!c.modoProspects });
+    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 6, whatsappNumeroId: c.whatsappNumeroId || "", modoProspects: !!c.modoProspects });
     setModal("editar");
   };
 
@@ -113,7 +113,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
       await onCriarCampanha({
         nome: `${c.nome} (cópia)`, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "",
         templateId: c.templateId || null, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR"),
-        intervaloSegundos: c.intervaloSegundos || 3, whatsappNumeroId: c.whatsappNumeroId || null,
+        intervaloSegundos: c.intervaloSegundos || 6, whatsappNumeroId: c.whatsappNumeroId || null,
       }, c.segmentoId || null);
       showToast("Campanha duplicada", "ok");
     } catch (e) {
@@ -306,12 +306,12 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           {f.canal === "WhatsApp" && (
             <Field label="Intervalo entre envios (segundos)">
               <input
-                type="number" min={3} max={30} style={{ ...s.input, maxWidth: 120 }}
+                type="number" min={6} max={30} style={{ ...s.input, maxWidth: 120 }}
                 value={f.intervaloSegundos}
-                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(3, Math.min(30, Number(e.target.value) || 3)) })}
+                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(6, Math.min(30, Number(e.target.value) || 6)) })}
               />
               <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
-                Pausa entre uma mensagem e outra. Recomendado: 3s ou mais — rajadas sem
+                Pausa entre uma mensagem e outra. Mínimo 6s — rajadas sem
                 intervalo aumentam o risco do número ser marcado como spam pelo WhatsApp.
               </div>
             </Field>

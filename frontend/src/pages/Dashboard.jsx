@@ -3,7 +3,7 @@ import { T } from "../theme";
 import { s } from "../styles/s";
 import { num } from "../utils/format";
 import { getDashboardKpis } from "../api/dashboard";
-import { listDispatchProspectHistory } from "../api/campaigns";
+import { listDispatchProspectHistory, removerDisparoProspect } from "../api/campaigns";
 import { getMetricasVisiveis, setMetricasVisiveis as apiSetMetricasVisiveis } from "../api/configPainelMetricas";
 import { listPainelCards, createPainelCard, updatePainelCard, deletePainelCard } from "../api/painelCards";
 import { Card } from "../components/ui/Card";
@@ -46,6 +46,17 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   const [prospectsHistorico, setProspectsHistorico] = useState([]);
   const [personalizando, setPersonalizando] = useState(false);
 
+  const carregarProspectsHistorico = () => listDispatchProspectHistory().then(setProspectsHistorico).catch(() => setProspectsHistorico([]));
+
+  const removerProspectHistorico = async (id) => {
+    try {
+      await removerDisparoProspect(id);
+      setProspectsHistorico((lista) => lista.filter((h) => h.id !== id));
+    } catch (e) {
+      showToast(e.message || "Erro ao remover registro", "warn");
+    }
+  };
+
   useEffect(() => {
     if (!patients.length) return;
     getDashboardKpis().then(setKpis).catch((e) => showToast(e.message || "Erro ao carregar KPIs", "warn"));
@@ -57,7 +68,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
       .then((v) => setMetricasVisiveisState(v.includes("baseEstagio") ? v : [...v, "baseEstagio"]))
       .catch(() => setMetricasVisiveisState([...METRICAS.map((m) => m.chave), "baseEstagio"]));
     listPainelCards().then(setCards).catch(() => setCards([]));
-    listDispatchProspectHistory().then(setProspectsHistorico).catch(() => setProspectsHistorico([]));
+    carregarProspectsHistorico();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patients.length, historico.length]);
 
@@ -149,6 +160,15 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
                 <span style={{ color: T.inkSoft }}>{h.campanhaNome}</span>
                 <span style={{ color: T.wa, fontWeight: 700 }}>{num(h.quantidadeEntregue)} entregues</span>
                 <span style={{ color: T.inkSoft }}>de {num(h.totalProspects)}</span>
+                {souAdmin && (
+                  <button
+                    onClick={() => removerProspectHistorico(h.id)}
+                    title="Remover este registro (ex.: disparo de teste)"
+                    style={{ color: T.coral, fontWeight: 700, fontSize: 13, lineHeight: 1 }}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>

@@ -20,6 +20,7 @@ export function Segmentacoes({
   tags, tagObjetos, onCriarTag, onAtualizarTag, onExcluirTag,
   camposCustomizados,
   onAplicarTagEmLote, onExcluirLeadsEmLote, colaboradores, onAtribuirResponsavelEmLote, usuario,
+  onAbrirPaciente,
   showToast,
 }) {
   const souAdmin = usuario?.papel === "ADMIN";
@@ -37,6 +38,9 @@ export function Segmentacoes({
   const [excluindoLote, setExcluindoLote] = useState(false);
   const [respLote, setRespLote] = useState(null); // null | {seg, colaboradorIds}
   const [atribuindoLote, setAtribuindoLote] = useState(false);
+  const [selecionarNumero, setSelecionarNumero] = useState(null); // null | {seg, quantidade}
+  const [criandoSelecao, setCriandoSelecao] = useState(false);
+  const [verLeads, setVerLeads] = useState(null); // null | seg
 
   const fieldMeta = montarFieldMeta(camposCustomizados);
 
@@ -144,6 +148,32 @@ export function Segmentacoes({
     }
   };
 
+  const abrirSelecionarNumero = (seg) => {
+    const total = patients.filter((p) => matchSeg(p, seg)).length;
+    setSelecionarNumero({ seg, quantidade: Math.min(10, total) });
+  };
+
+  // Cria uma segmentacao NOVA travada numa lista fixa de ids (os N primeiros
+  // capturados agora) - condicao especial field:"id" (ver evalCond em
+  // utils/patients.js e SegmentacaoMatcher no backend). Pensado pra cuidar de
+  // volumetria de disparo: capturar um recorte pequeno de uma base grande sem
+  // precisar inventar uma condicao de filtro que recorte exatamente esse tanto.
+  const confirmarSelecionarNumero = async () => {
+    const { seg, quantidade } = selecionarNumero;
+    const qtd = Math.max(1, Math.min(quantidade, patients.filter((p) => matchSeg(p, seg)).length));
+    const ids = patients.filter((p) => matchSeg(p, seg)).slice(0, qtd).map((p) => p.id);
+    setCriandoSelecao(true);
+    try {
+      await onCriar({ nome: `${seg.nome} - ${qtd} leads`, groups: [[{ field: "id", op: "in", value: ids }]] });
+      showToast(`Segmentação criada com ${qtd} leads`, "ok");
+      setSelecionarNumero(null);
+    } catch (e) {
+      showToast(e.message || "Erro ao criar segmentação", "warn");
+    } finally {
+      setCriandoSelecao(false);
+    }
+  };
+
   const criarTag = async () => {
     const t = novaTag.trim();
     if (!t) return;
@@ -208,7 +238,7 @@ export function Segmentacoes({
           return (
             <div key={seg.id} style={{ ...s.segCard, opacity: seg.arquivado ? .7 : 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <div>
+                <div style={{ cursor: "pointer", flex: 1 }} onClick={() => setVerLeads(seg)} title="Ver os leads dessa segmentação">
                   <div style={{ fontWeight: 700, fontSize: 15, color: T.ink }}>{seg.nome}</div>
                   <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 3 }}>
                     {seg.groups.map((group, gi) => (
@@ -217,7 +247,9 @@ export function Segmentacoes({
                         {group.map((c, i) => (
                           <span key={i}>
                             {i > 0 && <b style={{ color: T.primary }}> E </b>}
-                            {fieldMeta[c.field]?.label || c.field} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b>
+                            {c.field === "id"
+                              ? <span>{(c.value || []).length} leads específicos, extraídos em {dataHora(seg.atualizadoEm)}</span>
+                              : <>{fieldMeta[c.field]?.label || c.field} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b></>}
                           </span>
                         ))}
                       </span>
@@ -231,6 +263,7 @@ export function Segmentacoes({
                     items={[
                       { label: "Editar", onClick: () => setBuilder(JSON.parse(JSON.stringify(seg))) },
                       { label: "Duplicar", onClick: () => duplicar(seg) },
+                      { label: "Selecionar número para disparo", onClick: () => abrirSelecionarNumero(seg) },
                       ...(souAdmin ? [
                         { label: "Adicionar tag a estes leads", onClick: () => abrirTagLote(seg, false) },
                         { label: "Remover tag destes leads", onClick: () => abrirTagLote(seg, true) },
@@ -394,6 +427,65 @@ export function Segmentacoes({
           </div>
         </Modal>
       )}
+      {selecionarNumero && (() => {
+        const total = patients.filter((p) => matchSeg(p, selecionarNumero.seg)).length;
+        return (
+          <Modal title="Selecionar número para disparo" onClose={() => setSelecionarNumero(null)}>
+            <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
+              Cria uma segmentação nova travada nos primeiros N leads que <b>{selecionarNumero.seg.nome}</b> captura agora
+              ({contagemLabel(total)}) — pensado pra controlar volumetria de disparo.
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              {[10, 30, 40, 50, 100].filter((n) => n <= total).map((n) => (
+                <button
+                  key={n}
+                  style={{ ...s.btnGhostSm, ...(selecionarNumero.quantidade === n ? { background: T.primarySoft, color: T.primaryDark } : {}) }}
+                  onClick={() => setSelecionarNumero({ ...selecionarNumero, quantidade: n })}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <Field label="Quantidade exata">
+              <input
+                type="number"
+                min={1}
+                max={total}
+                style={s.input}
+                value={selecionarNumero.quantidade}
+                onChange={(e) => setSelecionarNumero({ ...selecionarNumero, quantidade: Math.max(1, Math.min(total, Number(e.target.value) || 1)) })}
+              />
+            </Field>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setSelecionarNumero(null)}>Cancelar</button>
+              <button style={{ ...s.btnPrimary, flex: 1, opacity: criandoSelecao ? .6 : 1 }} onClick={confirmarSelecionarNumero} disabled={criandoSelecao}>
+                {criandoSelecao ? "Criando..." : `Criar com ${selecionarNumero.quantidade} leads`}
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
+      {verLeads && (() => {
+        const lista = patients.filter((p) => matchSeg(p, verLeads));
+        return (
+          <Modal title={`Leads em "${verLeads.nome}" (${contagemLabel(lista.length)})`} onClose={() => setVerLeads(null)} wide>
+            <div style={{ display: "grid", gap: 6, maxHeight: 480, overflowY: "auto" }}>
+              {!lista.length && <div style={{ fontSize: 13, color: T.inkSoft, padding: "12px 0" }}>Nenhum lead nessa segmentação agora.</div>}
+              {lista.map((p) => (
+                <div
+                  key={p.id}
+                  style={{ ...s.tagResult, cursor: "pointer" }}
+                  onClick={() => { onAbrirPaciente(p); setVerLeads(null); }}
+                >
+                  <b style={{ color: T.primary }}>{p.nome}</b>
+                  <span style={{ color: T.inkSoft, fontSize: 12 }}>{p.tel || "sem telefone"}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 12, color: T.inkSoft }}>{p.estagio || "Lead"}</span>
+                </div>
+              ))}
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
