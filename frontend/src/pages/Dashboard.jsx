@@ -66,7 +66,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
           <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />
         </div>
       )}
-      <div style={s.kpiRow}>
+      <div className="kpiRow" style={s.kpiRow}>
         {metricasAtivas.map((m) => <div key={m.chave}>{m.montar(kpis, ctx)}</div>)}
         {cards.map((c) => (
           <KpiCard key={c.id} label={c.rotulo || `${c.campoNome}: ${c.valor}`} value={num(c.contagem)} icon={<IconGrid color={T.primary} />} />
