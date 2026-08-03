@@ -10,7 +10,7 @@ function noInicioPadrao() {
   return { id: "inicio", type: "start", position: { x: 60, y: 220 }, data: { entrada: null } };
 }
 
-export function ListaFluxos({ souAdmin, onAbrir, showToast }) {
+export function ListaFluxos({ souAdmin, onAbrir, showToast, patients }) {
   const [fluxos, setFluxos] = useState(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [criando, setCriando] = useState(false);
@@ -43,13 +43,25 @@ export function ListaFluxos({ souAdmin, onAbrir, showToast }) {
 
   const alternarAtivo = async (f) => {
     if (!souAdmin) return;
+    const vaiAtivar = !f.ativo;
+    // Corte de seguranca (Fase 5): sem contato de teste, ativar um fluxo passa a
+    // mandar mensagem de verdade pra todo mundo que bater com a segmentacao -
+    // confirma explicitamente em vez de só virar a chavinha sem aviso.
+    if (vaiAtivar && !f.contatoTesteId) {
+      const confirmou = window.confirm(
+        `"${f.nome}" não tem contato de teste configurado. Ao ativar, ele vai começar a mandar mensagens reais pra todo mundo que bater com a segmentação de entrada. Confirma?`
+      );
+      if (!confirmou) return;
+    }
     try {
-      await ativarFluxo(f.id, !f.ativo);
-      setFluxos((lista) => lista.map((x) => (x.id === f.id ? { ...x, ativo: !x.ativo } : x)));
+      await ativarFluxo(f.id, vaiAtivar);
+      setFluxos((lista) => lista.map((x) => (x.id === f.id ? { ...x, ativo: vaiAtivar } : x)));
     } catch (e) {
       showToast(e.message || "Erro ao ativar/desativar fluxo", "warn");
     }
   };
+
+  const nomeContatoTeste = (f) => (patients || []).find((p) => p.id === f.contatoTesteId)?.nome;
 
   if (fluxos === null) {
     return <Card><div style={{ textAlign: "center", padding: 30, color: T.inkSoft }}>Carregando fluxos...</div></Card>;
@@ -82,6 +94,11 @@ export function ListaFluxos({ souAdmin, onAbrir, showToast }) {
               <button onClick={() => excluir(f)} style={{ fontSize: 12, color: T.coral, fontWeight: 600 }}>Excluir</button>
             </div>
             <div style={{ fontWeight: 700, fontSize: 16, color: T.ink, margin: "12px 0 4px" }}>{f.nome}</div>
+            {f.contatoTesteId && (
+              <div style={{ fontSize: 11, fontWeight: 700, color: T.gold, marginBottom: 4 }}>
+                🧪 Modo teste: só roda pra {nomeContatoTeste(f) || `contato #${f.contatoTesteId}`}
+              </div>
+            )}
             {f.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft, flex: 1 }}>Editado em {new Date(f.atualizadoEm).toLocaleString("pt-BR")}</div>}
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
               {souAdmin && (

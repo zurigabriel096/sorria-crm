@@ -26,7 +26,8 @@ import java.util.stream.Collectors;
 // passa a mexer em leads reais - grava tag/estagio, manda WhatsApp de verdade via
 // EvolutionApiClient. Ver plano completo em glowing-strolling-spring.md (Fases 3-5) e o aviso de
 // seguranca no CONTEXTO_PROJETO.md: uma vez deployado, qualquer fluxo ja ativo no banco comeca a
-// rodar assim que o Render sobe essa versao.
+// rodar assim que o Render sobe essa versao. Fase 5 (corte de seguranca): FluxoAutomacao.contatoTesteId,
+// quando preenchido, restringe o fluxo a rodar so pra esse contato - ver processarEntradaDeUmFluxo.
 //
 // Desenho: um "tick" a cada 30s (nao @Transactional na classe de proposito - o pacing entre envios
 // de mensagem usa Thread.sleep, igual ao CampanhaService.disparar, e uma transacao segurando
@@ -86,6 +87,16 @@ public class AutomacaoEngineService {
     }
 
     private void processarEntradaDeUmFluxo(FluxoAutomacao fluxo) throws JsonProcessingException {
+        // Corte de seguranca (Fase 5): com contato de teste configurado, ignora a
+        // segmentacao de entrada por completo - o fluxo so roda pra esse contato,
+        // mesmo que ele nao bata com o publico real. Deixa o ADMIN validar o ciclo
+        // inteiro (mensagem, tag, aguardar resposta) num numero real e controlado
+        // antes de tirar o campo e liberar pra quem realmente bate com a segmentacao.
+        if (fluxo.getContatoTesteId() != null) {
+            criarExecucaoSeNaoExiste(fluxo, fluxo.getContatoTesteId());
+            return;
+        }
+
         NoFluxo inicio = parseNodes(fluxo.getNodesJson()).stream()
                 .filter(n -> "start".equals(n.type()))
                 .findFirst().orElse(null);
@@ -102,14 +113,17 @@ public class AutomacaoEngineService {
         if (segmentacao == null || Boolean.TRUE.equals(segmentacao.getArquivado())) return;
 
         for (Contato contato : contatoRepository.findAll()) {
-            if (execucaoFluxoRepository.existsByFluxoIdAndContatoId(fluxo.getId(), contato.getId())) continue;
             if (!segmentacaoMatcher.bate(contato, segmentacao)) continue;
-
-            ExecucaoFluxo execucao = new ExecucaoFluxo();
-            execucao.setFluxoId(fluxo.getId());
-            execucao.setContatoId(contato.getId());
-            execucaoFluxoRepository.save(execucao);
+            criarExecucaoSeNaoExiste(fluxo, contato.getId());
         }
+    }
+
+    private void criarExecucaoSeNaoExiste(FluxoAutomacao fluxo, Long contatoId) {
+        if (execucaoFluxoRepository.existsByFluxoIdAndContatoId(fluxo.getId(), contatoId)) return;
+        ExecucaoFluxo execucao = new ExecucaoFluxo();
+        execucao.setFluxoId(fluxo.getId());
+        execucao.setContatoId(contatoId);
+        execucaoFluxoRepository.save(execucao);
     }
 
     // Avanca UM no do grafo pra cada execucao cuja hora ja chegou. Uma execucao por vez, uma

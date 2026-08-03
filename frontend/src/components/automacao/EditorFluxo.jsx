@@ -39,10 +39,11 @@ function formatarRelativo(segundos) {
 // Editor de um fluxo especifico - versao do canvas do protótipo sorria-automacao
 // portada pro sorria-crm: persiste de verdade em /api/automacoes (nao mais
 // localStorage), e o nome/ativo ja vem definidos da ListaFluxos antes de abrir aqui.
-function Editor({ fluxo, souAdmin, onVoltar, showToast }) {
+function Editor({ fluxo, souAdmin, onVoltar, showToast, patients }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(fluxo.nodes?.length ? fluxo.nodes : [noInicioPadrao()]);
   const [edges, setEdges, onEdgesChange] = useEdgesState(fluxo.edges || []);
   const [ativo, setAtivo] = useState(!!fluxo.ativo);
+  const [contatoTesteId, setContatoTesteId] = useState(fluxo.contatoTesteId || null);
   const [painelAberto, setPainelAberto] = useState(true);
   const [painelAtivo, setPainelAtivo] = useState(null);
   const [ultimoSalvamentoEm, setUltimoSalvamentoEm] = useState(null);
@@ -115,7 +116,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast }) {
   const persistir = async (mostrarToast) => {
     setSalvando(true);
     try {
-      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges });
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId });
       setUltimoSalvamentoEm(Date.now());
       if (mostrarToast) showToast("Fluxo salvo", "ok");
     } catch (e) {
@@ -127,6 +128,14 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast }) {
 
   const alternarAtivo = async () => {
     if (!souAdmin) return;
+    // Corte de seguranca (Fase 5): sem contato de teste, ativar passa a mandar
+    // mensagem de verdade pra todo mundo que bater com a segmentacao de entrada.
+    if (!ativo && !contatoTesteId) {
+      const confirmou = window.confirm(
+        "Este fluxo não tem contato de teste configurado. Ao ativar, ele vai começar a mandar mensagens reais pra todo mundo que bater com a segmentação de entrada. Confirma?"
+      );
+      if (!confirmou) return;
+    }
     try {
       await ativarFluxo(fluxo.id, !ativo);
       setAtivo((a) => !a);
@@ -136,12 +145,22 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast }) {
     }
   };
 
+  const escolherContatoTeste = async (id) => {
+    setContatoTesteId(id);
+    try {
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId: id });
+      showToast(id ? "Contato de teste definido — o fluxo só roda pra ele" : "Contato de teste removido", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar contato de teste", "warn");
+    }
+  };
+
   // Autosave leve (4min) - agora persiste de verdade no backend, nao so localStorage.
   useEffect(() => {
     const t = setInterval(() => persistir(false), 4 * 60 * 1000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, ativo]);
+  }, [nodes, edges, ativo, contatoTesteId]);
 
   useEffect(() => {
     const t = setInterval(() => setAgora(Date.now()), 10000);
@@ -161,6 +180,9 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast }) {
         {textoSalvo && <span style={{ fontSize: 12, color: "#9db4c9" }}>{textoSalvo}</span>}
         <button onClick={() => setPainelAberto((o) => !o)} title="Ações disponíveis" style={{ width: 32, height: 32, borderRadius: 9, background: painelAberto ? T.primary : "rgba(255,255,255,.08)", color: "#fff", display: "grid", placeItems: "center" }}>☰</button>
         <button onClick={() => persistir(true)} disabled={salvando} style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 13, padding: "8px 14px", borderRadius: 9 }}>{salvando ? "Salvando..." : "Salvar"}</button>
+        {souAdmin && (
+          <SeletorContatoTeste contatoTesteId={contatoTesteId} patients={patients || []} onEscolher={escolherContatoTeste} />
+        )}
         {souAdmin && (
           <button onClick={alternarAtivo} style={{ background: ativo ? T.coral : T.primary, color: "#fff", fontWeight: 700, fontSize: 13, padding: "8px 16px", borderRadius: 9 }}>
             {ativo ? "Desativar" : "Ativar fluxo"}
@@ -191,7 +213,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast }) {
 
 // Wrapper que carrega o fluxo real da API antes de montar o editor (precisa
 // existir antes do useReactFlow ter contexto - por isso o ReactFlowProvider aqui).
-export function EditorFluxo({ fluxoId, souAdmin, onVoltar, showToast }) {
+export function EditorFluxo({ fluxoId, souAdmin, onVoltar, showToast, patients }) {
   const [fluxo, setFluxo] = useState(null);
   const [erro, setErro] = useState(null);
 
@@ -204,7 +226,81 @@ export function EditorFluxo({ fluxoId, souAdmin, onVoltar, showToast }) {
 
   return (
     <ReactFlowProvider>
-      <Editor fluxo={fluxo} souAdmin={souAdmin} onVoltar={onVoltar} showToast={showToast} />
+      <Editor fluxo={fluxo} souAdmin={souAdmin} onVoltar={onVoltar} showToast={showToast} patients={patients} />
     </ReactFlowProvider>
+  );
+}
+
+// Corte de seguranca (Fase 5): escolhe um contato real pra restringir o fluxo -
+// enquanto configurado, o motor ignora a segmentacao de entrada e roda so pra
+// esse contato (ver AutomacaoEngineService.processarEntradaDeUmFluxo). Popover
+// simples com busca por nome/telefone, mesmo padrao de filtro do "+Iniciar
+// conversa" em Conversas.jsx, sem precisar de um componente de busca à parte.
+function SeletorContatoTeste({ contatoTesteId, patients, onEscolher }) {
+  const [aberto, setAberto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const ref = useRef(null);
+  const contato = patients.find((p) => p.id === contatoTesteId);
+
+  useEffect(() => {
+    if (!aberto) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setAberto(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [aberto]);
+
+  const encontrados = busca.trim()
+    ? patients.filter((p) => p.nome.toLowerCase().includes(busca.trim().toLowerCase()) || (p.tel || "").includes(busca.trim()))
+    : patients;
+
+  return (
+    <div style={{ position: "relative" }} ref={ref}>
+      <button
+        onClick={() => setAberto((o) => !o)}
+        title="Contato de teste - enquanto configurado, o fluxo só roda pra esse contato"
+        style={{
+          background: contato ? T.gold : "rgba(255,255,255,.1)", color: contato ? T.ink : "#fff",
+          fontWeight: 700, fontSize: 12.5, padding: "8px 12px", borderRadius: 9, whiteSpace: "nowrap",
+        }}
+      >
+        🧪 {contato ? contato.nome : "Definir contato de teste"}
+      </button>
+      {aberto && (
+        <div className="pop" style={{
+          position: "absolute", top: 40, right: 0, width: 260, maxHeight: 320, overflowY: "auto",
+          background: "#fff", border: `1px solid ${T.line}`, borderRadius: 10,
+          boxShadow: "0 10px 30px rgba(20,40,55,.24)", zIndex: 40, padding: 10,
+        }}>
+          {contato && (
+            <button
+              style={{ ...s.btnGhostSm, width: "100%", justifyContent: "center", color: T.coral, marginBottom: 8 }}
+              onClick={() => { onEscolher(null); setAberto(false); }}
+            >
+              Remover contato de teste
+            </button>
+          )}
+          <input
+            autoFocus
+            style={{ ...s.input, height: 32, fontSize: 12.5 }}
+            placeholder="Buscar lead por nome ou telefone..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+          <div style={{ display: "grid", gap: 2, marginTop: 8 }}>
+            {encontrados.slice(0, 30).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => { onEscolher(p.id); setAberto(false); }}
+                className="navItem"
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 8px", borderRadius: 7, fontSize: 12.5, color: T.ink }}
+              >
+                <b>{p.nome}</b> <span style={{ color: T.inkSoft }}>· {p.tel || "sem telefone"}</span>
+              </button>
+            ))}
+            {!encontrados.length && <div style={{ fontSize: 12.5, color: T.inkSoft, padding: "6px 8px" }}>Nenhum lead encontrado.</div>}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -14,6 +14,8 @@ public record FluxoAutomacaoDTO(
         Boolean ativo,
         @NotNull Object nodes,
         @NotNull Object edges,
-        LocalDateTime atualizadoEm
+        LocalDateTime atualizadoEm,
+        // Corte de seguranca (Fase 5) - ver FluxoAutomacao.contatoTesteId.
+        Long contatoTesteId
 ) {
 }

@@ -34,6 +34,13 @@ public class FluxoAutomacao {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String edgesJson;
 
+    // Corte de seguranca (Fase 5): quando preenchido, o motor de execucao IGNORA
+    // a segmentacao de entrada e cria execucao so pra esse contato - deixa o
+    // ADMIN validar o ciclo inteiro (mensagem, tag, aguardar resposta) com um
+    // numero real antes de tirar o campo e deixar o fluxo rodar pra quem
+    // realmente bate com a segmentacao. Ver AutomacaoEngineService.processarEntradaDeUmFluxo.
+    private Long contatoTesteId;
+
     private LocalDateTime atualizadoEm;
 
     @PrePersist
