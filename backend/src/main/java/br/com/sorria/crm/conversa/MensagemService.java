@@ -1,5 +1,7 @@
 package br.com.sorria.crm.conversa;
 
+import br.com.sorria.crm.automacao.ExecucaoFluxo;
+import br.com.sorria.crm.automacao.ExecucaoFluxoRepository;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.contact.ContatoService;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -37,6 +40,7 @@ public class MensagemService {
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final EvolutionApiClient evolutionApiClient;
     private final ObjectMapper objectMapper;
+    private final ExecucaoFluxoRepository execucaoFluxoRepository;
 
     // Rotulo amigavel pra cada tipo de midia que a Evolution manda no lugar de
     // "conversation" - so mostra um aviso por enquanto (visualizacao de verdade
@@ -150,6 +154,20 @@ public class MensagemService {
         mensagem.setPayloadBrutoMidia(payloadBrutoMidia);
         Mensagem salva = mensagemRepository.save(mensagem);
         atualizarUltimaMensagem(contato, salva);
+        retomarExecucoesAguardandoResposta(contato.getId());
+    }
+
+    // Fase 4 do motor de automacao: uma resposta de verdade do lead retoma
+    // qualquer ExecucaoFluxo parada no no "aguardar_mensagem" - so muda o
+    // status/proximaExecucaoEm aqui, quem realmente avanca o no e' o proximo
+    // tick do AutomacaoEngineService.executar() (@Scheduled a cada 30s).
+    private void retomarExecucoesAguardandoResposta(Long contatoId) {
+        List<ExecucaoFluxo> paradas = execucaoFluxoRepository.findByContatoIdAndStatus(contatoId, "aguardando_resposta");
+        for (ExecucaoFluxo execucao : paradas) {
+            execucao.setStatus("ativo");
+            execucao.setProximaExecucaoEm(LocalDateTime.now());
+            execucaoFluxoRepository.save(execucao);
+        }
     }
 
     // Devolve [texto, payloadBrutoDaMidiaOuNull]. Mensagem de texto simples (o

@@ -13,4 +13,8 @@ public interface ExecucaoFluxoRepository extends JpaRepository<ExecucaoFluxo, Lo
     boolean existsByFluxoIdAndContatoId(Long fluxoId, Long contatoId);
 
     List<ExecucaoFluxo> findByStatusAndProximaExecucaoEmLessThanEqual(String status, LocalDateTime agora);
+
+    // Fase 4: quando o contato manda uma mensagem de verdade, MensagemService
+    // usa isso pra achar execucoes paradas no no "aguardar_mensagem" e retomar.
+    List<ExecucaoFluxo> findByContatoIdAndStatus(Long contatoId, String status);
 }

@@ -43,7 +43,8 @@ import java.util.stream.Collectors;
 // - No de mensagem: so o campo "texto" e' enviado de verdade - "imagem"/"blocosConteudo" (anexos)
 //   nao tem suporte no EvolutionApiClient hoje (so /send/text, sem endpoint de midia).
 // - No "aguardar_mensagem": so marca a execucao como parada (status "aguardando_resposta") - quem
-//   retoma e' a Fase 4 (webhook do Evolution), que ainda nao existe.
+//   retoma e' MensagemService.retomarExecucoesAguardandoResposta (Fase 4), chamado toda vez que o
+//   webhook do Evolution recebe uma resposta de verdade do contato.
 @Service
 @RequiredArgsConstructor
 @Slf4j
