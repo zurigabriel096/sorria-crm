@@ -70,3 +70,8 @@ export const createTemplate = async (tpl) => templateFromApi(await api.post("/ap
 export const updateTemplate = async (id, tpl) => templateFromApi(await api.put(`/api/templates/${id}`, templateToApi(tpl)));
 export const deleteTemplate = (id) => api.del(`/api/templates/${id}`);
 export const archiveTemplate = async (id, arquivado) => templateFromApi(await api.patch(`/api/templates/${id}/arquivar`, { arquivado }));
+
+// Disparo isolado de teste - manda o template pra um numero digitado na hora,
+// sem criar/precisar de nenhum Contato/lead cadastrado.
+export const testarDisparoTemplate = (id, telefone, whatsappNumeroId) =>
+  api.post(`/api/templates/${id}/testar-disparo`, { telefone, whatsappNumeroId: whatsappNumeroId || null });

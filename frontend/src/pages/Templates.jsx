@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { dataHora } from "../utils/format";
@@ -8,13 +8,39 @@ import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { GuiaVariaveis } from "../components/ui/GuiaVariaveis";
-import { createTemplate, updateTemplate, deleteTemplate, archiveTemplate } from "../api/campaigns";
+import { createTemplate, updateTemplate, deleteTemplate, archiveTemplate, testarDisparoTemplate } from "../api/campaigns";
+import { listNumeros } from "../api/whatsappNumeros";
+
+const NUMERO_PRINCIPAL = "";
 
 export function Templates({ templates, setTemplates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, usuario, showToast }) {
   const [modal, setModal] = useState(null);
   const [fCat, setFCat] = useState("Todas");
   const [fCampanha, setFCampanha] = useState("Todas");
   const [verArquivados, setVerArquivados] = useState(false);
+  const [testando, setTestando] = useState(null); // null | {tpl, telefone, whatsappNumeroId, enviando}
+  const [numeros, setNumeros] = useState([]);
+  useEffect(() => { listNumeros().then(setNumeros).catch(() => setNumeros([])); }, []);
+
+  const abrirTeste = (tpl) => setTestando({ tpl, telefone: "", whatsappNumeroId: NUMERO_PRINCIPAL, enviando: false });
+
+  const enviarTeste = async () => {
+    if (!testando.telefone.trim()) return showToast("Digite o número de telefone", "warn");
+    setTestando((x) => ({ ...x, enviando: true }));
+    try {
+      const { status } = await testarDisparoTemplate(testando.tpl.id, testando.telefone.trim(), testando.whatsappNumeroId || null);
+      if (status === "Entregue") {
+        showToast("Teste enviado", "ok");
+        setTestando(null);
+      } else {
+        showToast(`Envio retornou "${status}" — confira o número/instância`, "warn");
+        setTestando((x) => ({ ...x, enviando: false }));
+      }
+    } catch (e) {
+      showToast(e.message || "Erro ao enviar teste", "warn");
+      setTestando((x) => ({ ...x, enviando: false }));
+    }
+  };
 
   const salvar = async (tpl) => {
     if (!tpl.nome.trim()) return showToast("Dê um nome ao template", "warn");
@@ -91,6 +117,7 @@ export function Templates({ templates, setTemplates, objetivos, objetivoObjetos,
                 <DotMenu
                   items={[
                     { label: "Editar", onClick: () => setModal({ ...t }) },
+                    { label: "Testar disparo", onClick: () => abrirTeste(t) },
                     { label: "Duplicar", onClick: () => duplicar(t) },
                     { label: t.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(t) },
                     { label: "Excluir", danger: true, onClick: () => excluir(t) },
@@ -118,6 +145,37 @@ export function Templates({ templates, setTemplates, objetivos, objetivoObjetos,
           onSave={salvar}
           onClose={() => setModal(null)}
         />
+      )}
+      {testando && (
+        <Modal title={`Testar disparo — ${testando.tpl.nome}`} onClose={() => setTestando(null)}>
+          <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 14 }}>
+            Manda esse template pro número abaixo agora mesmo, sem precisar de nenhum lead cadastrado ("{"{nome}"}" vira "Teste").
+          </div>
+          <Field label="De qual número você quer testar?">
+            <Select
+              block
+              value={testando.whatsappNumeroId}
+              onChange={(v) => setTestando({ ...testando, whatsappNumeroId: v })}
+              options={[NUMERO_PRINCIPAL, ...numeros.map((n) => String(n.id))]}
+              labels={{ [NUMERO_PRINCIPAL]: "Número principal", ...Object.fromEntries(numeros.map((n) => [String(n.id), n.nome])) }}
+            />
+          </Field>
+          <Field label="Telefone de destino (com DDD)">
+            <input
+              style={s.input}
+              placeholder="12988887777"
+              value={testando.telefone}
+              onChange={(e) => setTestando({ ...testando, telefone: e.target.value })}
+              autoFocus
+            />
+          </Field>
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setTestando(null)}>Cancelar</button>
+            <button style={{ ...s.btnPrimary, flex: 1, opacity: testando.enviando ? .6 : 1 }} onClick={enviarTeste} disabled={testando.enviando}>
+              {testando.enviando ? "Enviando..." : "Enviar teste"}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
