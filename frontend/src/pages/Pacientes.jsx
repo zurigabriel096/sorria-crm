@@ -30,7 +30,7 @@ function colunasFixas() {
       <span style={{ fontSize: 12.5, color: p.financ === "Inadimplente" ? T.coral : T.inkSoft, fontWeight: 600 }}>{p.financ}</span>
     ) },
     { chave: "dentista", rotulo: "Dentista", render: (p) => p.dentista || "—", numerica: true },
-    { chave: "recencia", rotulo: "Recência", render: (p) => (p.recencia != null ? p.recencia + "d" : "—"), numerica: true },
+    { chave: "recencia", rotulo: "Data do último atendimento", render: (p) => p.ultAtend || "—", numerica: true },
     { chave: "elegivel", rotulo: "Elegível", render: (p) => (p.elegivel ? <span style={s.tagOk}>● Sim</span> : <span style={s.tagBad}>▲ Não</span>) },
   ];
 }
