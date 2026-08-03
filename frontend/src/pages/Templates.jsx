@@ -231,7 +231,6 @@ function TemplateEditor({ tpl, objetivos, setObjetivos, onSave, onClose }) {
           <label style={{ ...s.btnGhostSm, cursor: "pointer" }}>Upload<input type="file" accept="image/*" style={{ display: "none" }} onChange={imgFile} /></label>
         </div>
       </Field>
-      <div style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>O WhatsApp não permite botões interativos em conexões como a nossa (só na API Business oficial) — por isso o template aqui é só texto.</div>
       <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
         <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Cancelar</button>
         <button style={{ ...s.btnPrimary, flex: 1 }} onClick={() => onSave(t)}>Salvar template</button>

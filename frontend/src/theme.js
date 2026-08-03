@@ -24,4 +24,4 @@ export const CLINICA = "Orthodontic SJC · Vilaça";
 // recência/vencimento depender de dados reais e não puder confiar no relógio do navegador.
 export const HOJE = new Date();
 
-export const SUPORTE_WA = `https://wa.me/5512982152470?text=${encodeURIComponent("Testando protótipo da Sorr.ia :)")}`;
+export const SUPORTE_WA = `https://wa.me/5512982154270?text=${encodeURIComponent("Testando protótipo da Sorr.ia :)")}`;
