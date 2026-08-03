@@ -2,16 +2,21 @@ package br.com.sorria.crm.campaign;
 
 import br.com.sorria.crm.campaign.dto.CampanhaDTO;
 import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
+import br.com.sorria.crm.campaign.dto.ProspectDTO;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.dispatch.DisparoHistorico;
+import br.com.sorria.crm.dispatch.DisparoProspectHistorico;
+import br.com.sorria.crm.dispatch.DisparoProspectHistoricoRepository;
 import br.com.sorria.crm.dispatch.DisparoRepository;
 import br.com.sorria.crm.whatsapp.EvolutionApiClient;
 import br.com.sorria.crm.whatsapp.WhatsAppNumero;
 import br.com.sorria.crm.whatsapp.WhatsAppNumeroRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +37,7 @@ public class CampanhaService {
     private final DisparoRepository disparoRepository;
     private final EvolutionApiClient evolutionApiClient;
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
+    private final DisparoProspectHistoricoRepository disparoProspectHistoricoRepository;
 
     public List<CampanhaDTO> listar() {
         return campanhaRepository.findAll().stream().map(this::toDTO).toList();
@@ -146,6 +152,75 @@ public class CampanhaService {
         return new DispatchResultDTO(elegiveis.size(), entregues, falhas);
     }
 
+    // Disparo pra prospects (fora do CRM) - a lista vem inteira na hora (upload de
+    // planilha no frontend), NUNCA cria/mescla Contato, NUNCA grava Mensagem/tag/
+    // estagio. So fica um registro agregado (DisparoProspectHistorico, 1 linha pra
+    // todo o disparo) pro Painel Executivo mostrar "template X enviou pra Y
+    // prospects" - ver aviso de risco em Campanha.modoProspects. Sem @Transactional
+    // pelo mesmo motivo de disparar(): a pausa entre envios nao pode segurar conexao.
+    public DispatchResultDTO dispararProspects(Long campanhaId, Long templateIdEscolhido, List<ProspectDTO> prospects) {
+        Campanha campanha = buscarEntidade(campanhaId);
+        if (!Boolean.TRUE.equals(campanha.getModoProspects())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esta campanha nao esta em modo prospects.");
+        }
+        Long templateId = templateIdEscolhido != null ? templateIdEscolhido : campanha.getTemplateId();
+        Template template = templateId != null ? templateRepository.findById(templateId).orElse(null) : null;
+        String corpoTemplate = template != null && template.getCorpo() != null ? template.getCorpo() : "";
+
+        List<ProspectDTO> validos = prospects == null ? List.of() : prospects.stream()
+                .filter(p -> normalizarTelefoneProspect(p.telefone()) != null)
+                .toList();
+
+        int entregues = 0;
+        int falhas = 0;
+        int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
+                ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
+        String tokenInstancia = resolverTokenInstancia(campanha);
+
+        for (int i = 0; i < validos.size(); i++) {
+            ProspectDTO prospect = validos.get(i);
+            String telefone = normalizarTelefoneProspect(prospect.telefone());
+            String mensagem = corpoTemplate.replace("{nome}", primeiroNome(prospect.nome()));
+            String status = evolutionApiClient.enviarMensagem(telefone, mensagem, tokenInstancia);
+
+            if ("Entregue".equals(status)) entregues++;
+            else if ("Falhou".equals(status)) falhas++;
+
+            if (i < validos.size() - 1) {
+                int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (intervaloBaseMs * 0.4) + 1);
+                try {
+                    Thread.sleep(intervaloBaseMs + jitterMs);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Disparo pra prospects da campanha {} interrompido no meio do envio ({}/{})", campanha.getId(), i + 1, validos.size());
+                    break;
+                }
+            }
+        }
+
+        DisparoProspectHistorico historico = new DisparoProspectHistorico();
+        historico.setCampanhaId(campanha.getId());
+        historico.setCampanhaNome(campanha.getNome());
+        historico.setTemplateId(templateId);
+        historico.setTemplateNome(template != null ? template.getNome() : null);
+        historico.setTotalProspects(validos.size());
+        historico.setQuantidadeEntregue(entregues);
+        historico.setQuantidadeFalhou(falhas);
+        disparoProspectHistoricoRepository.save(historico);
+
+        return new DispatchResultDTO(validos.size(), entregues, falhas);
+    }
+
+    // Mesma convencao de normalizarTelefone do ContatoService (55+DDD+numero, so
+    // digitos) - prospect nao passa por Contato, entao precisa da propria copia.
+    private static String normalizarTelefoneProspect(String bruto) {
+        if (bruto == null) return null;
+        String digitos = bruto.replaceAll("\\D", "");
+        if (digitos.isBlank()) return null;
+        if (digitos.length() <= 11 && !digitos.startsWith("55")) digitos = "55" + digitos;
+        return digitos;
+    }
+
     // null (nao escolheu numero) = usa sempre o numero principal, fixo na config
     // do EvolutionApiClient - preserva o comportamento de campanhas criadas antes
     // deste campo existir, sem depender de qual numero foi cadastrado por ultimo.
@@ -182,6 +257,7 @@ public class CampanhaService {
         campanha.setTemplateId(dto.templateId());
         campanha.setIntervaloSegundos(dto.intervaloSegundos());
         campanha.setWhatsappNumeroId(dto.whatsappNumeroId());
+        campanha.setModoProspects(dto.modoProspects() != null && dto.modoProspects());
     }
 
     private CampanhaDTO toDTO(Campanha c) {
@@ -189,6 +265,6 @@ public class CampanhaService {
                 c.getStatus(), c.getInicio(), c.getEmailMsg(), c.getTemplateId(),
                 Boolean.TRUE.equals(c.getArquivado()), c.getAtualizadoEm(),
                 c.getIntervaloSegundos() != null ? c.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS,
-                c.getWhatsappNumeroId());
+                c.getWhatsappNumeroId(), Boolean.TRUE.equals(c.getModoProspects()));
     }
 }

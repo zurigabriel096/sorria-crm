@@ -3,6 +3,7 @@ import { T } from "../theme";
 import { s } from "../styles/s";
 import { num } from "../utils/format";
 import { getDashboardKpis } from "../api/dashboard";
+import { listDispatchProspectHistory } from "../api/campaigns";
 import { getMetricasVisiveis, setMetricasVisiveis as apiSetMetricasVisiveis } from "../api/configPainelMetricas";
 import { listPainelCards, createPainelCard, updatePainelCard, deletePainelCard } from "../api/painelCards";
 import { Card } from "../components/ui/Card";
@@ -29,6 +30,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   const [kpis, setKpis] = useState(null);
   const [metricasVisiveis, setMetricasVisiveisState] = useState(null);
   const [cards, setCards] = useState([]);
+  const [prospectsHistorico, setProspectsHistorico] = useState([]);
   const [personalizando, setPersonalizando] = useState(false);
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
     getDashboardKpis().then(setKpis).catch((e) => showToast(e.message || "Erro ao carregar KPIs", "warn"));
     getMetricasVisiveis().then(setMetricasVisiveisState).catch(() => setMetricasVisiveisState(METRICAS.map((m) => m.chave)));
     listPainelCards().then(setCards).catch(() => setCards([]));
+    listDispatchProspectHistory().then(setProspectsHistorico).catch(() => setProspectsHistorico([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patients.length, historico.length]);
 
@@ -84,6 +87,20 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
         })}
         <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
       </Card>
+      {!!prospectsHistorico.length && (
+        <Card title="Disparos pra prospects (fora do CRM)">
+          <div style={{ display: "grid", gap: 6 }}>
+            {prospectsHistorico.map((h) => (
+              <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: T.lineSoft, borderRadius: 8, fontSize: 12.5 }}>
+                <span style={{ fontWeight: 700, color: T.ink, flex: 1 }}>{h.templateNome || "—"}</span>
+                <span style={{ color: T.inkSoft }}>{h.campanhaNome}</span>
+                <span style={{ color: T.wa, fontWeight: 700 }}>{num(h.quantidadeEntregue)} entregues</span>
+                <span style={{ color: T.inkSoft }}>de {num(h.totalProspects)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       {personalizando && (
         <PersonalizarPainelModal
           metricasVisiveis={metricasVisiveis}

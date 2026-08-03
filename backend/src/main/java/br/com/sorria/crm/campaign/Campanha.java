@@ -50,6 +50,13 @@ public class Campanha {
     // com null aqui — e null != false pra um boolean primitivo (quebraria a leitura).
     private Boolean arquivado = false;
 
+    // Campanha "pra prospects" (fora do CRM): disparo em massa por lista de
+    // telefones enviada na hora (nao vem de Contato/Segmentacao), sem gerar
+    // nem mesclar cadastro nenhum - so fica registrado o total agregado em
+    // DisparoProspectHistorico (ver CampanhaService.dispararProspects). Wrapper
+    // pelo mesmo motivo de "arquivado" acima (coluna nova em tabela com linhas).
+    private Boolean modoProspects = false;
+
     private LocalDateTime atualizadoEm;
 
     @PrePersist

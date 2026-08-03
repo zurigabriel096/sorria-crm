@@ -10,7 +10,7 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { IconSend } from "../components/icons";
 import { listNumeros } from "../api/whatsappNumeros";
 
-const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3, whatsappNumeroId: "" });
+const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3, whatsappNumeroId: "", modoProspects: false });
 
 export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
@@ -27,7 +27,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
 
   const abrirNovo = () => { setF(vazio()); setModal("novo"); };
   const abrirEdicao = (c) => {
-    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 3, whatsappNumeroId: c.whatsappNumeroId || "" });
+    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 3, whatsappNumeroId: c.whatsappNumeroId || "", modoProspects: !!c.modoProspects });
     setModal("editar");
   };
 
@@ -131,7 +131,8 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
             <div style={{ fontWeight: 700, fontSize: 16, color: T.ink, margin: "12px 0 4px" }}>{c.nome}</div>
             <div style={{ fontSize: 12.5, color: T.inkSoft }}>{c.responsavel} · {c.inicio}</div>
             <div style={{ display: "grid", gap: 4, marginTop: 4, flex: 1 }}>
-              {c.segmentoId && <div style={{ fontSize: 11.5, color: T.primary, fontWeight: 600 }}>Segmentação: {segmentos.find((sg) => sg.id === c.segmentoId)?.nome || "—"}</div>}
+              {c.modoProspects && <div style={{ fontSize: 11.5, color: T.coral, fontWeight: 700 }}>⚠ Prospects (fora do CRM)</div>}
+              {!c.modoProspects && c.segmentoId && <div style={{ fontSize: 11.5, color: T.primary, fontWeight: 600 }}>Segmentação: {segmentos.find((sg) => sg.id === c.segmentoId)?.nome || "—"}</div>}
               {c.templateId && <div style={{ fontSize: 11.5, color: T.inkSoft }}>Template: {templates.find((t) => t.id === c.templateId)?.nome || "—"}</div>}
               {c.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft }}>Editado em {dataHora(c.atualizadoEm)}</div>}
             </div>
@@ -153,19 +154,32 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
               <button style={s.btnGhostSm} onClick={addObj}>+ Add</button>
             </div>
           </Field>
-          <Field label="Segmentação (opcional)">
-            <select
-              style={{ ...s.select, width: "100%" }}
-              value={f.segmentoId || ""}
-              onChange={(e) => setF({ ...f, segmentoId: e.target.value ? Number(e.target.value) : "" })}
-            >
-              <option value="">Sem segmentação (toda a base elegível)</option>
-              {segmentos.filter((sg) => !sg.arquivado || sg.id === f.segmentoId).map((sg) => <option key={sg.id} value={sg.id}>{sg.nome}</option>)}
-            </select>
-            <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
-              {f.segmentoId ? `Disparo restrito à segmentação "${segmentos.find((sg) => sg.id === f.segmentoId)?.nome}".` : "Sem segmentação: dispara pra toda a base elegível."}
+          <div style={{ border: `1.5px dashed ${T.coral}`, borderRadius: 10, padding: 10, marginBottom: 4 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: T.ink }}>
+              <input type="checkbox" checked={f.modoProspects} onChange={(e) => setF({ ...f, modoProspects: e.target.checked, segmentoId: "" })} />
+              Disparo pra prospects (fora do CRM)
+            </label>
+            <div style={{ fontSize: 11.5, color: T.coral, fontWeight: 600, marginTop: 6 }}>
+              Atenção: os números que subirem por aqui vão receber a mensagem de WhatsApp, mas NÃO
+              serão salvos no CRM (não viram lead, não entram na Base de Leads). Só o total de
+              disparos fica registrado no Painel Executivo.
             </div>
-          </Field>
+          </div>
+          {!f.modoProspects && (
+            <Field label="Segmentação (opcional)">
+              <select
+                style={{ ...s.select, width: "100%" }}
+                value={f.segmentoId || ""}
+                onChange={(e) => setF({ ...f, segmentoId: e.target.value ? Number(e.target.value) : "" })}
+              >
+                <option value="">Sem segmentação (toda a base elegível)</option>
+                {segmentos.filter((sg) => !sg.arquivado || sg.id === f.segmentoId).map((sg) => <option key={sg.id} value={sg.id}>{sg.nome}</option>)}
+              </select>
+              <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
+                {f.segmentoId ? `Disparo restrito à segmentação "${segmentos.find((sg) => sg.id === f.segmentoId)?.nome}".` : "Sem segmentação: dispara pra toda a base elegível."}
+              </div>
+            </Field>
+          )}
           {f.canal === "Email" && (
             <Field label="Mensagem de email (não personalizada nesta fase)">
               <textarea style={s.textarea} rows={3} value={f.emailMsg} onChange={(e) => setF({ ...f, emailMsg: e.target.value })} placeholder="Texto simples do email..." />

@@ -20,6 +20,13 @@ export const dispatchCampaign = (id, templateId, contatoIds) => {
   return api.post(`/api/campaigns/${id}/dispatch${qs ? `?${qs}` : ""}`);
 };
 
+// Disparo pra prospects (fora do CRM) - a lista inteira (telefone+nome) vai no
+// corpo, nao cria/mescla Contato nenhum. Retorna { total, entregues, falhas }.
+export const dispatchProspects = (id, templateId, prospects) =>
+  api.post(`/api/campaigns/${id}/dispatch-prospects`, { templateId: templateId || null, prospects });
+
+export const listDispatchProspectHistory = () => api.get("/api/dispatch-prospect-history");
+
 export const listDispatchHistory = async () =>
   (await api.get("/api/dispatch-history")).map((h) => ({
     contatoId: h.contatoId,

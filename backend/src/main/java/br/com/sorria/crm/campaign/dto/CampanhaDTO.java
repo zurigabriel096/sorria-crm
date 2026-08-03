@@ -17,6 +17,8 @@ public record CampanhaDTO(
         Boolean arquivado,
         LocalDateTime atualizadoEm,
         Integer intervaloSegundos,
-        Long whatsappNumeroId
+        Long whatsappNumeroId,
+        // Campanha "pra prospects" (fora do CRM) - ver Campanha.modoProspects.
+        Boolean modoProspects
 ) {
 }

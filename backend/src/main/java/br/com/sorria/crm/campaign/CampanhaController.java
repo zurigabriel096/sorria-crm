@@ -1,6 +1,7 @@
 package br.com.sorria.crm.campaign;
 
 import br.com.sorria.crm.campaign.dto.CampanhaDTO;
+import br.com.sorria.crm.campaign.dto.DispatchProspectRequest;
 import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
 import br.com.sorria.crm.common.dto.ArquivarRequest;
 import jakarta.validation.Valid;
@@ -58,5 +59,13 @@ public class CampanhaController {
                                        @RequestParam(required = false) Long templateId,
                                        @RequestParam(required = false) List<Long> contatoIds) {
         return campanhaService.disparar(id, templateId, contatoIds);
+    }
+
+    // Disparo pra prospects (fora do CRM) - so campanhas com modoProspects=true.
+    // A lista de telefones/nomes vem inteira no corpo (upload de planilha feito
+    // no frontend), nao cria/mescla Contato nenhum - ver CampanhaService.dispararProspects.
+    @PostMapping("/{id}/dispatch-prospects")
+    public DispatchResultDTO dispararProspects(@PathVariable Long id, @RequestBody DispatchProspectRequest req) {
+        return campanhaService.dispararProspects(id, req.templateId(), req.prospects());
     }
 }
