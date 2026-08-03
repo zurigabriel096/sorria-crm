@@ -13,7 +13,7 @@ import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
-import { IconUsers, IconCheck, IconSend, IconGrid, IconGear } from "../components/icons";
+import { IconUsers, IconCheck, IconSend, IconGrid } from "../components/icons";
 
 // Catálogo de métricas de volume de disparo/mensagem que o ADMIN pode
 // mostrar/esconder (ConfigPainelMetricas) - cada uma sabe montar seu próprio KpiCard.
@@ -63,7 +63,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
     <div style={{ display: "grid", gap: 18 }}>
       {souAdmin && (
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button style={s.btnGhostSm} onClick={() => setPersonalizando(true)}><IconGear color={T.inkSoft} width={14} height={14} /> Personalizar painel</button>
+          <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />
         </div>
       )}
       <div style={s.kpiRow}>

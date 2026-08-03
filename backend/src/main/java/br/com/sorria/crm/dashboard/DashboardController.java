@@ -26,7 +26,14 @@ public class DashboardController {
         long elegiveis = contatoRepository.countByElegivelTrue();
         long disparados = contatoRepository.countByEnviado("Disparado") + contatoRepository.countByEnviado("Entregue");
         long entregues = disparoRepository.countByStatus("Entregue");
-        long taxaEntregaPct = disparados > 0 ? Math.round(entregues * 100.0 / disparados) : 0;
+        // Taxa de entrega precisa comparar a MESMA base - "disparados" acima e' um
+        // snapshot (contato.enviado = so o status do ULTIMO disparo de cada um,
+        // uma linha por contato), enquanto "entregues" e' cumulativo (uma linha de
+        // DisparoHistorico por envio, contato pode aparecer varias vezes). Usar
+        // disparados como denominador dava taxa > 100% assim que algum contato
+        // recebia mais de uma campanha. Aqui os dois lados vem do mesmo historico.
+        long totalHistorico = disparoRepository.count();
+        long taxaEntregaPct = totalHistorico > 0 ? Math.round(entregues * 100.0 / totalHistorico) : 0;
 
         // Base por estagio do Kanban - substitui o antigo agrupamento por
         // Segmento (VIP/Fidelizado/Risco/Inativo), removido do produto.
