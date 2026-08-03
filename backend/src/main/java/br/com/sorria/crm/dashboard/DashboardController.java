@@ -26,6 +26,7 @@ public class DashboardController {
         long elegiveis = contatoRepository.countByElegivelTrue();
         long disparados = contatoRepository.countByEnviado("Disparado") + contatoRepository.countByEnviado("Entregue");
         long entregues = disparoRepository.countByStatus("Entregue");
+        long taxaEntregaPct = disparados > 0 ? Math.round(entregues * 100.0 / disparados) : 0;
 
         // Base por estagio do Kanban - substitui o antigo agrupamento por
         // Segmento (VIP/Fidelizado/Risco/Inativo), removido do produto.
@@ -38,6 +39,7 @@ public class DashboardController {
         kpis.put("elegiveis", elegiveis);
         kpis.put("disparados", disparados);
         kpis.put("entregues", entregues);
+        kpis.put("taxaEntregaPct", taxaEntregaPct);
         kpis.put("porEstagio", porEstagio);
         return kpis;
     }

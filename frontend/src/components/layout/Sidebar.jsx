@@ -2,13 +2,13 @@ import { useRef, useState } from "react";
 import { T } from "../../theme";
 import { s } from "../../styles/s";
 import { Logo } from "../Logo";
-import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam, IconCard, IconLife, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox } from "../icons";
+import { IconGrid, IconUsers, IconFilter, IconMega, IconChat, IconSend, IconTeam, IconCard, IconLife, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox, IconHome } from "../icons";
 
 // Itens simples navegam direto; itens com "children" viram um grupo expansível
 // (acordeão inline), no espírito do menu de Campanhas da RD Station. O próprio
 // grupo já é uma página navegável (view === group), os "children" são só os
 // itens satélite — sem duplicar "Campanhas" dentro do próprio submenu.
-const ITEMS = [
+const ITEMS_BASE = [
   ["dashboard", "Painel", IconGrid],
   ["filaTrabalho", "Fila de Trabalho", IconInbox],
   ["pacientes", "Base de Leads", IconUsers],
@@ -31,8 +31,14 @@ const ITEMS = [
 const isViewInGroup = (item, v) =>
   v === item.group || (v === "disparo" && item.group === "campanhas") || item.children.some(([k]) => k === v);
 
-export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngry }) {
+export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngry, usuario }) {
   const clicks = useRef([]);
+  // "Início" (tela de boas-vindas do colaborador) so entra pra quem NAO e'
+  // ADMIN/GESTOR - ver App.jsx viewInicialPara. Antes so dava pra voltar
+  // pra la deslogando e logando de novo, sem nenhuma entrada de menu.
+  const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
+  const ITEMS = souAdminOuGestor ? ITEMS_BASE : [["inicio", "Início", IconHome], ...ITEMS_BASE];
+
   // Só semeia aberto se a página inicial já cair no grupo; depois disso o estado
   // de expandido/recolhido é só do usuário — nunca recalculado a partir da página
   // ativa, senão a seta trava aberta enquanto o grupo estiver selecionado.
