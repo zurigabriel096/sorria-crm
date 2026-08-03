@@ -5,21 +5,50 @@ import { Field } from "./ui/Field";
 import { Select } from "./ui/Select";
 import { Modal } from "./ui/Modal";
 import { StatusBadge } from "./ui/StatusBadge";
-import { IconBook } from "./icons";
+import { IconBook, IconEdit } from "./icons";
 import { listEtapas } from "../api/etapas";
 import { listColaboradores } from "../api/colaboradores";
+import { getOrdemCamposLead, setOrdemCamposLead } from "../api/configCamposLead";
+
+const ORDEM_PADRAO = ["nome", "cod", "tel", "email", "estagio", "responsavelId", "financ", "dentista", "elegivel"];
+const ROTULOS_CAMPOS = {
+  nome: "Nome", cod: "Código", tel: "Telefone", email: "Email", estagio: "Estágio",
+  responsavelId: "Responsável pelo Lead", financ: "Financeiro", dentista: "Dentista", elegivel: "Elegível p/ disparo",
+};
 
 // Modal de detalhe do paciente, com duas abas: Dados (cadastro) e Histórico do cliente
 // (mensagens que ele recebeu). Usado tanto pela tela de Pacientes quanto pela de Disparos,
 // pra manter a mesma experiência não importa de onde a pessoa chegou até o paciente.
-export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomizados, historico, abaInicial = "dados", onSave, onClose }) {
+export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomizados, historico, usuario, abaInicial = "dados", onSave, onClose }) {
+  const souAdmin = usuario?.papel === "ADMIN";
   const [aba, setAba] = useState(abaInicial);
   const [p, setP] = useState(paciente);
   const [dirty, setDirty] = useState(false);
   const [etapas, setEtapas] = useState(["Lead"]);
   const [colaboradores, setColaboradores] = useState([]);
+  const [ordemCampos, setOrdemCamposState] = useState(ORDEM_PADRAO);
+  const [reordenando, setReordenando] = useState(false);
+  const [erroOrdem, setErroOrdem] = useState(null);
   useEffect(() => { listEtapas().then((lista) => setEtapas(lista.map((e) => e.nome))).catch(() => {}); }, []);
   useEffect(() => { listColaboradores().then(setColaboradores).catch(() => {}); }, []);
+  useEffect(() => { getOrdemCamposLead().then((ordem) => setOrdemCamposState(ordem?.length ? ordem : ORDEM_PADRAO)).catch(() => {}); }, []);
+
+  const moverCampo = (indice, direcao) => {
+    const novo = [...ordemCampos];
+    const alvo = indice + direcao;
+    if (alvo < 0 || alvo >= novo.length) return;
+    [novo[indice], novo[alvo]] = [novo[alvo], novo[indice]];
+    setOrdemCamposState(novo);
+  };
+  const salvarOrdem = async () => {
+    try {
+      await setOrdemCamposLead(ordemCampos);
+      setErroOrdem(null);
+      setReordenando(false);
+    } catch (e) {
+      setErroOrdem(e.message || "Erro ao salvar a ordem dos campos.");
+    }
+  };
   const set = (k, v) => { setP((x) => ({ ...x, [k]: v })); setDirty(true); };
   const toggleTag = (t) => {
     setP((x) => ({ ...x, tags: (x.tags || []).includes(t) ? x.tags.filter((y) => y !== t) : [...(x.tags || []), t] }));
@@ -34,9 +63,36 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
     .filter((h) => h.contatoId === paciente.id)
     .sort((a, b) => new Date(b.horaCompleta || 0) - new Date(a.horaCompleta || 0));
 
+  // Um Field por campo fixo - a ORDEM de renderizacao vem de ordemCampos
+  // (configuravel pelo lapisinho), o conteudo de cada um continua fixo.
+  const campoFixoJsx = (chave) => {
+    switch (chave) {
+      case "nome": return <Field key={chave} label="Nome"><input style={s.input} value={p.nome} onChange={(e) => set("nome", e.target.value)} /></Field>;
+      case "cod": return <Field key={chave} label="Código"><input style={s.input} value={p.cod} onChange={(e) => set("cod", e.target.value)} /></Field>;
+      case "tel": return <Field key={chave} label="Telefone"><input style={s.input} value={p.tel} onChange={(e) => set("tel", e.target.value)} /></Field>;
+      case "email": return <Field key={chave} label="Email"><input style={s.input} value={p.email} onChange={(e) => set("email", e.target.value)} placeholder="email@paciente.com" /></Field>;
+      case "estagio": return <Field key={chave} label="Estágio"><Select block value={p.estagio || "Lead"} onChange={(v) => set("estagio", v)} options={etapas} /></Field>;
+      case "responsavelId": return (
+        <Field key={chave} label="Responsável pelo Lead">
+          <Select
+            block
+            value={p.responsavelId ? String(p.responsavelId) : ""}
+            onChange={(v) => set("responsavelId", v ? Number(v) : null)}
+            options={["", ...colaboradores.map((c) => String(c.id))]}
+            labels={{ "": "Sem responsável (fila compartilhada)", ...Object.fromEntries(colaboradores.map((c) => [String(c.id), c.nome])) }}
+          />
+        </Field>
+      );
+      case "financ": return <Field key={chave} label="Financeiro"><Select block value={p.financ} onChange={(v) => set("financ", v)} options={["Adimplente", "Inadimplente", "—"]} /></Field>;
+      case "dentista": return <Field key={chave} label="Dentista"><input style={s.input} value={p.dentista} onChange={(e) => set("dentista", e.target.value)} /></Field>;
+      case "elegivel": return <Field key={chave} label="Elegível p/ disparo"><Select block value={p.elegivel ? "Sim" : "Não"} onChange={(v) => set("elegivel", v === "Sim")} options={["Sim", "Não"]} /></Field>;
+      default: return null;
+    }
+  };
+
   return (
     <Modal title={`Lead: ${paciente.nome}`} onClose={onClose} dirty={aba === "dados" && dirty} onSave={() => onSave(p)} wide>
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
         <button
           onClick={() => setAba("dados")}
           style={{ ...s.toggleBtn, background: aba === "dados" ? T.primary : T.lineSoft, color: aba === "dados" ? "#fff" : T.inkSoft }}
@@ -49,28 +105,41 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
         >
           <IconBook color={aba === "historico" ? "#fff" : T.inkSoft} /> Histórico do cliente
         </button>
+        {souAdmin && aba === "dados" && (
+          <button
+            onClick={() => { setReordenando((r) => !r); setErroOrdem(null); }}
+            title="Reordenar campos do cadastro"
+            style={{ ...s.collapseBtn, marginLeft: "auto" }}
+          >
+            <IconEdit color={reordenando ? T.primary : T.inkSoft} width={15} height={15} />
+          </button>
+        )}
       </div>
+
+      {aba === "dados" && reordenando && (
+        <div style={{ background: T.lineSoft, borderRadius: 12, padding: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 8 }}>Reordene os campos do cadastro (afeta todos os leads):</div>
+          <div style={{ display: "grid", gap: 6 }}>
+            {ordemCampos.map((chave, i) => (
+              <div key={chave} style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", border: `1px solid ${T.line}`, borderRadius: 8, padding: "6px 10px" }}>
+                <span style={{ flex: 1, fontSize: 13, color: T.ink }}>{ROTULOS_CAMPOS[chave] || chave}</span>
+                <button style={s.btnGhostSm} disabled={i === 0} onClick={() => moverCampo(i, -1)}>↑</button>
+                <button style={s.btnGhostSm} disabled={i === ordemCampos.length - 1} onClick={() => moverCampo(i, 1)}>↓</button>
+              </div>
+            ))}
+          </div>
+          {erroOrdem && <div style={{ fontSize: 12.5, color: T.coral, marginTop: 8 }}>{erroOrdem}</div>}
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button style={s.btnGhostSm} onClick={() => setReordenando(false)}>Cancelar</button>
+            <button style={s.btnPrimarySm} onClick={salvarOrdem}>Salvar ordem</button>
+          </div>
+        </div>
+      )}
 
       {aba === "dados" && (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <Field label="Nome"><input style={s.input} value={p.nome} onChange={(e) => set("nome", e.target.value)} /></Field>
-            <Field label="Código"><input style={s.input} value={p.cod} onChange={(e) => set("cod", e.target.value)} /></Field>
-            <Field label="Telefone"><input style={s.input} value={p.tel} onChange={(e) => set("tel", e.target.value)} /></Field>
-            <Field label="Email"><input style={s.input} value={p.email} onChange={(e) => set("email", e.target.value)} placeholder="email@paciente.com" /></Field>
-            <Field label="Estágio"><Select block value={p.estagio || "Lead"} onChange={(v) => set("estagio", v)} options={etapas} /></Field>
-            <Field label="Responsável pelo Lead">
-              <Select
-                block
-                value={p.responsavelId ? String(p.responsavelId) : ""}
-                onChange={(v) => set("responsavelId", v ? Number(v) : null)}
-                options={["", ...colaboradores.map((c) => String(c.id))]}
-                labels={{ "": "Sem responsável (fila compartilhada)", ...Object.fromEntries(colaboradores.map((c) => [String(c.id), c.nome])) }}
-              />
-            </Field>
-            <Field label="Financeiro"><Select block value={p.financ} onChange={(v) => set("financ", v)} options={["Adimplente", "Inadimplente", "—"]} /></Field>
-            <Field label="Dentista"><input style={s.input} value={p.dentista} onChange={(e) => set("dentista", e.target.value)} /></Field>
-            <Field label="Elegível p/ disparo"><Select block value={p.elegivel ? "Sim" : "Não"} onChange={(v) => set("elegivel", v === "Sim")} options={["Sim", "Não"]} /></Field>
+            {ordemCampos.map((chave) => campoFixoJsx(chave))}
           </div>
           <Field label="Próxima ação (follow-up)">
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

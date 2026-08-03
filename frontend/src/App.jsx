@@ -511,6 +511,7 @@ export default function App() {
           tagObjetos={tagObjetos}
           camposCustomizados={camposCustomizados}
           historico={historico}
+          usuario={usuario}
           onSave={salvarPaciente}
           onClose={() => setPacienteAberto(null)}
         />
