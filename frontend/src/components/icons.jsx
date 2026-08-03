@@ -58,21 +58,30 @@ export const IconUserPlaceholder = (p) => (
     <path d="M4 20A8 6 0 0 1 20 20Z" />
   </svg>
 );
-// Moeda - usada no card "Financeiro" do Painel Executivo.
+// Moeda - usada no card "Financeiro" do Painel Executivo. Silhueta solida
+// (igual referencia do Samuel) - o "$" e' <text> de verdade (fonte do
+// navegador), nao um path desenhado a mao - um cifrao bezier a mao livre sem
+// conseguir renderizar pra conferir e' exatamente o tipo de risco que ja
+// deu errado antes (ver IconGavel/IconUserPlaceholder). dominantBaseline
+// "central" centraliza vertical de forma robusta, sem chutar coordenada y.
 export const IconCoin = (p) => (
-  <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill="none" stroke={p.color || T.inkSoft} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M9 15.5c0 1.1 1.3 2 3 2s3-.7 3-1.6c0-2.5-6-1.3-6-3.9 0-.9 1.3-1.6 3-1.6s3 .9 3 2M12 7.5v1M12 15.5v1" />
+  <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill={p.color || T.inkSoft}>
+    <circle cx="12" cy="12" r="11" />
+    <text x="12" y="12.5" textAnchor="middle" dominantBaseline="central" fontSize="15" fontWeight="700" fill="#fff" fontFamily="Arial, sans-serif">$</text>
   </svg>
 );
 // Martelo de juiz (gavel) - usado no card de campos tipo "Situação" no Painel.
-// Desenhado so com formas basicas (retangulo + linha) de proposito - path a
-// mao livre sem conseguir renderizar pra conferir e' risco demais de sair
-// torto (ver IconUserPlaceholder acima, mesmo aprendizado).
+// Silhueta solida (preenchida, igual referencia que o Samuel mandou): cabo
+// fino + cabeca grossa, os dois desenhados alinhados na horizontal (facil de
+// checar visualmente sem trigonometria) e girados juntos 45° de uma vez so -
+// garante que cabo e cabeca ficam conectados na mesma diagonal por
+// construcao, sem risco de desalinhar (mesmo aprendizado do IconUserPlaceholder).
 export const IconGavel = (p) => (
-  <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill="none" stroke={p.color || T.inkSoft} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="7" y="2" width="6" height="13" rx="2" transform="rotate(45 10 8.5)" />
-    <line x1="4" y1="20" x2="16" y2="20" />
+  <svg width={p.width || 18} height={p.height || 18} viewBox="0 0 24 24" fill={p.color || T.inkSoft}>
+    <g transform="rotate(45 12 12)">
+      <rect x="11" y="10.5" width="12" height="3" rx="1.5" />
+      <rect x="1" y="6" width="11" height="12" rx="4" />
+    </g>
   </svg>
 );
 export const Dot = ({ color }) => <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block" }} />;
