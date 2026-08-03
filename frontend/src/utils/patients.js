@@ -180,8 +180,23 @@ export function montarPacientes(rows, hi, mapeamento, novosCampos = []) {
   return pacientes;
 }
 
+// Exporta TODOS os campos do lead, inclusive os que nao aparecem na tabela
+// (ocultos por colunasVisiveis) e os Campos Personalizados - pensado pra
+// cruzamento de dados com planilha fonte, nao so pra visualizacao rapida.
 export function exportarXlsx(patients) {
-  const data = patients.map((p) => ({ Cód: p.cod, Lead: p.nome, Telefone: p.tel, Email: p.email, "Sit.Financ.": p.financ, Dentista: p.dentista, "Últ. Atend": p.ultAtend, Estágio: p.estagio, Elegível: p.elegivel ? "Sim" : "Não", Tags: (p.tags || []).join(", "), Status: p.enviado }));
+  const chavesCustomizadas = [...new Set(patients.flatMap((p) => Object.keys(p.camposCustomizados || {})))];
+  const data = patients.map((p) => {
+    const linha = {
+      Cód: p.cod, Lead: p.nome, Telefone: p.tel, Email: p.email,
+      "Sit.Financ.": p.financ, "Inadimplente desde": p.inadimplenteDesde || "",
+      Dentista: p.dentista, "Últ. Atend": p.ultAtend, "Tempo sem atendimento (dias)": p.recencia ?? "",
+      Estágio: p.estagio, Elegível: p.elegivel ? "Sim" : "Não", Tags: (p.tags || []).join(", "),
+      Status: p.enviado, Origem: p.origem || "", "Próxima ação em": p.proximaAcaoEm || "",
+      "Última mensagem em": p.ultimaMensagemEm || "", "Última mensagem (direção)": p.ultimaMensagemDirecao || "",
+    };
+    chavesCustomizadas.forEach((chave) => { linha[chave] = (p.camposCustomizados || {})[chave] ?? ""; });
+    return linha;
+  });
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Leads");
   XLSX.writeFile(wb, "sorria_leads_atualizado.xlsx");
