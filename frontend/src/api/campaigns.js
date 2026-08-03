@@ -25,6 +25,10 @@ export const dispatchCampaign = (id, templateId, contatoIds) => {
 export const dispatchProspects = (id, templateId, prospects) =>
   api.post(`/api/campaigns/${id}/dispatch-prospects`, { templateId: templateId || null, prospects });
 
+// Performance calculada sob demanda (nao fica salva nem exposta por padrao) -
+// pensado pra comparar 2 campanhas usadas como variantes de teste A/B.
+export const getCampaignPerformance = (id) => api.get(`/api/campaigns/${id}/performance`);
+
 export const listDispatchProspectHistory = () => api.get("/api/dispatch-prospect-history");
 
 // Limpeza manual do historico de disparo (CRM + prospects) - irreversivel,

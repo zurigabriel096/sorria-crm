@@ -5,10 +5,15 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
     List<Mensagem> findByContatoIdOrderByCriadoEmAsc(Long contatoId);
+
+    // "Respondeu" pra fins de performance de campanha (ver CampanhaService.calcularPerformance):
+    // existe alguma mensagem ENTRADA desse contato depois da hora do disparo.
+    boolean existsByContatoIdAndDirecaoAndCriadoEmAfter(Long contatoId, String direcao, LocalDateTime apos);
 
     // Quais leads ja trocaram mensagem por um numero especifico - base do
     // filtro "kanban por numero" (cada numero mostra so os leads que ja

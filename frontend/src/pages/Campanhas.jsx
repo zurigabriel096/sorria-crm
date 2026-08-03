@@ -9,10 +9,12 @@ import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { IconSend } from "../components/icons";
 import { listNumeros } from "../api/whatsappNumeros";
+import { dispatchCampaign, getCampaignPerformance } from "../api/campaigns";
+import { matchSeg } from "../utils/patients";
 
 const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 3, whatsappNumeroId: "", modoProspects: false });
 
-export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, setObjetivos, segmentos, onDisparar, showToast, usuario }) {
+export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, setObjetivos, segmentos, patients, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
   const [modal, setModal] = useState(null);
   const [salvando, setSalvando] = useState(false);
@@ -21,9 +23,61 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
   const [fObjetivo, setFObjetivo] = useState("Todos");
   const [verArquivadas, setVerArquivadas] = useState(false);
   const [numeros, setNumeros] = useState([]);
+  const [performance, setPerformance] = useState({}); // {[campanhaId]: dados | "carregando"}
+  const [abModal, setAbModal] = useState(null); // null | {campanhaAId, campanhaBId, segmentoId}
+  const [disparandoAB, setDisparandoAB] = useState(false);
   const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
   useEffect(() => { listNumeros().then(setNumeros).catch(() => setNumeros([])); }, []);
+
+  // Performance calculada sob demanda, escondida ate o usuario clicar - "não
+  // precisa ficar a mostra fulltime" (pedido explicito). Clicar de novo esconde.
+  const alternarPerformance = async (id) => {
+    if (performance[id]) {
+      setPerformance((p) => { const cp = { ...p }; delete cp[id]; return cp; });
+      return;
+    }
+    setPerformance((p) => ({ ...p, [id]: "carregando" }));
+    try {
+      const dados = await getCampaignPerformance(id);
+      setPerformance((p) => ({ ...p, [id]: dados }));
+    } catch (e) {
+      showToast(e.message || "Erro ao calcular performance", "warn");
+      setPerformance((p) => { const cp = { ...p }; delete cp[id]; return cp; });
+    }
+  };
+
+  // Disparo A/B: divide quem a segmentacao captura hoje aleatoriamente ao meio
+  // e dispara cada metade pra uma campanha diferente (as 2 variantes) - cada
+  // campanha ja e' seu proprio grupo/historico, sem precisar de nenhum campo
+  // novo de "variante". Confirma direto aqui (sem passar pela tela de revisão
+  // do Disparo normal) - a propria janela funciona como confirmação.
+  const confirmarDisparoAB = async () => {
+    if (!abModal.campanhaAId || !abModal.campanhaBId || abModal.campanhaAId === abModal.campanhaBId) {
+      return showToast("Escolha 2 campanhas diferentes", "warn");
+    }
+    if (!abModal.segmentoId) return showToast("Escolha uma segmentação", "warn");
+    const segmento = segmentos.find((sg) => sg.id === abModal.segmentoId);
+    const capturados = patients.filter((p) => matchSeg(p, segmento));
+    if (!capturados.length) return showToast("Nenhum lead capturado por essa segmentação", "warn");
+    setDisparandoAB(true);
+    try {
+      const embaralhados = [...capturados].sort(() => Math.random() - 0.5);
+      const metade = Math.ceil(embaralhados.length / 2);
+      const grupoA = embaralhados.slice(0, metade).map((p) => p.id);
+      const grupoB = embaralhados.slice(metade).map((p) => p.id);
+      const [resA, resB] = await Promise.all([
+        dispatchCampaign(abModal.campanhaAId, null, grupoA),
+        dispatchCampaign(abModal.campanhaBId, null, grupoB),
+      ]);
+      showToast(`Disparo A/B feito — A: ${resA.entregues}/${grupoA.length} entregues, B: ${resB.entregues}/${grupoB.length} entregues`, "ok");
+      setAbModal(null);
+    } catch (e) {
+      showToast(e.message || "Erro no disparo A/B", "warn");
+    } finally {
+      setDisparandoAB(false);
+    }
+  };
 
   const abrirNovo = () => { setF(vazio()); setModal("novo"); };
   const abrirEdicao = (c) => {
@@ -108,6 +162,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           <button style={{ ...s.toggleBtn, ...(verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(true)}>Arquivadas</button>
         </div>
         <div style={{ flex: 1 }} />
+        <button style={s.btnGhostSm} onClick={() => setAbModal({ campanhaAId: "", campanhaBId: "", segmentoId: "" })}>Disparo A/B</button>
         <button style={s.btnPrimarySm} onClick={abrirNovo}>+ Nova campanha</button>
       </div>
       {!lista.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivadas ? "Nenhuma campanha arquivada." : "Nenhuma campanha ativa. Crie a primeira."}</div></Card>}
@@ -136,7 +191,21 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
               {c.templateId && <div style={{ fontSize: 11.5, color: T.inkSoft }}>Template: {templates.find((t) => t.id === c.templateId)?.nome || "—"}</div>}
               {c.atualizadoEm && <div style={{ fontSize: 10.5, color: T.inkSoft }}>Editado em {dataHora(c.atualizadoEm)}</div>}
             </div>
-            <button onClick={() => onDisparar(c)} style={{ ...s.btnWa, marginTop: 14, width: "100%", justifyContent: "center" }}><IconSend color="#fff" /> Disparar campanha</button>
+            {performance[c.id] && (
+              performance[c.id] === "carregando" ? (
+                <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 8 }}>Calculando...</div>
+              ) : (
+                <div style={{ display: "flex", gap: 10, marginTop: 8, padding: "8px 10px", background: T.lineSoft, borderRadius: 8, fontSize: 11.5 }}>
+                  <span>Enviados: <b style={{ color: T.ink }}>{performance[c.id].enviados}</b></span>
+                  <span>Entregues: <b style={{ color: T.ink }}>{Math.round(performance[c.id].taxaEntregaPct)}%</b></span>
+                  <span>Respondidos: <b style={{ color: T.primary }}>{Math.round(performance[c.id].taxaRespostaPct)}%</b></span>
+                </div>
+              )
+            )}
+            <button style={{ ...s.btnGhostSm, marginTop: 8, width: "100%", justifyContent: "center" }} onClick={() => alternarPerformance(c.id)}>
+              {performance[c.id] ? "Esconder performance" : "Ver performance"}
+            </button>
+            <button onClick={() => onDisparar(c)} style={{ ...s.btnWa, marginTop: 8, width: "100%", justifyContent: "center" }}><IconSend color="#fff" /> Disparar campanha</button>
           </div>
         ))}
       </div>
@@ -228,6 +297,47 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           </div>
         </Modal>
       )}
+      {abModal && (() => {
+        const candidatas = campanhas.filter((c) => c.canal === "WhatsApp" && !c.arquivado && !c.modoProspects);
+        const segmento = segmentos.find((sg) => sg.id === abModal.segmentoId);
+        const capturados = segmento ? patients.filter((p) => matchSeg(p, segmento)) : [];
+        return (
+          <Modal title="Disparo A/B" onClose={() => setAbModal(null)}>
+            <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 14 }}>
+              Divide quem a segmentação captura hoje em 2 metades aleatórias e dispara cada uma pra
+              uma campanha diferente — cada campanha vira uma variante, dá pra comparar performance
+              depois (botão "Ver performance" no card).
+            </div>
+            <Field label="Segmentação">
+              <select style={{ ...s.select, width: "100%" }} value={abModal.segmentoId || ""} onChange={(e) => setAbModal({ ...abModal, segmentoId: e.target.value ? Number(e.target.value) : "" })}>
+                <option value="">Selecione...</option>
+                {segmentos.filter((sg) => !sg.arquivado).map((sg) => <option key={sg.id} value={sg.id}>{sg.nome}</option>)}
+              </select>
+              {segmento && <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>{capturados.length} lead(s) capturado(s) — ~{Math.ceil(capturados.length / 2)} pra cada variante.</div>}
+            </Field>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <Field label="Variante A">
+                <select style={{ ...s.select, width: "100%" }} value={abModal.campanhaAId || ""} onChange={(e) => setAbModal({ ...abModal, campanhaAId: e.target.value ? Number(e.target.value) : "" })}>
+                  <option value="">Selecione...</option>
+                  {candidatas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </Field>
+              <Field label="Variante B">
+                <select style={{ ...s.select, width: "100%" }} value={abModal.campanhaBId || ""} onChange={(e) => setAbModal({ ...abModal, campanhaBId: e.target.value ? Number(e.target.value) : "" })}>
+                  <option value="">Selecione...</option>
+                  {candidatas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </Field>
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setAbModal(null)}>Cancelar</button>
+              <button style={{ ...s.btnWa, flex: 1, opacity: disparandoAB ? .6 : 1 }} onClick={confirmarDisparoAB} disabled={disparandoAB}>
+                {disparandoAB ? "Disparando..." : "Disparar A/B"}
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

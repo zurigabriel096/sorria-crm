@@ -1,6 +1,7 @@
 package br.com.sorria.crm.campaign;
 
 import br.com.sorria.crm.campaign.dto.CampanhaDTO;
+import br.com.sorria.crm.campaign.dto.CampanhaPerformanceDTO;
 import br.com.sorria.crm.campaign.dto.DispatchProspectRequest;
 import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
 import br.com.sorria.crm.common.dto.ArquivarRequest;
@@ -49,6 +50,14 @@ public class CampanhaController {
     @PatchMapping("/{id}/arquivar")
     public CampanhaDTO arquivar(@PathVariable Long id, @RequestBody ArquivarRequest req) {
         return campanhaService.arquivar(id, req.arquivado());
+    }
+
+    // Calculado sob demanda, nao fica exposto em lugar nenhum por padrao - o
+    // frontend so chama quando o usuario clica em "Ver performance" (ver
+    // Campanhas.jsx), pensado pra comparar variantes de teste A/B.
+    @GetMapping("/{id}/performance")
+    public CampanhaPerformanceDTO performance(@PathVariable Long id) {
+        return campanhaService.calcularPerformance(id);
     }
 
     // contatoIds (opcional): quando o disparo é restrito a uma segmentação escolhida no

@@ -1,10 +1,12 @@
 package br.com.sorria.crm.campaign;
 
 import br.com.sorria.crm.campaign.dto.CampanhaDTO;
+import br.com.sorria.crm.campaign.dto.CampanhaPerformanceDTO;
 import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
 import br.com.sorria.crm.campaign.dto.ProspectDTO;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
+import br.com.sorria.crm.conversa.MensagemRepository;
 import br.com.sorria.crm.conversa.MensagemService;
 import br.com.sorria.crm.dispatch.DisparoHistorico;
 import br.com.sorria.crm.dispatch.DisparoProspectHistorico;
@@ -40,6 +42,7 @@ public class CampanhaService {
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final DisparoProspectHistoricoRepository disparoProspectHistoricoRepository;
     private final MensagemService mensagemService;
+    private final MensagemRepository mensagemRepository;
 
     public List<CampanhaDTO> listar() {
         return campanhaRepository.findAll().stream().map(this::toDTO).toList();
@@ -77,6 +80,28 @@ public class CampanhaService {
         Campanha campanha = buscarEntidade(id);
         campanha.setArquivado(arquivado);
         return toDTO(campanhaRepository.save(campanha));
+    }
+
+    // Performance sob demanda (nao fica salva em lugar nenhum, recalcula toda vez que
+    // alguem pede) - pensado pra comparar 2 campanhas usadas como variantes de teste
+    // A/B (ver Campanhas.jsx "Ver performance"), mas funciona pra qualquer campanha.
+    // "Respondeu" = existe mensagem ENTRADA desse contato depois da hora do disparo -
+    // aproximacao razoavel (nao sabemos se a resposta e' "sobre" aquele disparo
+    // especifico, so que o lead voltou a falar depois dele).
+    public CampanhaPerformanceDTO calcularPerformance(Long campanhaId) {
+        List<DisparoHistorico> historico = disparoRepository.findByCampanhaId(campanhaId);
+        int enviados = historico.size();
+        int entregues = 0;
+        int respondidos = 0;
+        for (DisparoHistorico h : historico) {
+            if ("Entregue".equals(h.getStatus())) entregues++;
+            if (h.getHora() != null && mensagemRepository.existsByContatoIdAndDirecaoAndCriadoEmAfter(h.getContatoId(), "ENTRADA", h.getHora())) {
+                respondidos++;
+            }
+        }
+        double taxaEntrega = enviados > 0 ? (entregues * 100.0 / enviados) : 0;
+        double taxaResposta = enviados > 0 ? (respondidos * 100.0 / enviados) : 0;
+        return new CampanhaPerformanceDTO(enviados, entregues, respondidos, taxaEntrega, taxaResposta);
     }
 
     // Sem @Transactional de proposito: com a pausa entre mensagens (as vezes minutos

@@ -11,4 +11,7 @@ public interface DisparoRepository extends JpaRepository<DisparoHistorico, Long>
     long countByStatus(String status);
 
     boolean existsByCampanhaIdAndContatoId(Long campanhaId, Long contatoId);
+
+    // Usado pra calcular performance de uma campanha (ver CampanhaService.calcularPerformance).
+    List<DisparoHistorico> findByCampanhaId(Long campanhaId);
 }
