@@ -1,20 +1,52 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
-import { PERIODOS, PRECOS } from "../data/seed";
+import { PRECOS } from "../data/seed";
 import { brl, num } from "../utils/format";
+import { getDashboardKpis, getDisparosPorCategoria } from "../api/dashboard";
 import { Card } from "../components/ui/Card";
-import { Field } from "../components/ui/Field";
-import { Select } from "../components/ui/Select";
 import { Metric } from "../components/ui/Metric";
+
+// Fatura desta tela e' ilustrativa (Sorr.ia nao fatura o Samuel de verdade
+// por ela - ver seed.js) mas todo o CONSUMO (leads, disparos por categoria)
+// vem do backend de verdade, sem numero mockado.
+//
+// Volumetria incluida (PRECOS.volumetriaIncluida) e' uma cota UNICA
+// compartilhada entre Marketing e Utilidade. O excedente (o que passou da
+// cota) e' rateado entre as duas categorias na mesma proporcao em que cada
+// uma apareceu no total disparado - assim uma campanha de Marketing muito
+// maior que a de Utilidade paga mais do excedente, proporcionalmente.
+function calcularExcedente(disparos) {
+  const mkt = disparos?.Marketing || 0;
+  const util = disparos?.Utilidade || 0;
+  const total = mkt + util;
+  const excedenteTotal = Math.max(0, total - PRECOS.volumetriaIncluida);
+  const excedenteMkt = total > 0 ? Math.round(excedenteTotal * (mkt / total)) : 0;
+  const excedenteUtil = excedenteTotal - excedenteMkt;
+  return {
+    mkt, util, total, excedenteTotal, excedenteMkt, excedenteUtil,
+    valorExcedenteMkt: excedenteMkt * PRECOS.msgMarketing,
+    valorExcedenteUtil: excedenteUtil * PRECOS.msgUtilidade,
+  };
+}
 
 export function Plano({ showToast, usuario }) {
   const souAdmin = usuario?.papel === "ADMIN";
-  const [per, setPer] = useState(Object.keys(PERIODOS)[0]);
-  const d = PERIODOS[per];
-  const msgsWhats = d.mkt + d.util;
-  const custoMsgs = msgsWhats * PRECOS.msgWhats;
-  const total = PRECOS.mensalidade + custoMsgs;
+  const [kpis, setKpis] = useState(null);
+  const [disparos, setDisparos] = useState(null);
+
+  useEffect(() => {
+    getDashboardKpis().then(setKpis).catch((e) => showToast(e.message || "Erro ao carregar consumo do plano", "warn"));
+    getDisparosPorCategoria().then(setDisparos).catch((e) => showToast(e.message || "Erro ao carregar disparos por categoria", "warn"));
+  }, []);
+
+  if (!kpis || !disparos) {
+    return <div style={{ color: T.inkSoft, fontSize: 14, padding: "20px 0" }}>Carregando plano...</div>;
+  }
+
+  const ex = calcularExcedente(disparos);
+  const autenticacao = disparos.Autenticação || 0;
+  const total = PRECOS.mensalidade + ex.valorExcedenteMkt + ex.valorExcedenteUtil;
 
   return (
     <div style={{ position: "relative" }}>
@@ -41,21 +73,53 @@ export function Plano({ showToast, usuario }) {
       </div>
       <div style={s.volGrid}>
         <PriceCard label="Mensalidade" value={brl(PRECOS.mensalidade)} />
-        <PriceCard label="Msg WhatsApp" value={brl(PRECOS.msgWhats)} />
-        <PriceCard label="Msg Email" value={brl(PRECOS.msgEmail)} />
+        <PriceCard label="Volumetria incluída" value={`${num(PRECOS.volumetriaIncluida)} msgs/mês`} sub="Marketing R$0,24 · Utilidade R$0,15 no excedente" />
+        <PriceCard label="Mensagem Email" value="Em breve" valueColor="#FF6500" />
       </div>
       <Card title="Consumo do período">
-        <Field label="Período"><Select block value={per} onChange={setPer} options={Object.keys(PERIODOS)} /></Field>
-        <div style={{ ...s.summaryRow, marginTop: 6 }}>
-          <Metric label="Contatos na base" value={num(d.contatos)} />
-          <Metric label="Mensagens enviadas" value={num(msgsWhats)} />
+        <div style={s.summaryRow}>
+          <Metric label="Leads na base" value={num(kpis.totalContatos)} />
+          <Metric label="Mensagens enviadas" value={num(ex.total)} sub="WhatsApp Marketing + Utilidade" />
         </div>
+        <div style={{ ...s.summaryRow, marginTop: 16 }}>
+          <Metric label="WhatsApp Marketing" value={num(ex.mkt)} />
+          <Metric label="WhatsApp Utilidade" value={num(ex.util)} />
+          <Metric label="WhatsApp Autenticação" value={num(autenticacao)} accent={T.inkSoft} sub="em desenvolvimento" />
+        </div>
+      </Card>
+      <Card title="Volumetria e excedente do período">
+        <div style={s.summaryRow}>
+          <Metric label="Incluído no plano" value={`${num(PRECOS.volumetriaIncluida)} msgs`} />
+          <Metric label="Disparado no período" value={num(ex.total)} />
+          <Metric label="Excedente total" value={num(ex.excedenteTotal)} accent={ex.excedenteTotal > 0 ? T.gold : T.ink} />
+        </div>
+        {ex.excedenteTotal > 0 && (
+          <div style={{ ...s.summaryRow, marginTop: 16 }}>
+            <Metric label="Excedente Marketing" value={num(ex.excedenteMkt)} sub={`${brl(ex.valorExcedenteMkt)}`} />
+            <Metric label="Excedente Utilidade" value={num(ex.excedenteUtil)} sub={`${brl(ex.valorExcedenteUtil)}`} />
+          </div>
+        )}
       </Card>
       <Card title="Fatura do período">
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <tbody>
             <FatRow label="Mensalidade" val={brl(PRECOS.mensalidade)} />
-            <FatRow label="Mensagens de WhatsApp" calc={`${num(msgsWhats)} × ${brl(PRECOS.msgWhats)}`} val={brl(custoMsgs)} />
+            <FatRow
+              label="Mensagem WhatsApp · Marketing"
+              calc={ex.excedenteMkt > 0 ? `${num(ex.excedenteMkt)} excedentes × ${brl(PRECOS.msgMarketing)}` : "dentro da volumetria incluída"}
+              val={brl(ex.valorExcedenteMkt)}
+            />
+            <FatRow
+              label="Mensagem WhatsApp · Utilidade"
+              calc={ex.excedenteUtil > 0 ? `${num(ex.excedenteUtil)} excedentes × ${brl(PRECOS.msgUtilidade)}` : "dentro da volumetria incluída"}
+              val={brl(ex.valorExcedenteUtil)}
+            />
+            <FatRow
+              label="Mensagem WhatsApp · Autenticação"
+              calc={`${num(autenticacao)} × ${brl(PRECOS.msgAutenticacao)} · não cobrado (em desenvolvimento)`}
+              val={brl(autenticacao * PRECOS.msgAutenticacao)}
+              tachado
+            />
             <tr>
               <td style={{ ...s.fatTd, fontWeight: 800, color: T.ink, fontSize: 16, borderTop: `2px solid ${T.primary}` }}>Total</td>
               <td />
@@ -69,17 +133,21 @@ export function Plano({ showToast, usuario }) {
   );
 }
 
-const PriceCard = ({ label, value }) => (
+const PriceCard = ({ label, value, valueColor, sub }) => (
   <div style={s.volCard}>
     <div style={{ fontSize: 12, color: T.inkSoft }}>{label}</div>
-    <div style={{ fontSize: 20, fontWeight: 800, color: T.ink }}>{value}</div>
+    <div style={{ fontSize: 20, fontWeight: 800, color: valueColor || T.ink }}>{value}</div>
+    {sub && <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>{sub}</div>}
   </div>
 );
 
-const FatRow = ({ label, calc, val }) => (
+const FatRow = ({ label, calc, val, tachado }) => (
   <tr>
-    <td style={s.fatTd}>{label}{calc && <div style={{ fontSize: 11.5, color: T.inkSoft }}>{calc}</div>}</td>
+    <td style={{ ...s.fatTd, ...(tachado ? { color: T.inkSoft } : {}) }}>
+      {label}
+      {calc && <div style={{ fontSize: 11.5, color: T.inkSoft }}>{calc}</div>}
+    </td>
     <td />
-    <td style={{ ...s.fatTd, textAlign: "right", fontWeight: 700, color: T.ink }}>{val}</td>
+    <td style={{ ...s.fatTd, textAlign: "right", fontWeight: 700, color: tachado ? T.inkSoft : T.ink, textDecoration: tachado ? "line-through" : "none" }}>{val}</td>
   </tr>
 );

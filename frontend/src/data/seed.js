@@ -65,10 +65,22 @@ export const SEG_SEED = [
   { id: 2, nome: "Inadimplentes", groups: [[{ field: "tag", op: "contém", value: "Inadimplente" }]] },
 ];
 
-export const PERIODOS = {
-  "01/07/2026 até 01/08/2026": { contatos: 392, mkt: 210, util: 340 },
-  "01/06/2026 até 01/07/2026": { contatos: 348, mkt: 180, util: 295 },
-  "01/05/2026 até 01/06/2026": { contatos: 311, mkt: 150, util: 248 },
+// Fatura da tela "Meu Plano" e' ilustrativa (Sorr.ia nao fatura o Samuel de
+// verdade por isso) - mas o CONSUMO mostrado em cima dela (leads, disparos
+// por categoria) vem de dado real, nao mockado (ver Plano.jsx). Precos e
+// volumetria calibrados pra parecer um plano profissional de mercado
+// (~R$300-500/mes) - ver pesquisa citada na sessao de 03/08/2026.
+export const PRECOS = {
+  mensalidade: 347,
+  msgEmail: 0.001, // "em breve" - preco unitario ainda nao usado de verdade
+  msgMarketing: 0.24,
+  msgUtilidade: 0.15,
+  msgAutenticacao: 0.08, // "Autenticação" ainda nao e' funcional - ver Templates.jsx
+  volumetriaIncluida: 1000,
 };
 
-export const PRECOS = { mensalidade: 599, msgWhats: 0.31, msgEmail: 0.001 };
+export function precoPorCategoria(categoria) {
+  if (categoria === "Marketing") return PRECOS.msgMarketing;
+  if (categoria === "Autenticação") return PRECOS.msgAutenticacao;
+  return PRECOS.msgUtilidade;
+}

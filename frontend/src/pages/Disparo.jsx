@@ -4,7 +4,7 @@ import { s } from "../styles/s";
 import { brl, num, pct } from "../utils/format";
 import { dispatchCampaign, dispatchProspects } from "../api/campaigns";
 import { matchSeg, lerPlanilhaBruta } from "../utils/patients";
-import { PRECOS } from "../data/seed";
+import { PRECOS, precoPorCategoria } from "../data/seed";
 import { Card } from "../components/ui/Card";
 import { Metric } from "../components/ui/Metric";
 import { Field } from "../components/ui/Field";
@@ -49,7 +49,7 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, historic
   const [trocandoTpl, setTrocandoTpl] = useState(!camp?.templateId);
   const [resultado, setResultado] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
-  const custo = elegiveis.length * (email ? PRECOS.msgEmail : PRECOS.msgWhats);
+  const custo = elegiveis.length * (email ? PRECOS.msgEmail : precoPorCategoria(tpl?.categoria));
   const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
   const iniciar = async () => {

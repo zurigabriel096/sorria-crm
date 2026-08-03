@@ -71,7 +71,7 @@ export function Templates({ templates, setTemplates, objetivos, setObjetivos, sh
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div style={s.toolbar}>
-        <Select value={fCat} onChange={setFCat} options={["Todas", "Utilidade", "Marketing", "Autenticação"]} />
+        <Select value={fCat} onChange={setFCat} options={["Todas", "Utilidade", "Marketing", "Autenticação"]} labels={{ "Autenticação": "Autenticação (em breve)" }} />
         <Select value={fCampanha} onChange={setFCampanha} options={["Todas", ...objetivos]} />
         <div style={s.toggle}>
           <button style={{ ...s.toggleBtn, ...(!verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(false)}>Ativos</button>
@@ -193,7 +193,9 @@ function TemplateEditor({ tpl, objetivos, setObjetivos, onSave, onClose }) {
     <Modal title="Template de WhatsApp" onClose={onClose} wide>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <Field label="Nome do template"><input style={s.input} value={t.nome} onChange={(e) => set("nome", e.target.value)} placeholder="ex: anti_no_show" /></Field>
-        <Field label="Categoria"><Select block value={t.categoria} onChange={(v) => set("categoria", v)} options={["Utilidade", "Marketing", "Autenticação"]} /></Field>
+        <Field label="Categoria">
+          <Select block value={t.categoria} onChange={(v) => set("categoria", v)} options={["Utilidade", "Marketing", "Autenticação"]} labels={{ "Autenticação": "Autenticação (em desenvolvimento)" }} disabledOptions={["Autenticação"]} />
+        </Field>
         <Field label="Campanha / filtro">
           <Select block value={t.campanha} onChange={(v) => set("campanha", v)} options={objetivos} />
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

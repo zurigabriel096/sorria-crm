@@ -4,11 +4,13 @@ import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.dispatch.DisparoRepository;
 import br.com.sorria.crm.etapa.EtapaKanbanRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -19,6 +21,7 @@ public class DashboardController {
     private final ContatoRepository contatoRepository;
     private final DisparoRepository disparoRepository;
     private final EtapaKanbanRepository etapaKanbanRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @GetMapping("/kpis")
     public Map<String, Object> kpis() {
@@ -49,5 +52,35 @@ public class DashboardController {
         kpis.put("taxaEntregaPct", taxaEntregaPct);
         kpis.put("porEstagio", porEstagio);
         return kpis;
+    }
+
+    // Volumetria de disparo por categoria de template (Marketing/Utilidade/
+    // Autenticação) - usado na tela "Meu Plano" (fatura ilustrativa, ver
+    // Plano.jsx) pra mostrar consumo real em vez de numero fixo. Cada linha
+    // de disparo_historico = 1 mensagem enviada; resolve a categoria pelo
+    // template ATUAL da campanha (nao ha snapshot de qual template foi usado
+    // no momento do disparo - mesma limitacao de campanhaNome ja ser
+    // snapshot mas templateId nao).
+    @GetMapping("/disparos-por-categoria")
+    public Map<String, Long> disparosPorCategoria() {
+        Map<String, Long> resultado = new LinkedHashMap<>();
+        resultado.put("Marketing", 0L);
+        resultado.put("Utilidade", 0L);
+        resultado.put("Autenticação", 0L);
+        List<Map<String, Object>> linhas = jdbcTemplate.queryForList(
+                "SELECT t.categoria AS categoria, COUNT(*) AS total "
+                        + "FROM disparo_historico dh "
+                        + "JOIN campanhas c ON c.id = dh.campanha_id "
+                        + "JOIN templates t ON t.id = c.template_id "
+                        + "WHERE t.categoria IS NOT NULL "
+                        + "GROUP BY t.categoria"
+        );
+        for (Map<String, Object> linha : linhas) {
+            String categoria = String.valueOf(linha.get("categoria"));
+            if (resultado.containsKey(categoria)) {
+                resultado.put(categoria, ((Number) linha.get("total")).longValue());
+            }
+        }
+        return resultado;
     }
 }
