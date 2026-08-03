@@ -1,18 +1,18 @@
-package br.com.sorria.crm.contact;
+package br.com.sorria.crm.common.lote;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-// Progresso de UM job de tag em massa - so em memoria de proposito (nao
-// precisa sobreviver a um restart do backend, e' so feedback visual enquanto
-// a acao roda). Ver TagLoteJobService/TagLoteWorker.
-public class TagLoteJobStatus {
+// Progresso de UMA acao em massa (tag em lote, excluir lead em lote, etc.) -
+// so em memoria de proposito, nao precisa sobreviver a um restart do backend,
+// e' so feedback visual enquanto a acao roda (ver LoteJobService/LoteJobWorker).
+public class LoteJobStatus {
 
     private final int total;
     private final AtomicInteger processados = new AtomicInteger(0);
     private volatile int afetados = 0;
     private volatile boolean concluido = false;
 
-    public TagLoteJobStatus(int total) {
+    public LoteJobStatus(int total) {
         this.total = total;
     }
 

@@ -19,7 +19,7 @@ export function Segmentacoes({
   patients, segmentos, onCriar, onAtualizar, onExcluir, onArquivar,
   tags, tagObjetos, onCriarTag, onAtualizarTag, onExcluirTag,
   camposCustomizados,
-  onAplicarTagEmLote, usuario,
+  onAplicarTagEmLote, onExcluirLeadsEmLote, usuario,
   showToast,
 }) {
   const souAdmin = usuario?.papel === "ADMIN";
@@ -33,6 +33,8 @@ export function Segmentacoes({
   const [verArquivadas, setVerArquivadas] = useState(false);
   const [tagLote, setTagLote] = useState(null); // null | {seg, remover, tag}
   const [aplicandoLote, setAplicandoLote] = useState(false);
+  const [excluirLote, setExcluirLote] = useState(null); // null | {seg, quantidade, confirmacao}
+  const [excluindoLote, setExcluindoLote] = useState(false);
 
   const fieldMeta = montarFieldMeta(camposCustomizados);
 
@@ -93,6 +95,29 @@ export function Segmentacoes({
       showToast(e.message || "Erro ao aplicar tag em massa", "warn");
     } finally {
       setAplicandoLote(false);
+    }
+  };
+
+  const abrirExcluirLote = (seg) => {
+    const quantidade = patients.filter((p) => matchSeg(p, seg)).length;
+    setExcluirLote({ seg, quantidade, confirmacao: "" });
+  };
+
+  const fraseConfirmacaoEsperada = (quantidade) => `EXCLUIR${quantidade}LEADS`;
+
+  const confirmarExcluirLote = async () => {
+    if (excluirLote.confirmacao !== fraseConfirmacaoEsperada(excluirLote.quantidade)) {
+      return showToast("Frase de confirmação não bate", "warn");
+    }
+    setExcluindoLote(true);
+    try {
+      await onExcluirLeadsEmLote(excluirLote.seg);
+      showToast("Excluindo leads em segundo plano...", "ok");
+      setExcluirLote(null);
+    } catch (e) {
+      showToast(e.message || "Erro ao excluir leads em massa", "warn");
+    } finally {
+      setExcluindoLote(false);
     }
   };
 
@@ -186,6 +211,7 @@ export function Segmentacoes({
                       ...(souAdmin ? [
                         { label: "Adicionar tag a estes leads", onClick: () => abrirTagLote(seg, false) },
                         { label: "Remover tag destes leads", onClick: () => abrirTagLote(seg, true) },
+                        { label: "Excluir leads contidos nesse fluxo", danger: true, onClick: () => abrirExcluirLote(seg) },
                       ] : []),
                       { label: seg.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(seg) },
                       { label: "Excluir", danger: true, onClick: () => excluir(seg) },
@@ -279,6 +305,34 @@ export function Segmentacoes({
               disabled={aplicandoLote || tags.length === 0}
             >
               {aplicandoLote ? "Aplicando..." : "Confirmar"}
+            </button>
+          </div>
+        </Modal>
+      )}
+      {excluirLote && (
+        <Modal title="Excluir leads em massa" onClose={() => setExcluirLote(null)}>
+          <div style={{ fontSize: 13, color: T.coral, fontWeight: 700, marginBottom: 10 }}>
+            Atenção: isso apaga da Base de Leads todo mundo que <b>{excluirLote.seg.nome}</b> captura agora
+            ({contagemLabel(excluirLote.quantidade)}). Não pode ser desfeito.
+          </div>
+          <div style={{ fontSize: 13, color: T.inkSoft, marginBottom: 10 }}>
+            Pra confirmar, digite <code style={{ fontWeight: 700, color: T.ink }}>{fraseConfirmacaoEsperada(excluirLote.quantidade)}</code> abaixo:
+          </div>
+          <input
+            style={s.input}
+            value={excluirLote.confirmacao}
+            onChange={(e) => setExcluirLote({ ...excluirLote, confirmacao: e.target.value })}
+            placeholder={fraseConfirmacaoEsperada(excluirLote.quantidade)}
+            autoFocus
+          />
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setExcluirLote(null)}>Cancelar</button>
+            <button
+              style={{ ...s.btnPrimary, flex: 1, background: T.coral, opacity: (excluindoLote || excluirLote.confirmacao !== fraseConfirmacaoEsperada(excluirLote.quantidade)) ? .5 : 1 }}
+              onClick={confirmarExcluirLote}
+              disabled={excluindoLote || excluirLote.confirmacao !== fraseConfirmacaoEsperada(excluirLote.quantidade)}
+            >
+              {excluindoLote ? "Excluindo..." : "Excluir leads"}
             </button>
           </div>
         </Modal>

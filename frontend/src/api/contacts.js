@@ -77,3 +77,9 @@ export const aplicarTagEmLote = (contatoIds, tag, remover) =>
   api.post("/api/contacts/tags/lote", { contatoIds, tag, remover });
 
 export const getTagLoteStatus = (jobId) => api.get(`/api/contacts/tags/lote/${jobId}`);
+
+// Exclui varios contatos de uma vez (ex.: todo mundo que uma Segmentacao
+// captura hoje) - restrito a ADMIN no backend, roda em background igual a
+// tag em lote.
+export const excluirContatosEmLote = (contatoIds) => api.post("/api/contacts/excluir-lote", { contatoIds });
+export const getExcluirLoteStatus = (jobId) => api.get(`/api/contacts/excluir-lote/${jobId}`);

@@ -26,7 +26,7 @@ import { Suporte } from "./pages/Suporte";
 import { Config } from "./pages/Config";
 
 import { logout as apiLogout } from "./api/auth";
-import { listContacts, createContact, updateContact, deleteContact, createContactsLote, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus } from "./api/contacts";
+import { listContacts, createContact, updateContact, deleteContact, createContactsLote, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus, excluirContatosEmLote, getExcluirLoteStatus } from "./api/contacts";
 import { matchSeg } from "./utils/patients";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
@@ -197,22 +197,33 @@ export default function App() {
     const ids = patients.filter((p) => matchSeg(p, seg)).map((p) => p.id);
     const { jobId, total } = await aplicarTagEmLote(ids, tag, remover);
     setJobs((js) => [...js, {
-      id: jobId, label: `${remover ? "Removendo" : "Adicionando"} tag "${tag}"`,
+      id: jobId, tipo: "tag", label: `${remover ? "Removendo" : "Adicionando"} tag "${tag}"`,
       total, processados: 0, afetados: 0, concluido: total === 0,
     }]);
   };
 
-  // Consulta o progresso de todo job de tag em massa ainda rodando a cada
-  // 1.2s - quando termina, recarrega a lista de contatos (tags mudaram) e
-  // deixa a barra com "Concluído" ate o usuario fechar (nao some sozinha,
-  // pra dar tempo de ver o resultado mesmo se a pessoa nao tiver olhando).
+  // Exclui em massa todo mundo que uma Segmentacao captura hoje - mesma
+  // infraestrutura de job em background da tag em lote.
+  const excluirLeadsSegmentacao = async (seg) => {
+    const ids = patients.filter((p) => matchSeg(p, seg)).map((p) => p.id);
+    const { jobId, total } = await excluirContatosEmLote(ids);
+    setJobs((js) => [...js, {
+      id: jobId, tipo: "excluir", label: `Excluindo leads de "${seg.nome}"`,
+      total, processados: 0, afetados: 0, concluido: total === 0,
+    }]);
+  };
+
+  // Consulta o progresso de todo job em massa ainda rodando a cada 1.2s -
+  // quando termina, recarrega a lista de contatos e deixa a barra com
+  // "Concluído" ate o usuario fechar (nao some sozinha, pra dar tempo de ver
+  // o resultado mesmo se a pessoa nao tiver olhando).
   useEffect(() => {
     const emAndamento = jobs.filter((j) => !j.concluido);
     if (!emAndamento.length) return;
     const t = setInterval(() => {
       emAndamento.forEach(async (j) => {
         try {
-          const s = await getTagLoteStatus(j.id);
+          const s = await (j.tipo === "excluir" ? getExcluirLoteStatus(j.id) : getTagLoteStatus(j.id));
           setJobs((js) => js.map((x) => (x.id === j.id ? { ...x, processados: s.processados, afetados: s.afetados, concluido: s.concluido } : x)));
           if (s.concluido) listContacts().then(setPatients);
         } catch {
@@ -420,7 +431,7 @@ export default function App() {
           {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
           {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} abrirContatoId={conversaParaAbrir} onAbriuContato={() => setConversaParaAbrir(null)} />}
-          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} usuario={usuario} showToast={showToast} />}
+          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} usuario={usuario} showToast={showToast} />}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} setObjetivos={setObjetivos} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} showToast={showToast} />}
           {view === "automacoes" && <Automacoes showToast={showToast} usuario={usuario} />}

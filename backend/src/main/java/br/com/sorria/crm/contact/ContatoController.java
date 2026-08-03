@@ -1,7 +1,10 @@
 package br.com.sorria.crm.contact;
 
+import br.com.sorria.crm.common.lote.LoteJobService;
+import br.com.sorria.crm.common.lote.LoteJobStatus;
 import br.com.sorria.crm.contact.dto.AplicarTagLoteRequest;
 import br.com.sorria.crm.contact.dto.ContatoDTO;
+import br.com.sorria.crm.contact.dto.ExcluirLoteRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,7 +23,7 @@ import java.util.Map;
 public class ContatoController {
 
     private final ContatoService contatoService;
-    private final TagLoteJobService tagLoteJobService;
+    private final LoteJobService loteJobService;
 
     @GetMapping
     public List<ContatoDTO> listar(Authentication auth) {
@@ -77,14 +80,15 @@ public class ContatoController {
     // Adiciona/remove uma tag em varios leads de uma vez (ex.: todo mundo que
     // uma Segmentacao captura hoje) - restrito a ADMIN por mexer em varios
     // cadastros de uma vez, mesmo raciocinio do unificar-duplicados acima.
-    // Roda em background (TagLoteJobService/TagLoteWorker) - responde na hora
-    // com um jobId, sem prender a requisicao ate processar todo mundo (cada
-    // linha e' um round-trip pro banco, uma base grande levaria minutos).
+    // Roda em background (LoteJobService) - responde na hora com um jobId,
+    // sem prender a requisicao ate processar todo mundo (cada linha e' um
+    // round-trip pro banco, uma base grande levaria minutos).
     @PostMapping("/tags/lote")
     @PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Map<String, Object> aplicarTagEmLote(@RequestBody AplicarTagLoteRequest req) {
-        String jobId = tagLoteJobService.iniciar(req.contatoIds(), req.tag(), req.remover());
+        String jobId = loteJobService.iniciar(req.contatoIds(), id ->
+                aplicarTagNoContato(id, req.tag(), req.remover()));
         int total = req.contatoIds() != null ? req.contatoIds().size() : 0;
         return Map.of("jobId", jobId, "total", total);
     }
@@ -92,7 +96,34 @@ public class ContatoController {
     @GetMapping("/tags/lote/{jobId}")
     @PreAuthorize("hasRole('ADMIN')")
     public Map<String, Object> statusTagEmLote(@PathVariable String jobId) {
-        TagLoteJobStatus status = tagLoteJobService.status(jobId);
+        return statusDTO(loteJobService.status(jobId));
+    }
+
+    // Exclui varios leads de uma vez (ex.: todo mundo capturado por uma
+    // Segmentacao) - mesma infraestrutura de background da tag em lote.
+    // Irreversivel: o frontend exige digitar uma frase de confirmacao antes
+    // de chamar isso (ver Segmentacoes.jsx).
+    @PostMapping("/excluir-lote")
+    @PreAuthorize("hasRole('ADMIN')")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Map<String, Object> excluirEmLote(@RequestBody ExcluirLoteRequest req) {
+        String jobId = loteJobService.iniciar(req.contatoIds(), contatoService::remover);
+        int total = req.contatoIds() != null ? req.contatoIds().size() : 0;
+        return Map.of("jobId", jobId, "total", total);
+    }
+
+    @GetMapping("/excluir-lote/{jobId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Map<String, Object> statusExcluirEmLote(@PathVariable String jobId) {
+        return statusDTO(loteJobService.status(jobId));
+    }
+
+    private void aplicarTagNoContato(Long contatoId, String tag, boolean remover) {
+        if (remover) contatoService.removerTag(contatoId, tag);
+        else contatoService.adicionarTag(contatoId, tag);
+    }
+
+    private Map<String, Object> statusDTO(LoteJobStatus status) {
         return Map.of(
                 "total", status.getTotal(),
                 "processados", status.getProcessados(),
