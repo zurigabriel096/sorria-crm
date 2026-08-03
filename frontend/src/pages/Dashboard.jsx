@@ -53,7 +53,13 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   useEffect(() => {
     if (!patients.length) return;
     getDashboardKpis().then(setKpis).catch((e) => showToast(e.message || "Erro ao carregar KPIs", "warn"));
-    getMetricasVisiveis().then(setMetricasVisiveisState).catch(() => setMetricasVisiveisState(METRICAS.map((m) => m.chave)));
+    // "baseEstagio" e' migrado sozinho pra dentro da lista salva se ainda nao
+    // estiver la (config antiga, de antes dessa secao virar ocultavel) - assim
+    // quem ja usava o painel nao perde a secao do nada so por causa da mudanca,
+    // ela so some se a pessoa desmarcar de proposito.
+    getMetricasVisiveis()
+      .then((v) => setMetricasVisiveisState(v.includes("baseEstagio") ? v : [...v, "baseEstagio"]))
+      .catch(() => setMetricasVisiveisState([...METRICAS.map((m) => m.chave), "baseEstagio"]));
     listPainelCards().then(setCards).catch(() => setCards([]));
     listDispatchProspectHistory().then(setProspectsHistorico).catch(() => setProspectsHistorico([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,21 +103,23 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
           />
         )}
       </div>
-      <Card title="Base por estágio">
-        {Object.entries(kpis.porEstagio || {}).map(([etapa, qtd]) => {
-          const col = T.estagio[etapa] || T.estagio.Lead;
-          return (
-            <div key={etapa} style={s.segRow}>
-              <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{etapa}</span>
-              <div style={s.segBarTrack}>
-                <div style={{ ...s.segBarFill, width: `${(qtd / (kpis.totalContatos || 1)) * 100}%`, background: col.fg }} />
+      {metricasVisiveis.includes("baseEstagio") && (
+        <Card title="Base por estágio">
+          {Object.entries(kpis.porEstagio || {}).map(([etapa, qtd]) => {
+            const col = T.estagio[etapa] || T.estagio.Lead;
+            return (
+              <div key={etapa} style={s.segRow}>
+                <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{etapa}</span>
+                <div style={s.segBarTrack}>
+                  <div style={{ ...s.segBarFill, width: `${(qtd / (kpis.totalContatos || 1)) * 100}%`, background: col.fg }} />
+                </div>
+                <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{qtd}</b>
               </div>
-              <b style={{ fontSize: 13, color: T.ink, width: 26, textAlign: "right" }}>{qtd}</b>
-            </div>
-          );
-        })}
-        <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
-      </Card>
+            );
+          })}
+          <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
+        </Card>
+      )}
       {!!prospectsHistorico.length && (
         <Card title="Disparos pra prospects (fora do CRM)">
           <div style={{ display: "grid", gap: 6 }}>
@@ -201,6 +209,10 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
             {m.rotulo}
           </label>
         ))}
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
+          <input type="checkbox" checked={selecao.includes("baseEstagio")} onChange={() => alternarMetrica("baseEstagio")} />
+          Base por estágio
+        </label>
       </div>
       <button style={s.btnPrimarySm} onClick={salvarMetricas}>Salvar métricas</button>
 

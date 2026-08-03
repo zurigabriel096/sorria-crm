@@ -27,24 +27,34 @@ public class CampanhaSeedInitializer implements CommandLineRunner {
     public void run(String... args) {
         seed(
                 "Prospect",
-                "Conversão de prospects em serviços de entrada",
+                "Conversão de prospects",
                 "Oi {nome}! 🦷✨ A Orthodontic separou um cuidado especial pro seu sorriso. Quer saber mais? Responda 1 (sim) ou 2 (agora não)."
         );
         seed(
                 "Lead Frio",
-                "Reengajar quem parou de responder",
+                "Reengajamento",
                 "Oi {nome}! 🤍✨ Faz tempo que não conversamos por aqui. Ainda pensa em cuidar do sorriso? Responda 1 (sim) ou 2 (não agora)."
         );
         seed(
                 "Amigo Indica Amigo - N3",
-                "Teste A/B (variante N3) - indicação",
+                "Indicação (A/B N3)",
                 "Oi {nome}! 🦷✨ Que tal indicar um amigo pra Orthodontic e ganhar benefícios especiais? Responda 1 (sim) ou 2 (depois)."
         );
         seed(
                 "Amigo Indica Amigo - WIIFM",
-                "Teste A/B (variante WIIFM) - indicação",
+                "Indicação (A/B WIIFM)",
                 "Oi {nome}! 🤍✨ Indique um amigo e ganhe desconto na próxima consulta na Orthodontic! Responda 1 (sim) ou 2 (depois)."
         );
+
+        // Correcao pontual (roda 1x, some sozinha do proximo boot em diante): as 4
+        // campanhas acima ja tinham sido criadas com o objetivo antigo, mais longo
+        // demais pra caber na etiqueta da tela de Campanhas - so corrige se o
+        // objetivo ainda for exatamente o texto antigo (nao sobrescreve se o
+        // usuario ja tiver editado manualmente).
+        encurtarObjetivoSeAindaOriginal("Prospect", "Conversão de prospects em serviços de entrada", "Conversão de prospects");
+        encurtarObjetivoSeAindaOriginal("Lead Frio", "Reengajar quem parou de responder", "Reengajamento");
+        encurtarObjetivoSeAindaOriginal("Amigo Indica Amigo - N3", "Teste A/B (variante N3) - indicação", "Indicação (A/B N3)");
+        encurtarObjetivoSeAindaOriginal("Amigo Indica Amigo - WIIFM", "Teste A/B (variante WIIFM) - indicação", "Indicação (A/B WIIFM)");
     }
 
     private void seed(String nome, String objetivo, String corpoMensagem) {
@@ -64,5 +74,20 @@ public class CampanhaSeedInitializer implements CommandLineRunner {
         campanha.setStatus("Rascunho");
         campanha.setTemplateId(template.getId());
         campanhaRepository.save(campanha);
+    }
+
+    private void encurtarObjetivoSeAindaOriginal(String nome, String objetivoAntigo, String objetivoNovo) {
+        campanhaRepository.findByNome(nome).ifPresent(campanha -> {
+            if (objetivoAntigo.equals(campanha.getObjetivo())) {
+                campanha.setObjetivo(objetivoNovo);
+                campanhaRepository.save(campanha);
+            }
+        });
+        templateRepository.findByNome(nome).ifPresent(template -> {
+            if (objetivoAntigo.equals(template.getCampanhaObjetivo())) {
+                template.setCampanhaObjetivo(objetivoNovo);
+                templateRepository.save(template);
+            }
+        });
     }
 }
