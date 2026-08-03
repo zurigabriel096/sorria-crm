@@ -9,7 +9,26 @@ import { Card } from "../components/ui/Card";
 import { Metric } from "../components/ui/Metric";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
+import { Modal } from "../components/ui/Modal";
 import { IconSend, IconUpload } from "../components/icons";
+
+// Confirmacao final antes de disparar de verdade (pedido explicito do
+// Samuel: evitar clique acidental no botao "Disparar", ja que manda WhatsApp
+// real e nao tem como desfazer). Compartilhado pelos 2 fluxos abaixo (normal
+// e prospects).
+function ConfirmarDisparoModal({ quantidade, onConfirmar, onCancelar }) {
+  return (
+    <Modal title="Confirmar disparo" onClose={onCancelar}>
+      <div style={{ fontSize: 14, color: T.ink, marginBottom: 18 }}>
+        Tem certeza que quer disparar essa campanha agora pra <b>{num(quantidade)}</b> pessoa(s)? Essa ação não pode ser desfeita.
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button style={{ ...s.btnGhost, flex: 1 }} onClick={onCancelar}>Não</button>
+        <button style={{ ...s.btnWa, flex: 1, justifyContent: "center" }} onClick={onConfirmar}>Sim, disparar</button>
+      </div>
+    </Modal>
+  );
+}
 
 // Dispara de verdade via backend (que fala com a Evolution API GO). Quando a campanha
 // tem uma segmentação associada, restringimos aqui os elegíveis a quem casa com ela e
@@ -29,6 +48,7 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, historic
   const [tpl, setTpl] = useState(() => templates.find((t) => t.id === camp?.templateId) || null);
   const [trocandoTpl, setTrocandoTpl] = useState(!camp?.templateId);
   const [resultado, setResultado] = useState(null);
+  const [confirmando, setConfirmando] = useState(false);
   const custo = elegiveis.length * (email ? PRECOS.msgEmail : PRECOS.msgWhats);
   const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
@@ -113,12 +133,19 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, historic
           )}
           <div style={{ display: "flex", gap: 10 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={onCancel}>Cancelar</button>
-            <button style={{ ...s.btnWa, flex: 2, justifyContent: "center", opacity: podeEnviar ? 1 : .4, cursor: podeEnviar ? "pointer" : "not-allowed" }} disabled={!podeEnviar} onClick={iniciar}>
+            <button style={{ ...s.btnWa, flex: 2, justifyContent: "center", opacity: podeEnviar ? 1 : .4, cursor: podeEnviar ? "pointer" : "not-allowed" }} disabled={!podeEnviar} onClick={() => setConfirmando(true)}>
               <IconSend color="#fff" /> Disparar para {elegiveis.length}
             </button>
           </div>
           <p style={{ fontSize: 12, color: T.inkSoft, textAlign: "center" }}>O envio roda no servidor e fala de verdade com o WhatsApp conectado.</p>
         </>
+      )}
+      {confirmando && (
+        <ConfirmarDisparoModal
+          quantidade={elegiveis.length}
+          onCancelar={() => setConfirmando(false)}
+          onConfirmar={() => { setConfirmando(false); iniciar(); }}
+        />
       )}
       {step === "enviando" && (
         <Card title="Enviando campanha...">
@@ -171,6 +198,7 @@ function DisparoProspectsFlow({ camp, templates, onFinish, onCancel, showToast }
   const [colTelefone, setColTelefone] = useState(null);
   const [colNome, setColNome] = useState(null);
   const [resultado, setResultado] = useState(null);
+  const [confirmando, setConfirmando] = useState(false);
   const inputRef = useRef(null);
   const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
@@ -272,11 +300,18 @@ function DisparoProspectsFlow({ camp, templates, onFinish, onCancel, showToast }
           </Card>
           <div style={{ display: "flex", gap: 10 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={onCancel}>Cancelar</button>
-            <button style={{ ...s.btnWa, flex: 2, justifyContent: "center", opacity: podeEnviar ? 1 : .4, cursor: podeEnviar ? "pointer" : "not-allowed" }} disabled={!podeEnviar} onClick={iniciar}>
+            <button style={{ ...s.btnWa, flex: 2, justifyContent: "center", opacity: podeEnviar ? 1 : .4, cursor: podeEnviar ? "pointer" : "not-allowed" }} disabled={!podeEnviar} onClick={() => setConfirmando(true)}>
               <IconSend color="#fff" /> Disparar para {num(prospects.length)} prospects
             </button>
           </div>
         </>
+      )}
+      {confirmando && (
+        <ConfirmarDisparoModal
+          quantidade={prospects.length}
+          onCancelar={() => setConfirmando(false)}
+          onConfirmar={() => { setConfirmando(false); iniciar(); }}
+        />
       )}
       {step === "enviando" && (
         <Card title="Enviando pra prospects...">
