@@ -21,8 +21,13 @@ public class PainelCardService {
     private final ContatoRepository contatoRepository;
 
     public List<PainelCardDTO> listar() {
+        List<PainelCard> cards = repository.findAllByOrderByOrdemAsc();
+        // So busca a base inteira de contatos se existir pelo menos 1 card - sem
+        // isso, toda carga do Painel pagava o custo de puxar TODOS os contatos
+        // (agora bem mais de 1000) mesmo com 0 cards configurados.
+        if (cards.isEmpty()) return List.of();
         List<Contato> contatos = contatoRepository.findAll();
-        return repository.findAllByOrderByOrdemAsc().stream().map(c -> toDTO(c, contatos)).toList();
+        return cards.stream().map(c -> toDTO(c, contatos)).toList();
     }
 
     public PainelCardDTO criar(PainelCardDTO dto) {
