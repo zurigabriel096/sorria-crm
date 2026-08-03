@@ -65,7 +65,12 @@ function colunaCustomizada(campo) {
     render: (p) => {
       const valor = p.camposCustomizados?.[campo.nome];
       if (!valor) return "—";
-      return campo.tipo === "MOEDA" ? brl(Number(valor) || 0) : valor;
+      const exibido = campo.tipo === "MOEDA" ? brl(Number(valor) || 0) : valor;
+      // "Total de atraso" (valor em atraso de pagamento) na mesma cor da
+      // palavra "Inadimplente" da coluna Financeiro, pra destacar visualmente
+      // igual - mesmo criterio de nome usado em iconeDoCard() do Dashboard.
+      const ehTotalAtraso = campo.nome.trim().toLowerCase() === "total de atraso";
+      return ehTotalAtraso ? <span style={{ color: T.coral, fontWeight: 700 }}>{exibido}</span> : exibido;
     },
     numerica: campo.tipo === "NUMERO" || campo.tipo === "MOEDA" || campo.tipo === "DATA",
   };
