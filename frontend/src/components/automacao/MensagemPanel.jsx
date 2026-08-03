@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { SidePanel } from "./SidePanel";
+import { GuiaVariaveis } from "../ui/GuiaVariaveis";
 
 const LIMITE_IMAGEM_BYTES = 300 * 1024; // localStorage tem cota baixa (~5MB por origem) - imagem em base64 pesa ~33% a mais que o arquivo original.
 
@@ -23,6 +24,7 @@ const rotuloNumero = { fontSize: 10.5, color: "#8A96A3", textAlign: "center", ma
 // EvolutionApiClient.java do sorria-crm).
 export function MensagemPanel({ data, onMudar, onFechar }) {
   const [aviso, setAviso] = useState(null);
+  const textoRef = useRef(null);
 
   const anexarImagem = async (arquivo, aoSalvar) => {
     if (!arquivo) return;
@@ -71,16 +73,20 @@ export function MensagemPanel({ data, onMudar, onFechar }) {
 
       <div style={{ position: "relative", marginBottom: 10 }}>
         <textarea
+          ref={textoRef}
           rows={4}
           placeholder="Insira seu texto..."
           value={data.texto || ""}
           onChange={(e) => onMudar({ texto: e.target.value })}
-          style={{ width: "100%", border: "1px solid #E6EDEC", borderRadius: 10, padding: "10px 34px 10px 10px", fontSize: 13, resize: "vertical" }}
+          style={{ width: "100%", border: "1px solid #E6EDEC", borderRadius: 10, padding: "10px 58px 10px 10px", fontSize: 13, resize: "vertical" }}
         />
-        <label title="Anexar imagem a esta mensagem" style={{ position: "absolute", right: 8, top: 8, cursor: "pointer", fontSize: 16 }}>
-          🖼
-          <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => anexarImagem(e.target.files[0], (img) => onMudar({ imagem: img }))} />
-        </label>
+        <div style={{ position: "absolute", right: 8, top: 8, display: "flex", alignItems: "center", gap: 8 }}>
+          <GuiaVariaveis textareaRef={textoRef} valor={data.texto || ""} onMudar={(v) => onMudar({ texto: v })} />
+          <label title="Anexar imagem a esta mensagem" style={{ cursor: "pointer", fontSize: 16 }}>
+            🖼
+            <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => anexarImagem(e.target.files[0], (img) => onMudar({ imagem: img }))} />
+          </label>
+        </div>
       </div>
       {data.imagem && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, fontSize: 12, color: "#0FA895", fontWeight: 600 }}>

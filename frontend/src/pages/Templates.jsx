@@ -7,6 +7,7 @@ import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
+import { GuiaVariaveis } from "../components/ui/GuiaVariaveis";
 import { createTemplate, updateTemplate, deleteTemplate, archiveTemplate } from "../api/campaigns";
 
 export function Templates({ templates, setTemplates, objetivos, showToast }) {
@@ -184,7 +185,12 @@ function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
         <Field label="Campanha / filtro"><Select block value={t.campanha} onChange={(v) => set("campanha", v)} options={objetivos} /></Field>
         <Field label="Status"><Select block value={t.ativo ? "Ativo" : "Inativo"} onChange={(v) => set("ativo", v === "Ativo")} options={["Ativo", "Inativo"]} /></Field>
       </div>
-      <Field label={`Corpo da mensagem (${t.corpo.length} caracteres — ideal ≤135)`}>
+      <Field label={
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span>{`Corpo da mensagem (${t.corpo.length} caracteres — ideal ≤135)`}</span>
+          <GuiaVariaveis textareaRef={areaRef} valor={t.corpo} onMudar={(v) => set("corpo", v)} />
+        </span>
+      }>
         <div style={{ position: "relative" }}>
           <textarea
             ref={areaRef}
@@ -194,7 +200,7 @@ function TemplateEditor({ tpl, objetivos, onSave, onClose }) {
             onChange={(e) => set("corpo", e.target.value)}
             onMouseUp={detectarSelecao}
             onBlur={() => setToolbar(null)}
-            placeholder="Use {nome}, {data}, {hora}..."
+            placeholder="Use {nome}..."
           />
           {toolbar && <ToolbarFormatacao x={toolbar.x} y={toolbar.y} onAplicar={aplicarFormato} />}
         </div>
