@@ -28,7 +28,12 @@ export function ImportMappingModal({ file, onClose, onConfirmar, showToast, camp
   const [rows, setRows] = useState([]);
   const [hi, setHi] = useState(0);
   const [mapeamento, setMapeamento] = useState({});
-  const [novosCampos, setNovosCampos] = useState([]); // [{colIdx, nome, tipo}]
+  // destino: nome de um Campo Personalizado JA existente, ou "__novo__" pra
+  // criar um campo novo com nome/tipo escolhidos na hora - lista pra
+  // escolher em vez de precisar redigitar o nome exato de um campo que ja
+  // existe (unico jeito de reaproveisar antes, sem nenhuma indicacao visual
+  // de que era possivel).
+  const [novosCampos, setNovosCampos] = useState([]); // [{colIdx, destino, nome, tipo}]
   const [confirmando, setConfirmando] = useState(false);
 
   useEffect(() => {
@@ -47,33 +52,41 @@ export function ImportMappingModal({ file, onClose, onConfirmar, showToast, camp
     setMapeamento((m) => ({ ...m, [chave]: valor === IGNORAR ? null : Number(valor) }));
   };
 
-  const adicionarNovoCampo = () => setNovosCampos((ns) => [...ns, { colIdx: null, nome: "", tipo: "TEXTO" }]);
+  const adicionarNovoCampo = () => setNovosCampos((ns) => [...ns, { colIdx: null, destino: "", nome: "", tipo: "TEXTO" }]);
   const atualizarNovoCampo = (i, patch) => setNovosCampos((ns) => ns.map((n, idx) => (idx === i ? { ...n, ...patch } : n)));
   const removerNovoCampo = (i) => setNovosCampos((ns) => ns.filter((_, idx) => idx !== i));
+
+  // Resolve o nome/tipo final de cada linha: "__novo__" usa o que foi
+  // digitado; qualquer outro valor de destino e' o nome de um campo que ja
+  // existe (tipo dele prevalece, ignora o que estiver selecionado no <select>
+  // de tipo pra essa linha).
+  const resolverCampo = (n) => {
+    if (n.destino === "__novo__") return { nome: n.nome.trim(), tipo: n.tipo };
+    const existente = camposCustomizados.find((c) => c.nome === n.destino);
+    return { nome: n.destino, tipo: existente?.tipo || n.tipo };
+  };
 
   const confirmar = async () => {
     if (mapeamento.nome == null) {
       return showToast("Selecione qual coluna é o nome do lead — esse campo é obrigatório.", "warn");
     }
-    const camposPendentes = novosCampos.filter((n) => n.colIdx != null || n.nome.trim());
+    const camposPendentes = novosCampos.filter((n) => n.colIdx != null || n.destino);
     for (const n of camposPendentes) {
-      if (n.colIdx == null || !n.nome.trim()) {
-        return showToast("Cada campo personalizado novo precisa de uma coluna e um nome.", "warn");
+      if (n.colIdx == null || !n.destino || (n.destino === "__novo__" && !n.nome.trim())) {
+        return showToast("Cada campo personalizado precisa de uma coluna e um destino escolhido.", "warn");
       }
     }
     setConfirmando(true);
     try {
-      // Campo com nome igual a um que já existe (comparação sem acento/maiúscula
-      // não vale a pena aqui - só igualdade direta) reaproveita o existente em
-      // vez de tentar criar de novo (o backend rejeitaria como duplicado).
       const existentes = new Set(camposCustomizados.map((c) => c.nome));
       for (const n of camposPendentes) {
-        if (!existentes.has(n.nome.trim())) {
-          await onCriarCampo({ nome: n.nome.trim(), tipo: n.tipo, opcoes: [] });
+        const { nome, tipo } = resolverCampo(n);
+        if (!existentes.has(nome)) {
+          await onCriarCampo({ nome, tipo, opcoes: [] });
         }
       }
 
-      const pacientes = montarPacientes(rows, hi, mapeamento, camposPendentes.map((n) => ({ colIdx: n.colIdx, nome: n.nome.trim() })));
+      const pacientes = montarPacientes(rows, hi, mapeamento, camposPendentes.map((n) => ({ colIdx: n.colIdx, nome: resolverCampo(n).nome })));
       if (!pacientes.length) {
         showToast("Nenhuma linha válida encontrada com esse mapeamento — confira a coluna do nome.", "warn");
         setConfirmando(false);
@@ -120,26 +133,35 @@ export function ImportMappingModal({ file, onClose, onConfirmar, showToast, camp
 
           <div style={{ height: 1, background: T.line, margin: "16px 0" }} />
 
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 4 }}>Sobrou alguma coluna? Vire Campo Personalizado</div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: T.ink, marginBottom: 4 }}>Sobrou alguma coluna? Escolha pra qual campo ela vai</div>
           <p style={{ fontSize: 12, color: T.inkSoft, marginBottom: 10 }}>
-            Cria na hora e já fica disponível em Segmentações e no Painel Executivo, sem precisar ir noutra tela antes.
+            Pode mandar pra um Campo Personalizado que já existe, ou criar um novo na hora — já fica disponível em Segmentações e no Painel Executivo, sem precisar ir noutra tela antes.
           </p>
           <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
             {novosCampos.map((n, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr auto", gap: 8, alignItems: "center" }}>
+              <div key={i} style={{ display: "grid", gridTemplateColumns: n.destino === "__novo__" ? "1.2fr 1fr 1fr 0.8fr auto" : "1.2fr 1fr auto", gap: 8, alignItems: "center" }}>
                 <select style={s.select} value={n.colIdx ?? IGNORAR} onChange={(e) => atualizarNovoCampo(i, { colIdx: e.target.value === IGNORAR ? null : Number(e.target.value) })}>
                   <option value={IGNORAR}>Escolha a coluna</option>
                   {headers.map((h, hIdx) => <option key={hIdx} value={hIdx}>{h || `(coluna ${hIdx + 1})`}</option>)}
                 </select>
-                <input style={s.input} placeholder="Nome do campo" value={n.nome} onChange={(e) => atualizarNovoCampo(i, { nome: e.target.value })} />
-                <select style={s.select} value={n.tipo} onChange={(e) => atualizarNovoCampo(i, { tipo: e.target.value })}>
-                  {TIPOS_CAMPO_IMPORT.map((t) => <option key={t.valor} value={t.valor}>{t.rotulo}</option>)}
+                <select style={s.select} value={n.destino} onChange={(e) => atualizarNovoCampo(i, { destino: e.target.value })}>
+                  <option value="">Escolha o destino</option>
+                  <option value="__novo__">+ Criar campo novo</option>
+                  {camposCustomizados.map((c) => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                 </select>
+                {n.destino === "__novo__" && (
+                  <>
+                    <input style={s.input} placeholder="Nome do campo novo" value={n.nome} onChange={(e) => atualizarNovoCampo(i, { nome: e.target.value })} />
+                    <select style={s.select} value={n.tipo} onChange={(e) => atualizarNovoCampo(i, { tipo: e.target.value })}>
+                      {TIPOS_CAMPO_IMPORT.map((t) => <option key={t.valor} value={t.valor}>{t.rotulo}</option>)}
+                    </select>
+                  </>
+                )}
                 <button style={{ ...s.btnGhostSm, padding: "6px 10px" }} onClick={() => removerNovoCampo(i)} title="Remover">×</button>
               </div>
             ))}
           </div>
-          <button style={s.btnGhostSm} onClick={adicionarNovoCampo}>+ Adicionar campo personalizado</button>
+          <button style={s.btnGhostSm} onClick={adicionarNovoCampo}>+ Adicionar campo</button>
 
           <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Cancelar</button>
