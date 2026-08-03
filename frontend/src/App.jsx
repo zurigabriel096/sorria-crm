@@ -28,7 +28,7 @@ import { Config } from "./pages/Config";
 import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact, deleteContact, iniciarImportacaoLote, getImportLoteStatus, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus, excluirContatosEmLote, getExcluirLoteStatus, atribuirResponsavelEmLote, getResponsavelLoteStatus } from "./api/contacts";
 import { matchSeg } from "./utils/patients";
-import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory } from "./api/campaigns";
+import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory, limparHistoricoDisparo, limparHistoricoProspects } from "./api/campaigns";
 import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
 import { listPapeisCargo, createPapelCargo, updatePapelCargo, deletePapelCargo } from "./api/papeisCargo";
 import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
@@ -298,6 +298,14 @@ export default function App() {
     );
   };
 
+  // Limpeza manual pedida pelo usuario (base era so teste) - irreversivel,
+  // por isso HistoricoDisparos.jsx exige frase de confirmacao digitada antes
+  // de chamar isso. Limpa CRM + prospects juntos ("todo historico de disparo").
+  const limparTodoHistoricoDisparo = async () => {
+    await Promise.all([limparHistoricoDisparo(), limparHistoricoProspects()]);
+    setHistorico([]);
+  };
+
   const criarColaborador = async (dados) => {
     const criado = await createColaborador(dados);
     setColaboradores((c) => [...c, criado]);
@@ -457,7 +465,7 @@ export default function App() {
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} setObjetivos={setObjetivos} showToast={showToast} />}
           {view === "automacoes" && <Automacoes showToast={showToast} usuario={usuario} patients={patients} />}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
-          {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} />}
+          {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} usuario={usuario} onLimparHistorico={limparTodoHistoricoDisparo} showToast={showToast} />}
           {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} papeisCargo={papeisCargo} onCriarPapelCargo={criarPapelCargoHandler} onAtualizarPapelCargo={atualizarPapelCargoHandler} onExcluirPapelCargo={excluirPapelCargoHandler} />}
           {view === "plano" && <Plano showToast={showToast} usuario={usuario} />}
           {view === "suporte" && <Suporte showToast={showToast} />}

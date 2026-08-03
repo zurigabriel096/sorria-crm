@@ -27,6 +27,12 @@ export const dispatchProspects = (id, templateId, prospects) =>
 
 export const listDispatchProspectHistory = () => api.get("/api/dispatch-prospect-history");
 
+// Limpeza manual do historico de disparo (CRM + prospects) - irreversivel,
+// restrito a ADMIN no backend. O frontend exige frase de confirmacao digitada
+// antes de chamar (ver HistoricoDisparos.jsx).
+export const limparHistoricoDisparo = () => api.del("/api/dispatch-history");
+export const limparHistoricoProspects = () => api.del("/api/dispatch-prospect-history");
+
 export const listDispatchHistory = async () =>
   (await api.get("/api/dispatch-history")).map((h) => ({
     contatoId: h.contatoId,
