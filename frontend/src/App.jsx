@@ -429,7 +429,7 @@ export default function App() {
       <div style={s.main}>
         <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
-          {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} />}
+          {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} />}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} />}
           {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}

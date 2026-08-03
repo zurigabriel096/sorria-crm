@@ -36,7 +36,7 @@ const CAMPOS_FIXOS = [
   { chave: "fixo:dentista", rotulo: "Dentista" },
 ];
 
-export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados }) {
+export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [kpis, setKpis] = useState(null);
   const [metricasVisiveis, setMetricasVisiveisState] = useState(null);
@@ -60,7 +60,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
           <div style={{ fontSize: 20, fontWeight: 800, color: T.ink, marginBottom: 6 }}>Comece importando sua base</div>
           <div style={{ fontSize: 14, color: T.inkSoft, marginBottom: 20 }}>Sua conta está limpa. Suba uma das suas planilhas da Orthodontic para popular o painel, a base de leads e a agenda.</div>
         </div>
-        <div style={{ width: "min(560px,100%)" }}><ImportBox onImport={onImport} showToast={showToast} /></div>
+        <div style={{ width: "min(560px,100%)" }}><ImportBox onImport={onImport} showToast={showToast} camposCustomizados={camposCustomizados} onCriarCampo={onCriarCampo} /></div>
       </div>
     );
   }

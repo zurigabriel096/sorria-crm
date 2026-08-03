@@ -7,7 +7,7 @@ import { ImportMappingModal } from "./ImportMappingModal";
 // variant "box" (padrao): area grande de arrastar/clicar, usada quando a base
 // esta vazia. variant "button": botao compacto pro mesmo fluxo, pra ficar ao
 // lado de "Exportar Lead" quando ja existem leads na base.
-export function ImportBox({ onImport, showToast, compact, variant = "box" }) {
+export function ImportBox({ onImport, showToast, compact, variant = "box", camposCustomizados, onCriarCampo }) {
   const inp = useRef(null);
   const [arquivoPendente, setArquivoPendente] = useState(null);
 
@@ -42,6 +42,8 @@ export function ImportBox({ onImport, showToast, compact, variant = "box" }) {
           file={arquivoPendente}
           onClose={() => setArquivoPendente(null)}
           showToast={showToast}
+          camposCustomizados={camposCustomizados}
+          onCriarCampo={onCriarCampo}
           onConfirmar={(pacientes) => {
             setArquivoPendente(null);
             onImport({ tipo: "generico", pacientes });

@@ -117,8 +117,9 @@ export function sugerirMapeamento(headers) {
 
 // Constrói a lista de pacientes a partir do mapeamento confirmado pelo
 // operador - cada campo aponta pro índice da coluna na planilha, ou null
-// (ignorado).
-export function montarPacientes(rows, hi, mapeamento) {
+// (ignorado). novosCampos: colunas mapeadas pro operador pra virar Campo
+// Personalizado na hora (ver ImportMappingModal) - [{ colIdx, nome }].
+export function montarPacientes(rows, hi, mapeamento, novosCampos = []) {
   const pega = (r, chave) => {
     const idx = mapeamento[chave];
     return idx != null ? String(r[idx] ?? "").trim() : "";
@@ -135,6 +136,13 @@ export function montarPacientes(rows, hi, mapeamento) {
     const ultAtend = pega(r, "ultAtend");
     const recencia = diasDesde(parseData(ultAtend));
 
+    const camposCustomizados = {};
+    novosCampos.forEach(({ colIdx, nome: nomeCampo }) => {
+      if (colIdx == null) return;
+      const valor = String(r[colIdx] ?? "").trim();
+      if (valor) camposCustomizados[nomeCampo] = valor;
+    });
+
     pacientes.push({
       cod: pega(r, "cod"),
       nome, primeiro: primeiroNome(nome),
@@ -146,6 +154,7 @@ export function montarPacientes(rows, hi, mapeamento) {
       recencia,
       estagio: pega(r, "estagio") || "Lead",
       elegivel: ok, enviado: "Pendente", tags: [], origem: "Importação",
+      camposCustomizados,
     });
   });
   return pacientes;
