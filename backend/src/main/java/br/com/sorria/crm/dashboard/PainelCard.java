@@ -5,10 +5,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// "Big number" configuravel do Painel Executivo: conta quantos Contato tem
-// Contato.camposCustomizados.get(campoNome) == valor (ex.: campo "Protesto",
-// valor "A protestar"). So ADMIN cria/edita (ver PainelCardController) -
-// mecanismo generico, nao fica preso a um campo especifico.
+// "Big number" configuravel do Painel Executivo: conta quantos Contato batem
+// campoNome=valor. campoNome pode ser um campo customizado (nome livre, ver
+// CampoCustomizado) ou um campo fixo do cadastro com prefixo "fixo:" (ex.:
+// "fixo:financ", valor "Inadimplente") - ver PainelCardService.bate e
+// Dashboard.jsx (CAMPOS_FIXOS) pro catalogo completo. So ADMIN cria/edita
+// (ver PainelCardController) - mecanismo generico, nao fica preso a 1 campo.
 @Entity
 @Table(name = "painel_cards")
 @Getter

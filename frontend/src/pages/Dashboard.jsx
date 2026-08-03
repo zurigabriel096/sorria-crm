@@ -25,6 +25,17 @@ const METRICAS = [
   { chave: "taxaEntrega", rotulo: "Taxa de entrega", montar: (kpis, ctx) => <KpiCard label="Taxa de entrega" value={`${num(kpis.taxaEntregaPct)}%`} icon={<IconCheck color={T.primary} />} onClick={() => ctx.setView("disparos")} /> },
 ];
 
+// Campos fixos do cadastro que tambem podem virar card personalizado, alem
+// dos campos customizados que o proprio usuario cria (ver CampoCustomizado) -
+// prefixo "fixo:" no campoNome distingue dos nomes livres de campo
+// customizado (ver PainelCardService.bate no backend).
+const CAMPOS_FIXOS = [
+  { chave: "fixo:financ", rotulo: "Financeiro", opcoes: ["Adimplente", "Inadimplente", "—"] },
+  { chave: "fixo:estagio", rotulo: "Estágio" },
+  { chave: "fixo:elegivel", rotulo: "Elegível", opcoes: ["Sim", "Não"] },
+  { chave: "fixo:dentista", rotulo: "Dentista" },
+];
+
 export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [kpis, setKpis] = useState(null);
@@ -150,8 +161,14 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
   };
 
   const campoEscolhido = camposCustomizados.find((c) => c.nome === novoCard?.campoNome);
+  const campoFixoEscolhido = CAMPOS_FIXOS.find((c) => c.chave === novoCard?.campoNome);
+  const opcoesValor = campoEscolhido?.tipo === "LISTA" ? campoEscolhido.opcoes : campoFixoEscolhido?.opcoes;
 
-  const abrirNovoCard = () => setNovoCard({ id: null, campoNome: camposCustomizados[0]?.nome || "", valor: "", rotulo: "" });
+  // Campo customizado usa o proprio nome como rotulo; campo fixo (prefixo
+  // "fixo:") traduz pro rotulo amigavel de CAMPOS_FIXOS.
+  const rotuloCampo = (campoNome) => CAMPOS_FIXOS.find((c) => c.chave === campoNome)?.rotulo || campoNome;
+
+  const abrirNovoCard = () => setNovoCard({ id: null, campoNome: camposCustomizados[0]?.nome || CAMPOS_FIXOS[0].chave, valor: "", rotulo: "" });
   const abrirEdicaoCard = (card) => setNovoCard({ id: card.id, campoNome: card.campoNome, valor: card.valor, rotulo: card.rotulo || "" });
 
   const salvarCard = async () => {
@@ -198,8 +215,8 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
         {!cards.length && <span style={{ fontSize: 13, color: T.inkSoft }}>Nenhum card criado ainda.</span>}
         {cards.map((c) => (
           <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: T.lineSoft, borderRadius: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, flex: 1 }}>{c.rotulo || `${c.campoNome}: ${c.valor}`}</span>
-            <span style={{ fontSize: 11, color: T.inkSoft }}>{c.campoNome} = {c.valor}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: T.ink, flex: 1 }}>{c.rotulo || `${rotuloCampo(c.campoNome)}: ${c.valor}`}</span>
+            <span style={{ fontSize: 11, color: T.inkSoft }}>{rotuloCampo(c.campoNome)} = {c.valor}</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.primary }}>{c.contagem}</span>
             <DotMenu items={[
               { label: "Editar", onClick: () => abrirEdicaoCard(c) },
@@ -210,28 +227,28 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
       </div>
       {novoCard ? (
         <div style={{ border: `1.5px dashed ${T.line}`, borderRadius: 10, padding: 10, display: "grid", gap: 8 }}>
-          {!camposCustomizados.length ? (
-            <div style={{ fontSize: 13, color: T.inkSoft }}>Crie um campo personalizado primeiro (tela de Segmentações).</div>
-          ) : (
-            <>
-              <Field label="Campo personalizado">
-                <Select block value={novoCard.campoNome} onChange={(v) => setNovoCard({ ...novoCard, campoNome: v, valor: "" })} options={camposCustomizados.map((c) => c.nome)} />
-              </Field>
-              <Field label="Valor">
-                {campoEscolhido?.tipo === "LISTA" && campoEscolhido.opcoes.length ? (
-                  <Select block value={novoCard.valor} onChange={(v) => setNovoCard({ ...novoCard, valor: v })} options={campoEscolhido.opcoes} />
-                ) : (
-                  <input style={s.input} value={novoCard.valor} onChange={(e) => setNovoCard({ ...novoCard, valor: e.target.value })} placeholder="Ex: A protestar" />
-                )}
-              </Field>
-              <Field label="Rótulo do card (opcional)">
-                <input style={s.input} value={novoCard.rotulo} onChange={(e) => setNovoCard({ ...novoCard, rotulo: e.target.value })} placeholder="Ex: A protestar" />
-              </Field>
-            </>
-          )}
+          <Field label="Campo personalizado">
+            <Select
+              block
+              value={novoCard.campoNome}
+              onChange={(v) => setNovoCard({ ...novoCard, campoNome: v, valor: "" })}
+              options={[...camposCustomizados.map((c) => c.nome), ...CAMPOS_FIXOS.map((c) => c.chave)]}
+              labels={Object.fromEntries(CAMPOS_FIXOS.map((c) => [c.chave, `${c.rotulo} (campo fixo)`]))}
+            />
+          </Field>
+          <Field label="Valor">
+            {opcoesValor?.length ? (
+              <Select block value={novoCard.valor} onChange={(v) => setNovoCard({ ...novoCard, valor: v })} options={opcoesValor} />
+            ) : (
+              <input style={s.input} value={novoCard.valor} onChange={(e) => setNovoCard({ ...novoCard, valor: e.target.value })} placeholder="Ex: A protestar" />
+            )}
+          </Field>
+          <Field label="Rótulo do card (opcional)">
+            <input style={s.input} value={novoCard.rotulo} onChange={(e) => setNovoCard({ ...novoCard, rotulo: e.target.value })} placeholder="Ex: A protestar" />
+          </Field>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setNovoCard(null)}>Cancelar</button>
-            <button style={{ ...s.btnPrimary, flex: 1 }} onClick={salvarCard} disabled={!camposCustomizados.length}>Salvar</button>
+            <button style={{ ...s.btnPrimary, flex: 1 }} onClick={salvarCard}>Salvar</button>
           </div>
         </div>
       ) : (

@@ -54,9 +54,23 @@ public class PainelCardService {
     }
 
     private PainelCardDTO toDTO(PainelCard c, List<Contato> contatos) {
-        long contagem = contatos.stream()
-                .filter(ct -> ct.getCamposCustomizados() != null && c.getValor().equals(ct.getCamposCustomizados().get(c.getCampoNome())))
-                .count();
+        long contagem = contatos.stream().filter(ct -> bate(ct, c.getCampoNome(), c.getValor())).count();
         return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getValor(), c.getRotulo(), c.getOrdem(), contagem);
+    }
+
+    // campoNome com prefixo "fixo:" aponta pra um campo fixo do cadastro (ver
+    // CAMPOS_FIXOS em Dashboard.jsx) em vez de um campo customizado de nome
+    // livre - sem prefixo, continua o comportamento original (camposCustomizados).
+    private boolean bate(Contato c, String campoNome, String valor) {
+        if (campoNome.startsWith("fixo:")) {
+            return switch (campoNome.substring("fixo:".length())) {
+                case "financ" -> valor.equals(c.getFinanc());
+                case "estagio" -> valor.equals(c.getEstagio());
+                case "elegivel" -> "Sim".equals(valor) == c.isElegivel();
+                case "dentista" -> valor.equals(c.getDentista());
+                default -> false;
+            };
+        }
+        return c.getCamposCustomizados() != null && valor.equals(c.getCamposCustomizados().get(campoNome));
     }
 }
