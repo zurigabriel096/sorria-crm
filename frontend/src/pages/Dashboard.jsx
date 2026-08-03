@@ -71,6 +71,14 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
         {cards.map((c) => (
           <KpiCard key={c.id} label={c.rotulo || `${c.campoNome}: ${c.valor}`} value={num(c.contagem)} icon={<IconGrid color={T.primary} />} />
         ))}
+        {!!prospectsHistorico.length && (
+          <KpiCard
+            label="Enviado pra prospects"
+            value={num(prospectsHistorico.reduce((acc, h) => acc + h.totalProspects, 0))}
+            sub={`${num(prospectsHistorico.reduce((acc, h) => acc + h.quantidadeEntregue, 0))} entregues`}
+            icon={<IconSend color={T.gold} />}
+          />
+        )}
       </div>
       <Card title="Base por estágio">
         {Object.entries(kpis.porEstagio || {}).map(([etapa, qtd]) => {
