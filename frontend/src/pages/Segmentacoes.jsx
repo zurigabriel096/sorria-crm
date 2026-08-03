@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { T, AVATAR_COLORS } from "../theme";
 import { s } from "../styles/s";
-import { montarFieldMeta, OP_LABEL } from "../data/seed";
+import { montarFieldMeta, OP_LABEL, OPS_SEM_VALOR } from "../data/seed";
 import { matchSeg } from "../utils/patients";
 import { dataHora } from "../utils/format";
 import { Card } from "../components/ui/Card";
