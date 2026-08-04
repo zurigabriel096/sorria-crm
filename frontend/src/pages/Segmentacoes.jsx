@@ -3,6 +3,7 @@ import { T, AVATAR_COLORS } from "../theme";
 import { s } from "../styles/s";
 import { montarFieldMeta, OP_LABEL, OPS_SEM_VALOR } from "../data/seed";
 import { matchSeg } from "../utils/patients";
+import { interpretarTexto } from "../utils/interpretarSegmentacao";
 import { dataHora } from "../utils/format";
 import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
@@ -506,6 +507,14 @@ export function Segmentacoes({
 
 function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, onClose, salvando }) {
   const set = (patch) => setBuilder({ ...builder, ...patch });
+  const [textoGuia, setTextoGuia] = useState("");
+  const [naoEntendido, setNaoEntendido] = useState(null);
+
+  const estruturarPorTexto = () => {
+    const { groups, naoEntendido: resto } = interpretarTexto(textoGuia, fieldMeta, tags);
+    setNaoEntendido(resto);
+    if (groups.length) set({ groups });
+  };
 
   const setCond = (gi, ci, patch) =>
     set({ groups: builder.groups.map((g, j) => (j === gi ? g.map((c, k) => (k === ci ? { ...c, ...patch } : c)) : g)) });
@@ -536,6 +545,31 @@ function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, on
   return (
     <Modal title={builder.id ? "Editar segmentação" : "Nova segmentação"} onClose={onClose} wide>
       <Field label="Nome"><input style={s.input} value={builder.nome} onChange={(e) => set({ nome: e.target.value })} placeholder="Ex: Reativação +120D" /></Field>
+
+      <div style={{ background: T.primarySoft, borderRadius: 12, padding: 12, marginBottom: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.primaryDark, marginBottom: 6 }}>Descrever em texto (opcional)</div>
+        <div style={{ fontSize: 12, color: T.inkSoft, marginBottom: 8 }}>
+          Escreva como você pensa o público e clique em Estruturar. Ex: "quero falar com quem tem entre 2 a 3 parcelas vencidas e valor de débito acima de R$400,00"
+        </div>
+        <textarea
+          style={{ ...s.input, minHeight: 60, resize: "vertical", fontFamily: "inherit" }}
+          value={textoGuia}
+          onChange={(e) => setTextoGuia(e.target.value)}
+          placeholder="Descreva o público que você quer atingir..."
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <button style={s.btnGhostSm} onClick={estruturarPorTexto} disabled={!textoGuia.trim()}>Estruturar condições</button>
+        </div>
+        {naoEntendido !== null && (
+          naoEntendido.length ? (
+            <div style={{ fontSize: 12, color: T.coral, marginTop: 8 }}>
+              Não entendi: {naoEntendido.map((t) => `"${t}"`).join(", ")}. Confira as condições abaixo e complete manualmente se precisar.
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: T.primaryDark, marginTop: 8 }}>Condições aplicadas abaixo — revise antes de salvar.</div>
+          )
+        )}
+      </div>
 
       {builder.groups.map((group, gi) => (
         <div key={gi} style={{ marginBottom: 10 }}>
