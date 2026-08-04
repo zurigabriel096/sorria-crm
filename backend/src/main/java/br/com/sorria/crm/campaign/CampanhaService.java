@@ -36,6 +36,13 @@ public class CampanhaService {
     private static final int INTERVALO_PADRAO_SEGUNDOS = 60;
     private static final int INTERVALO_MINIMO_SEGUNDOS = 40;
     private static final int INTERVALO_MAXIMO_SEGUNDOS = 180;
+    // "Digitando" antes de cada mensagem real - mesma faixa (1.5-3.5s) do
+    // Sorr.ia Protect (AquecimentoService), NAO a pausa inteira: o Evolution GO
+    // trava internamente ate 60s mostrando o indicador (message_service.go,
+    // ChatPresence), reenviando a cada 5s - nao faz sentido "digitar" pelos
+    // 40-180s inteiros, so no fim da pausa, como uma pessoa de verdade.
+    private static final int DIGITANDO_MIN_MS = 1500;
+    private static final int DIGITANDO_VARIACAO_MS = 2000;
 
     private final CampanhaRepository campanhaRepository;
     private final TemplateRepository templateRepository;
@@ -150,6 +157,21 @@ public class CampanhaService {
 
         for (int i = 0; i < elegiveis.size(); i++) {
             Contato contato = elegiveis.get(i);
+
+            // Pausa + "digitando" ANTES de mandar (nao depois) - o indicador
+            // precisa aparecer pro contato que vai receber a proxima mensagem,
+            // nao pro que ja recebeu. So entre mensagens do WhatsApp (nao antes
+            // da primeira, nao no canal Email).
+            if (!email && i > 0) {
+                try {
+                    pausarComDigitando(intervaloBaseMs, tokenInstancia, contato.getTelefone());
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Disparo da campanha {} interrompido no meio do envio ({}/{})", campanha.getId(), i + 1, elegiveis.size());
+                    break;
+                }
+            }
+
             String mensagem = SubstituicaoVariaveis.aplicar(corpoTemplate, contato);
             String status = !email ? evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem, tokenInstancia) : "Entregue";
 
@@ -171,20 +193,6 @@ public class CampanhaService {
                 if (!email) mensagemService.registrarSaidaExterna(contato.getId(), campanha.getWhatsappNumeroId(), mensagem);
             } else if ("Falhou".equals(status)) {
                 falhas++;
-            }
-
-            // Pausa so entre mensagens do WhatsApp (nao apos a ultima) - anti-spam do
-            // WhatsApp sinaliza rajadas sem intervalo como envio automatizado. Um
-            // jitter aleatorio (+0-40%) evita um padrao perfeitamente uniforme.
-            if (!email && i < elegiveis.size() - 1) {
-                int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (intervaloBaseMs * 0.4) + 1);
-                try {
-                    Thread.sleep(intervaloBaseMs + jitterMs);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Disparo da campanha {} interrompido no meio do envio ({}/{})", campanha.getId(), i + 1, elegiveis.size());
-                    break;
-                }
             }
         }
 
@@ -222,22 +230,22 @@ public class CampanhaService {
         for (int i = 0; i < validos.size(); i++) {
             ProspectDTO prospect = validos.get(i);
             String telefone = normalizarTelefoneProspect(prospect.telefone());
-            String mensagem = corpoTemplate.replace("{nome}", primeiroNome(prospect.nome()));
-            String status = evolutionApiClient.enviarMensagem(telefone, mensagem, tokenInstancia);
 
-            if ("Entregue".equals(status)) entregues++;
-            else if ("Falhou".equals(status)) falhas++;
-
-            if (i < validos.size() - 1) {
-                int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (intervaloBaseMs * 0.4) + 1);
+            if (i > 0) {
                 try {
-                    Thread.sleep(intervaloBaseMs + jitterMs);
+                    pausarComDigitando(intervaloBaseMs, tokenInstancia, telefone);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     log.warn("Disparo pra prospects da campanha {} interrompido no meio do envio ({}/{})", campanha.getId(), i + 1, validos.size());
                     break;
                 }
             }
+
+            String mensagem = corpoTemplate.replace("{nome}", primeiroNome(prospect.nome()));
+            String status = evolutionApiClient.enviarMensagem(telefone, mensagem, tokenInstancia);
+
+            if ("Entregue".equals(status)) entregues++;
+            else if ("Falhou".equals(status)) falhas++;
         }
 
         DisparoProspectHistorico historico = new DisparoProspectHistorico();
@@ -261,6 +269,26 @@ public class CampanhaService {
         if (digitos.isBlank()) return null;
         if (digitos.length() <= 11 && !digitos.startsWith("55")) digitos = "55" + digitos;
         return digitos;
+    }
+
+    // Pausa entre uma mensagem e a proxima, mostrando "digitando..." pro PROXIMO
+    // contato so nos ultimos 1.5-3.5s (mesma faixa da AquecimentoService) - o
+    // resto da pausa fica em silencio, sem nenhum sinal de presenca, igual uma
+    // pessoa que nao esta olhando o WhatsApp o tempo todo entre uma mensagem e
+    // outra. simularDigitando() ja bloqueia internamente pelo tempo do "digitando"
+    // (o Evolution GO segura o indicador do lado dele) - por isso so damos
+    // Thread.sleep no silencio, nunca duas vezes o mesmo tempo.
+    private void pausarComDigitando(int intervaloBaseMs, String tokenInstancia, String telefoneProximoContato) throws InterruptedException {
+        int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (intervaloBaseMs * 0.4) + 1);
+        int pausaTotalMs = intervaloBaseMs + jitterMs;
+        int digitandoMs = Math.min(pausaTotalMs, DIGITANDO_MIN_MS + ThreadLocalRandom.current().nextInt(DIGITANDO_VARIACAO_MS));
+        int silencioMs = pausaTotalMs - digitandoMs;
+        if (silencioMs > 0) Thread.sleep(silencioMs);
+        if (tokenInstancia != null && telefoneProximoContato != null) {
+            evolutionApiClient.simularDigitando(tokenInstancia, telefoneProximoContato, digitandoMs);
+        } else {
+            Thread.sleep(digitandoMs);
+        }
     }
 
     // null (nao escolheu numero) = usa sempre o numero principal, fixo na config
