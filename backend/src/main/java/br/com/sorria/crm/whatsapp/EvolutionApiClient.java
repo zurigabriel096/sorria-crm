@@ -185,13 +185,16 @@ public class EvolutionApiClient {
      * /instance/presence) - so estetico/comportamental, usado pelo Sorr.ia
      * Protect pra não mandar mensagem "seca" demais entre os proprios
      * numeros. Melhor esforco: falha aqui nunca deve impedir o envio real.
+     * tokenInstancia nulo/vazio cai pro apiKey da instancia principal - mesmo
+     * fallback de enviarMensagem(2 args), usado pela Automacao (que nao tem
+     * campo de numero alternativo, sempre manda pelo numero principal).
      */
     public void simularDigitando(String tokenInstancia, String telefoneDestino, int delayMs) {
         if (baseUrl == null || baseUrl.isBlank()) return;
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("apikey", tokenInstancia);
+            headers.set("apikey", tokenInstancia != null && !tokenInstancia.isBlank() ? tokenInstancia : apiKey);
             Map<String, Object> body = Map.of("number", telefoneDestino, "state", "composing", "delay", delayMs);
             restTemplate.postForEntity(baseUrl + "/instance/presence", new HttpEntity<>(body, headers), String.class);
         } catch (RestClientException ex) {

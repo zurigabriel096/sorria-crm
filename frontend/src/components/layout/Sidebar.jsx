@@ -38,9 +38,15 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
   // pra la deslogando e logando de novo, sem nenhuma entrada de menu.
   const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
   // "Sorr.ia Protect" mexe em infraestrutura de WhatsApp (numeros dedicados
-  // a aquecimento) - so ADMIN ve, mesmo criterio de Configurações.
+  // a aquecimento) - so ADMIN ve, mesmo criterio de Configurações. "Agente
+  // Virtual" responde lead automaticamente em nome da clinica - mesmo criterio.
   const itemsComProtect = usuario?.papel === "ADMIN"
-    ? [...ITEMS_BASE.slice(0, -1), ["aquecimento", "Sorr.ia Protect", IconShield], ITEMS_BASE[ITEMS_BASE.length - 1]]
+    ? [
+        ...ITEMS_BASE.slice(0, -1),
+        ["aquecimento", "Sorr.ia Protect", IconShield],
+        ["agenteVirtual", "Agente Virtual", IconChat],
+        ITEMS_BASE[ITEMS_BASE.length - 1],
+      ]
     : ITEMS_BASE;
   const ITEMS = souAdminOuGestor ? itemsComProtect : [["inicio", "Início", IconHome], ...itemsComProtect];
 

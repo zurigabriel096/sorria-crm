@@ -352,12 +352,12 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           {f.canal === "WhatsApp" && (
             <Field label="Intervalo entre envios (segundos)">
               <input
-                type="number" min={40} max={180} style={{ ...s.input, maxWidth: 120 }}
+                type="number" min={50} max={300} style={{ ...s.input, maxWidth: 120 }}
                 value={f.intervaloSegundos}
-                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(40, Math.min(180, Number(e.target.value) || 40)) })}
+                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(50, Math.min(300, Number(e.target.value) || 50)) })}
               />
               <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
-                Pausa entre uma mensagem e outra. Mínimo 40s, máximo 180s (3min) — rajadas
+                Pausa entre uma mensagem e outra. Mínimo 50s, máximo 300s (5min) — rajadas
                 rápidas aumentam o risco do número ser marcado como spam ou suspenso pelo WhatsApp.
                 Pra leads frios (sem conversa prévia), use mais perto do máximo.
               </div>

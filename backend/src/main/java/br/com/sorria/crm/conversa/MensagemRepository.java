@@ -11,6 +11,12 @@ import java.util.List;
 public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
     List<Mensagem> findByContatoIdOrderByCriadoEmAsc(Long contatoId);
 
+    // Base do Agente Virtual (AgenteVirtualService.processarPendentes): pega
+    // todas as mensagens de hoje pra agrupar por contato em memoria e achar
+    // quem mandou a primeira mensagem do dia e ainda nao teve nenhuma SAIDA
+    // depois dela.
+    List<Mensagem> findByCriadoEmGreaterThanEqualOrderByContatoIdAscCriadoEmAsc(LocalDateTime desde);
+
     // "Respondeu" pra fins de performance de campanha (ver CampanhaService.calcularPerformance):
     // existe alguma mensagem ENTRADA desse contato depois da hora do disparo.
     boolean existsByContatoIdAndDirecaoAndCriadoEmAfter(Long contatoId, String direcao, LocalDateTime apos);

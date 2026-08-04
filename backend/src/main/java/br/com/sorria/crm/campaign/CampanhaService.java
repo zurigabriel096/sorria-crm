@@ -34,13 +34,13 @@ public class CampanhaService {
 
     private static final String CANAL_EMAIL = "Email";
     private static final int INTERVALO_PADRAO_SEGUNDOS = 60;
-    private static final int INTERVALO_MINIMO_SEGUNDOS = 40;
-    private static final int INTERVALO_MAXIMO_SEGUNDOS = 180;
+    private static final int INTERVALO_MINIMO_SEGUNDOS = 50;
+    private static final int INTERVALO_MAXIMO_SEGUNDOS = 300;
     // "Digitando" antes de cada mensagem real - mesma faixa (1.5-3.5s) do
     // Sorr.ia Protect (AquecimentoService), NAO a pausa inteira: o Evolution GO
     // trava internamente ate 60s mostrando o indicador (message_service.go,
     // ChatPresence), reenviando a cada 5s - nao faz sentido "digitar" pelos
-    // 40-180s inteiros, so no fim da pausa, como uma pessoa de verdade.
+    // 50-300s inteiros, so no fim da pausa, como uma pessoa de verdade.
     private static final int DIGITANDO_MIN_MS = 1500;
     private static final int DIGITANDO_VARIACAO_MS = 2000;
 
@@ -325,12 +325,12 @@ public class CampanhaService {
         campanha.setInicio(dto.inicio());
         campanha.setEmailMsg(dto.emailMsg());
         campanha.setTemplateId(dto.templateId());
-        // Piso/teto tambem no backend, nao so no input do frontend (min=40/max=180) -
+        // Piso/teto tambem no backend, nao so no input do frontend (min=50/max=300) -
         // rajada sem intervalo e' o que mais aumenta risco do numero ser
         // marcado como spam pelo WhatsApp, e o valor viria direto de quem
         // chamar a API sem passar pela tela se so validasse no frontend.
-        // Elevado de 6s pra 40-180s (piso/teto) apos suspensao real de 3 numeros
-        // por excesso de volume/velocidade (04/08/2026).
+        // Elevado de 6s pra 40-180s, depois pra 50-300s (5min), apos suspensao
+        // real de 3 numeros por excesso de volume/velocidade (04/08/2026).
         campanha.setIntervaloSegundos(dto.intervaloSegundos() != null
                 ? Math.min(INTERVALO_MAXIMO_SEGUNDOS, Math.max(INTERVALO_MINIMO_SEGUNDOS, dto.intervaloSegundos()))
                 : null);

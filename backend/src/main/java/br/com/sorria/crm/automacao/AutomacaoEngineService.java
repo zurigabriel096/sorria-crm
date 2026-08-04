@@ -57,10 +57,18 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AutomacaoEngineService {
 
-    // Mesmo padrao de pacing do CampanhaService.disparar: pausa base + jitter de ate 40% entre
-    // cada mensagem de WhatsApp enviada no mesmo tick, pra nao mandar uma rajada de mensagens
-    // identicas em sequencia perfeita (padrao que servicos anti-spam do WhatsApp podem flagar).
-    private static final int INTERVALO_PACING_SEGUNDOS = 3;
+    // Mesmo PISO do CampanhaService.disparar (elevado de 3s pra 50s em 04/08/2026, apos a
+    // automacao virar canal principal e reduzir volume/velocidade de disparo em massa) -
+    // sem campo de "intervaloSegundos" configuravel por fluxo ainda (diferente de Campanha),
+    // entao fica fixo no piso, com jitter de ate 40% entre cada mensagem de WhatsApp
+    // enviada no mesmo tick, pra nao mandar uma rajada de mensagens identicas em sequencia.
+    private static final int INTERVALO_PACING_SEGUNDOS = 50;
+    // "Digitando" antes de cada mensagem - mesma faixa (1.5-3.5s) do CampanhaService/
+    // Sorr.ia Protect. Aqui soma ao intervalo (nao "come" o final da pausa como no
+    // CampanhaService) - a estrutura em tick nao conhece o proximo contato com antecedencia,
+    // entao e' mais simples digitar pro MESMO contato antes de mandar pra ele.
+    private static final int DIGITANDO_MIN_MS = 1500;
+    private static final int DIGITANDO_VARIACAO_MS = 2000;
 
     private final FluxoAutomacaoRepository fluxoAutomacaoRepository;
     private final ExecucaoFluxoRepository execucaoFluxoRepository;
@@ -265,6 +273,12 @@ public class AutomacaoEngineService {
     }
 
     private void enviarMensagemComPacing(Contato contato, String texto) {
+        // "Digitando" pro mesmo contato antes de mandar (mesmo padrao do
+        // AquecimentoService) - tokenInstancia nulo cai pro numero principal
+        // dentro de simularDigitando (ver EvolutionApiClient).
+        int digitandoMs = DIGITANDO_MIN_MS + ThreadLocalRandom.current().nextInt(DIGITANDO_VARIACAO_MS);
+        evolutionApiClient.simularDigitando(null, contato.getTelefone(), digitandoMs);
+
         String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), texto);
         // Sem isso, mensagem de fluxo nao aparecia no Kanban (Conversas.jsx) nem
         // atualizava Contato.ultimaMensagemEm - a Fila de Trabalho nao sabia que a
