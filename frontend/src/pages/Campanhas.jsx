@@ -12,7 +12,20 @@ import { listNumeros } from "../api/whatsappNumeros";
 import { dispatchCampaign, getCampaignPerformance } from "../api/campaigns";
 import { matchSeg } from "../utils/patients";
 
-const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 6, whatsappNumeroId: "", modoProspects: false });
+const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 60, whatsappNumeroId: "", modoProspects: false });
+
+// Escalonamento entre números no Disparo A/B/C: em vez de todos os números
+// começarem juntos (padrão que os sistemas antiabuso do WhatsApp associam
+// como disparo coordenado em massa), cada número só entra depois que o
+// anterior já começou há X minutos. Só frontend (setTimeout) - se a aba for
+// fechada antes da hora, os números seguintes não disparam (aceito, ver
+// SESSAO do dia da suspensão de 04/08/2026).
+const ESCALONAMENTO_OPCOES = [
+  { chave: "risco", rotulo: "Risco", minutos: 5 },
+  { chave: "moderado", rotulo: "Moderado", minutos: 30 },
+  { chave: "recomendavel", rotulo: "Recomendável", minutos: 120 },
+];
+const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, segmentos, patients, onDisparar, showToast, usuario }) {
   const responsavel = usuario?.nome || "Você";
@@ -29,8 +42,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
   // numero de aquecimento, nunca com lead real.
   const numerosDisparo = numeros.filter((n) => n.finalidade !== "AQUECIMENTO");
   const [performance, setPerformance] = useState({}); // {[campanhaId]: dados | "carregando"}
-  const [abModal, setAbModal] = useState(null); // null | {segmentoId, variantes: [idA, idB, idC?], numeroIds: []}
-  const [disparandoAB, setDisparandoAB] = useState(false);
+  const [abModal, setAbModal] = useState(null); // null | {segmentoId, variantes: [idA, idB, idC?], numeroIds: [], escalonamento}
   const ativos = templates.filter((t) => t.ativo && !t.arquivado);
 
   useEffect(() => { listNumeros().then(setNumeros).catch(() => setNumeros([])); }, []);
@@ -69,39 +81,54 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
     const segmento = segmentos.find((sg) => sg.id === abModal.segmentoId);
     const capturados = patients.filter((p) => matchSeg(p, segmento));
     if (!capturados.length) return showToast("Nenhum lead capturado por essa segmentação", "warn");
-    setDisparandoAB(true);
-    try {
-      const embaralhados = [...capturados].sort(() => Math.random() - 0.5);
-      const nV = variantesValidas.length;
-      const nN = abModal.numeroIds.length;
-      const chamadas = [];
+    // Agrupa as chamadas por NÚMERO (não por variante) - o que precisa ser
+    // escalonado no tempo é cada número/aparelho começando a mandar mensagem,
+    // não as variantes de conteúdo desse mesmo número (isso pode ser junto).
+    const embaralhados = [...capturados].sort(() => Math.random() - 0.5);
+    const nV = variantesValidas.length;
+    const nN = abModal.numeroIds.length;
+    const gruposPorNumero = abModal.numeroIds.map((numeroId, ni) => {
+      const chamadasDesseNumero = [];
       variantesValidas.forEach((campanhaId, vi) => {
         const inicioV = Math.floor((vi * embaralhados.length) / nV);
         const fimV = Math.floor(((vi + 1) * embaralhados.length) / nV);
         const grupoVariante = embaralhados.slice(inicioV, fimV);
-        abModal.numeroIds.forEach((numeroId, ni) => {
-          const inicioN = Math.floor((ni * grupoVariante.length) / nN);
-          const fimN = Math.floor(((ni + 1) * grupoVariante.length) / nN);
-          const ids = grupoVariante.slice(inicioN, fimN).map((p) => p.id);
-          if (ids.length) chamadas.push(dispatchCampaign(campanhaId, null, ids, numeroId || null));
-        });
+        const inicioN = Math.floor((ni * grupoVariante.length) / nN);
+        const fimN = Math.floor(((ni + 1) * grupoVariante.length) / nN);
+        const ids = grupoVariante.slice(inicioN, fimN).map((p) => p.id);
+        if (ids.length) chamadasDesseNumero.push({ campanhaId, ids });
       });
-      const resultados = await Promise.all(chamadas);
-      const totalEntregues = resultados.reduce((acc, r) => acc + (r.entregues || 0), 0);
-      const totalGeral = resultados.reduce((acc, r) => acc + (r.total || 0), 0);
-      const letras = "ABC".slice(0, nV).split("").join("/");
-      showToast(`Disparo ${letras} feito — ${totalEntregues}/${totalGeral} entregues, em ${nN} número(s)`, "ok");
-      setAbModal(null);
+      return { numeroId, chamadasDesseNumero };
+    });
+    const minutosEscalonamento = nN > 1
+      ? (ESCALONAMENTO_OPCOES.find((o) => o.chave === abModal.escalonamento)?.minutos ?? 0)
+      : 0;
+    const letras = "ABC".slice(0, nV).split("").join("/");
+    setAbModal(null); // fecha o modal já - com escalonamento isso pode levar horas, não faz sentido travar a tela
+    try {
+      let totalEntregues = 0;
+      let totalGeral = 0;
+      for (let ni = 0; ni < gruposPorNumero.length; ni++) {
+        if (ni > 0 && minutosEscalonamento > 0) {
+          showToast(`Disparo ${letras}: aguardando ${minutosEscalonamento} min pra iniciar o número ${ni + 1}/${nN}...`, "ok");
+          await esperar(minutosEscalonamento * 60 * 1000);
+        }
+        const { numeroId, chamadasDesseNumero } = gruposPorNumero[ni];
+        const resultados = await Promise.all(
+          chamadasDesseNumero.map((c) => dispatchCampaign(c.campanhaId, null, c.ids, numeroId || null))
+        );
+        totalEntregues += resultados.reduce((acc, r) => acc + (r.entregues || 0), 0);
+        totalGeral += resultados.reduce((acc, r) => acc + (r.total || 0), 0);
+      }
+      showToast(`Disparo ${letras} concluído — ${totalEntregues}/${totalGeral} entregues, em ${nN} número(s)`, "ok");
     } catch (e) {
       showToast(e.message || "Erro no disparo A/B", "warn");
-    } finally {
-      setDisparandoAB(false);
     }
   };
 
   const abrirNovo = () => { setF(vazio()); setModal("novo"); };
   const abrirEdicao = (c) => {
-    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 6, whatsappNumeroId: c.whatsappNumeroId || "", modoProspects: !!c.modoProspects });
+    setF({ id: c.id, nome: c.nome, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "", segmentoId: c.segmentoId || "", templateId: c.templateId || "", intervaloSegundos: c.intervaloSegundos || 60, whatsappNumeroId: c.whatsappNumeroId || "", modoProspects: !!c.modoProspects });
     setModal("editar");
   };
 
@@ -132,7 +159,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
       await onCriarCampanha({
         nome: `${c.nome} (cópia)`, objetivo: c.objetivo, canal: c.canal, emailMsg: c.emailMsg || "",
         templateId: c.templateId || null, responsavel, status: "Ativa", inicio: new Date().toLocaleDateString("pt-BR"),
-        intervaloSegundos: c.intervaloSegundos || 6, whatsappNumeroId: c.whatsappNumeroId || null,
+        intervaloSegundos: c.intervaloSegundos || 60, whatsappNumeroId: c.whatsappNumeroId || null,
       }, c.segmentoId || null);
       showToast("Campanha duplicada", "ok");
     } catch (e) {
@@ -196,7 +223,7 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           <button style={{ ...s.toggleBtn, ...(verArquivadas ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivadas(true)}>Arquivadas</button>
         </div>
         <div style={{ flex: 1 }} />
-        <button style={s.btnGhostSm} onClick={() => setAbModal({ segmentoId: "", variantes: ["", ""], numeroIds: [] })}>Disparo A/B</button>
+        <button style={s.btnGhostSm} onClick={() => setAbModal({ segmentoId: "", variantes: ["", ""], numeroIds: [], escalonamento: "recomendavel" })}>Disparo A/B</button>
         <button style={s.btnPrimarySm} onClick={abrirNovo}>+ Nova campanha</button>
       </div>
       {!lista.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivadas ? "Nenhuma campanha arquivada." : "Nenhuma campanha ativa. Crie a primeira."}</div></Card>}
@@ -325,13 +352,14 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           {f.canal === "WhatsApp" && (
             <Field label="Intervalo entre envios (segundos)">
               <input
-                type="number" min={6} max={30} style={{ ...s.input, maxWidth: 120 }}
+                type="number" min={40} max={180} style={{ ...s.input, maxWidth: 120 }}
                 value={f.intervaloSegundos}
-                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(6, Math.min(30, Number(e.target.value) || 6)) })}
+                onChange={(e) => setF({ ...f, intervaloSegundos: Math.max(40, Math.min(180, Number(e.target.value) || 40)) })}
               />
               <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
-                Pausa entre uma mensagem e outra. Mínimo 6s — rajadas sem
-                intervalo aumentam o risco do número ser marcado como spam pelo WhatsApp.
+                Pausa entre uma mensagem e outra. Mínimo 40s, máximo 180s (3min) — rajadas
+                rápidas aumentam o risco do número ser marcado como spam ou suspenso pelo WhatsApp.
+                Pra leads frios (sem conversa prévia), use mais perto do máximo.
               </div>
             </Field>
           )}
@@ -400,10 +428,30 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
                 ))}
               </div>
             </Field>
+            {abModal.numeroIds.length > 1 && (
+              <Field label="Escalonar início entre números (evita todos disparando ao mesmo tempo)">
+                <div style={{ display: "grid", gap: 6, marginTop: 4 }}>
+                  {ESCALONAMENTO_OPCOES.map((o) => (
+                    <label key={o.chave} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
+                      <input
+                        type="radio" name="escalonamento" checked={abModal.escalonamento === o.chave}
+                        onChange={() => setAbModal({ ...abModal, escalonamento: o.chave })}
+                      />
+                      {o.rotulo} — {o.minutos} min entre um número começar e o próximo
+                    </label>
+                  ))}
+                </div>
+                <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 6 }}>
+                  Vários números disparando juntos, da mesma infraestrutura, é o padrão que
+                  associou a suspensão dos 3 números em 04/08/2026. Quanto maior o intervalo,
+                  menor essa correlação — mas a campanha toda demora mais pra terminar.
+                </div>
+              </Field>
+            )}
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setAbModal(null)}>Cancelar</button>
-              <button style={{ ...s.btnWa, flex: 1, opacity: disparandoAB ? .6 : 1 }} onClick={confirmarDisparoAB} disabled={disparandoAB}>
-                {disparandoAB ? "Disparando..." : `Disparar ${letras.join("/")}`}
+              <button style={{ ...s.btnWa, flex: 1 }} onClick={confirmarDisparoAB}>
+                {`Disparar ${letras.join("/")}`}
               </button>
             </div>
           </Modal>
