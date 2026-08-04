@@ -25,10 +25,19 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class LoteJobService {
 
+    // 10 min de retencao depois de concluido - o frontend so consulta um job
+    // ATE a primeira vez que ve concluido=true (App.jsx para de fazer GET
+    // depois disso), entao e' seguro liberar a memoria bem antes disso viver
+    // pra sempre. Sem essa limpeza, cada import/tag-em-lote/exclusao-em-lote
+    // feito na sessao inteira ficava acumulado no heap ate o proximo restart -
+    // contribuiu pro OOM (exit 137) que o backend teve rodando essa sessao.
+    private static final long RETENCAO_MS = 10 * 60 * 1000;
+
     private final Map<String, LoteJobStatus<?>> jobs = new ConcurrentHashMap<>();
     private final LoteJobWorker worker;
 
     public <T, R> String iniciar(List<T> itens, Function<T, R> acaoPorItem) {
+        limparAntigos();
         int total = itens != null ? itens.size() : 0;
         String jobId = UUID.randomUUID().toString();
         LoteJobStatus<R> status = new LoteJobStatus<>(total);
@@ -47,5 +56,9 @@ public class LoteJobService {
             throw new NoSuchElementException("Job em lote nao encontrado: " + jobId);
         }
         return status;
+    }
+
+    private void limparAntigos() {
+        jobs.entrySet().removeIf(e -> e.getValue().concluidoHaMaisDe(RETENCAO_MS));
     }
 }

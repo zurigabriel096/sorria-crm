@@ -17,6 +17,7 @@ public class LoteJobStatus<R> {
     private final AtomicInteger processados = new AtomicInteger(0);
     private volatile int afetados = 0;
     private volatile boolean concluido = false;
+    private volatile long concluidoEmMillis = 0;
     private final List<R> resultados = Collections.synchronizedList(new java.util.ArrayList<>());
 
     public LoteJobStatus(int total) {
@@ -49,6 +50,15 @@ public class LoteJobStatus<R> {
 
     void marcarConcluido() {
         this.concluido = true;
+        this.concluidoEmMillis = System.currentTimeMillis();
+    }
+
+    // Usado so pra limpeza (ver LoteJobService.limparAntigos) - o frontend
+    // para de consultar um job assim que ve concluido=true pela primeira vez
+    // (App.jsx filtra "!j.concluido" antes de fazer o proximo GET), entao e'
+    // seguro liberar a memoria pouco depois de concluir.
+    boolean concluidoHaMaisDe(long millisAtras) {
+        return concluido && (System.currentTimeMillis() - concluidoEmMillis) > millisAtras;
     }
 
     void adicionarResultado(R resultado) {
