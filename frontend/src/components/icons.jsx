@@ -28,10 +28,7 @@ export const IconPanelLeft = (p) => (
   </svg>
 );
 export const IconChat = (p) => <svg {...I(p)}><path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>;
-// Rotacionado -45deg pra apontar pra cima: o icone de send "cru" (Feather)
-// aponta na diagonal, o que fica torto ao lado dos outros icones da barra
-// lateral quando ela minimiza (fila vertical so de icones).
-export const IconSend = (p) => <svg {...I(p)} transform="rotate(-45 12 12)"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>;
+export const IconSend = (p) => <svg {...I(p)}><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>;
 export const IconTeam = (p) => <svg {...I(p)}><circle cx="12" cy="7" r="3.2" /><path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>;
 export const IconCard = (p) => <svg {...I(p)}><rect x="2" y="5" width="20" height="14" rx="2.5" /><path d="M2 10h20" /></svg>;
 export const IconLife = (p) => <svg {...I(p)}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" /><path d="M5 5l4 4M15 15l4 4M19 5l-4 4M9 15l-4 4" /></svg>;
