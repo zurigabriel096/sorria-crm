@@ -5,6 +5,7 @@ import br.com.sorria.crm.automacao.ExecucaoFluxoRepository;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.contact.ContatoService;
+import br.com.sorria.crm.contact.ResultadoImportacaoLinha;
 import br.com.sorria.crm.contact.dto.ContatoDTO;
 import br.com.sorria.crm.conversa.dto.EnviarMensagemRequest;
 import br.com.sorria.crm.conversa.dto.MensagemDTO;
@@ -174,10 +175,11 @@ public class MensagemService {
             // verdade. Volume real de mensagem espontanea e' baixo (poucas por dia,
             // transacional) - risco de "spam virar lead" e' aceitavel nesse volume
             // (decisao explicita do Samuel, 04/08/2026).
-            Long novoId = contatoService.importarLinha(new ContatoDTO(
+            ResultadoImportacaoLinha resultado = contatoService.importarLinha(new ContatoDTO(
                     null, null, LEAD_SEM_NOME, telefone, null, null, null, null, null, null,
                     null, null, true, null, null, "WhatsApp (mensagem espontânea)", null, null,
                     null, null, null, null, null));
+            Long novoId = resultado != null ? resultado.id() : null;
             contato = novoId != null ? contatoRepository.findById(novoId).orElse(null) : null;
             if (contato == null) {
                 log.warn("Webhook Evolution: falha ao criar lead novo pro numero {}", telefone);
