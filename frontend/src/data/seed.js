@@ -39,6 +39,7 @@ export const OP_LABEL = {
   "é": "é", "não é": "não é", maior: "maior que", menor: "menor que",
   contém: "contém", "não contém": "não contém",
   "está preenchido": "está preenchido", "não está preenchido": "não está preenchido",
+  faltam: "faltam exatamente (dias, a partir de hoje)",
 };
 
 // Estende FIELD_META com um campo por CampoCustomizado ativo, pra virar
@@ -51,7 +52,10 @@ export function montarFieldMeta(camposCustomizados) {
   (camposCustomizados || []).forEach((campo) => {
     const chave = `custom:${campo.tipo}:${campo.nome}`;
     if (campo.tipo === "NUMERO" || campo.tipo === "MOEDA") meta[chave] = { label: campo.nome, ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "number" };
-    else if (campo.tipo === "DATA") meta[chave] = { label: campo.nome, ops: ["maior", "menor", ...OPS_SEM_VALOR], value: "date" };
+    // "faltam" e' dinamico (compara com hoje+N dias, nao com uma data fixa) -
+    // por isso o input de valor dele e' numero mesmo o campo sendo DATA (ver
+    // tratamento especial em Segmentacoes.jsx e evalCondCustomizado).
+    else if (campo.tipo === "DATA") meta[chave] = { label: campo.nome, ops: ["maior", "menor", "faltam", ...OPS_SEM_VALOR], value: "date" };
     else if (campo.tipo === "LISTA") meta[chave] = { label: campo.nome, ops: ["é", "não é", ...OPS_SEM_VALOR], values: campo.opcoes || [] };
     else meta[chave] = { label: campo.nome, ops: ["contém", "não contém"], value: "text" };
   });

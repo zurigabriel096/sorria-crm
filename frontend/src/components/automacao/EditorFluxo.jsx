@@ -10,6 +10,7 @@ import StartNode from "./StartNode";
 import FlowNode from "./FlowNode";
 import MensagemNode from "./MensagemNode";
 import PlaceholderNode from "./PlaceholderNode";
+import CondicaoNode from "./CondicaoNode";
 import { EntradaPanel } from "./EntradaPanel";
 import { PrimeiroPassoPanel } from "./PrimeiroPassoPanel";
 import { MensagemPanel } from "./MensagemPanel";
@@ -18,7 +19,7 @@ import { AjudaZoomButton } from "./AjudaZoomModal";
 import { getFluxo, updateFluxo, ativarFluxo } from "../../api/automacoes";
 import { gerarId } from "../../utils/automacao/ids";
 
-const nodeTypes = { start: StartNode, action: FlowNode, mensagem: MensagemNode, placeholder: PlaceholderNode };
+const nodeTypes = { start: StartNode, action: FlowNode, mensagem: MensagemNode, placeholder: PlaceholderNode, condicao: CondicaoNode };
 
 function noInicioPadrao() {
   return { id: "inicio", type: "start", position: { x: 60, y: 220 }, data: { entrada: null } };
@@ -27,6 +28,9 @@ function noInicioPadrao() {
 function criarNoDeItem(item) {
   if (item.tipo === "enviar_mensagem") {
     return { type: "mensagem", data: { texto: "", imagem: null, respostasRapidas: [], blocosConteudo: [], atraso: { dias: 0, horas: 0, minutos: 0, segundos: 0 } } };
+  }
+  if (item.tipo === "condicao") {
+    return { type: "condicao", data: { condicoes: [{ id: gerarId("cond"), operador: "contem", valor: "" }] } };
   }
   return { type: "action", data: { tipo: item.tipo, nome: item.nome } };
 }
@@ -110,6 +114,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     if (n.type === "start") return { ...n, data: { ...n.data, onAbrirEntrada: abrirEntrada } };
     if (n.type === "mensagem") return { ...n, data: { ...n.data, onAbrir: abrirMensagem, onExcluir: excluirNo } };
     if (n.type === "action") return { ...n, data: { ...n.data, onExcluir: excluirNo, onMudarConfig: mudarConfigAcao } };
+    if (n.type === "condicao") return { ...n, data: { ...n.data, onExcluir: excluirNo, onMudarConfig: mudarConfigAcao } };
     return n;
   });
 

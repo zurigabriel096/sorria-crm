@@ -590,11 +590,19 @@ function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, on
                     <select value={c.field} onChange={(e) => changeField(gi, ci, e.target.value)} style={s.condSelect}>
                       {Object.entries(fieldMeta).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
-                    <select value={c.op} onChange={(e) => setCond(gi, ci, { op: e.target.value })} style={s.condSelect}>
+                    <select value={c.op} onChange={(e) => {
+                      const novoOp = e.target.value;
+                      const eraFaltam = c.op === "faltam";
+                      const viraFaltam = novoOp === "faltam";
+                      const value = viraFaltam && !eraFaltam ? 1 : (!viraFaltam && eraFaltam ? "" : c.value);
+                      setCond(gi, ci, { op: novoOp, value });
+                    }} style={s.condSelect}>
                       {m.ops.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
                     </select>
                     {OPS_SEM_VALOR.includes(c.op) ? (
                       <span style={{ ...s.condSelect, display: "flex", alignItems: "center", color: T.inkSoft, background: "transparent", border: "none" }}>sem valor</span>
+                    ) : c.op === "faltam" ? (
+                      <input type="number" min={0} value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
                     ) : m.value === "number" ? (
                       <input type="number" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
                     ) : m.value === "date" ? (

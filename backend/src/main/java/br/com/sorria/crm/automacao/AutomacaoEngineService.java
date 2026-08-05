@@ -4,6 +4,8 @@ import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.contact.ContatoService;
 import br.com.sorria.crm.contact.SubstituicaoVariaveis;
+import br.com.sorria.crm.conversa.Mensagem;
+import br.com.sorria.crm.conversa.MensagemRepository;
 import br.com.sorria.crm.conversa.MensagemService;
 import br.com.sorria.crm.segment.Segmentacao;
 import br.com.sorria.crm.segment.SegmentacaoRepository;
@@ -78,6 +80,7 @@ public class AutomacaoEngineService {
     private final SegmentacaoMatcher segmentacaoMatcher;
     private final EvolutionApiClient evolutionApiClient;
     private final MensagemService mensagemService;
+    private final MensagemRepository mensagemRepository;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelay = 30_000)
@@ -193,17 +196,32 @@ public class AutomacaoEngineService {
         Map<String, NoFluxo> nosPorId = nos.stream().collect(Collectors.toMap(NoFluxo::id, n -> n, (a, b) -> a));
 
         String noAtualId = execucao.getNoAtualId() != null ? execucao.getNoAtualId() : "inicio";
-        String proximoId = arestas.stream()
-                .filter(a -> noAtualId.equals(a.source()))
-                .map(ArestaFluxo::target)
-                .findFirst().orElse(null);
-        if (proximoId == null) {
-            concluir(execucao);
-            return;
+        // No "condicao" e' transparente: nao e' um passo visivel (nao manda mensagem, nao
+        // demora), so decide qual aresta seguir - por isso o loop resolve quantos nos de
+        // condicao encadeados forem precisos DENTRO do mesmo tick, e so para quando acha
+        // um no de verdade (ou esgota o grafo). Guarda de seguranca contra loop configurado
+        // errado no editor (condicao apontando pra condicao apontando pra ela mesma etc.).
+        NoFluxo proximo = null;
+        for (int saltos = 0; saltos < 20; saltos++) {
+            String proximoId = resolverProximoId(noAtualId, arestas, nosPorId, contato);
+            if (proximoId == null) {
+                concluir(execucao);
+                return;
+            }
+            NoFluxo candidato = nosPorId.get(proximoId);
+            if (candidato == null || "placeholder".equals(candidato.type())) {
+                concluir(execucao);
+                return;
+            }
+            if (!"condicao".equals(candidato.type())) {
+                proximo = candidato;
+                break;
+            }
+            noAtualId = candidato.id();
         }
-
-        NoFluxo proximo = nosPorId.get(proximoId);
-        if (proximo == null || "placeholder".equals(proximo.type())) {
+        if (proximo == null) {
+            log.warn("Fluxo {} com nos de condicao encadeados demais (ou em loop) a partir da execucao {}",
+                    fluxo.getId(), execucao.getId());
             concluir(execucao);
             return;
         }
@@ -295,6 +313,58 @@ public class AutomacaoEngineService {
         }
     }
 
+    // Qual aresta seguir a partir de "noAtualId". Pra qualquer no normal, e' sempre a
+    // primeira aresta que sai dele (comportamento antigo, sem ramificacao). Quando
+    // "noAtualId" e' um no "condicao", em vez disso resolve o HANDLE certo (qual
+    // condicao bateu, ou o fallback) e segue so a aresta que sai desse handle.
+    private String resolverProximoId(String noAtualId, List<ArestaFluxo> arestas, Map<String, NoFluxo> nosPorId, Contato contato) {
+        NoFluxo noAtual = nosPorId.get(noAtualId);
+        if (noAtual != null && "condicao".equals(noAtual.type())) {
+            String handle = resolverHandleCondicao(noAtual, contato);
+            return arestas.stream()
+                    .filter(a -> noAtualId.equals(a.source()) && handle.equals(a.sourceHandle()))
+                    .map(ArestaFluxo::target)
+                    .findFirst().orElse(null);
+        }
+        return arestas.stream()
+                .filter(a -> noAtualId.equals(a.source()))
+                .map(ArestaFluxo::target)
+                .findFirst().orElse(null);
+    }
+
+    // ID do handle de saida do no "condicao" que deve ser seguido: o id da primeira
+    // condicao (na ordem configurada no editor) cujo operador bate com o TEXTO da
+    // ultima mensagem ENTRADA do contato, ou HANDLE_FALLBACK_CONDICAO quando nenhuma
+    // bate (ou o lead nunca mandou mensagem nenhuma) - espelha o "Nenhuma das
+    // condicoes" da referencia Kommo (Bot Matriz).
+    private static final String HANDLE_FALLBACK_CONDICAO = "__fallback__";
+
+    private String resolverHandleCondicao(NoFluxo no, Contato contato) {
+        Map<String, Object> data = no.data() != null ? no.data() : Map.of();
+        List<Map<String, Object>> condicoes = comoLista(data.get("condicoes"));
+        String texto = mensagemRepository.findFirstByContatoIdAndDirecaoOrderByCriadoEmDesc(contato.getId(), "ENTRADA")
+                .map(Mensagem::getTexto).orElse("");
+        for (Map<String, Object> condicao : condicoes) {
+            String operador = textoOuNull(condicao.get("operador"));
+            String valor = textoOuNull(condicao.get("valor"));
+            String handleId = textoOuNull(condicao.get("id"));
+            if (handleId == null) continue;
+            if (condicaoBate(operador, valor, texto)) return handleId;
+        }
+        return HANDLE_FALLBACK_CONDICAO;
+    }
+
+    private static boolean condicaoBate(String operador, String valorCondicao, String textoRecebido) {
+        String texto = textoRecebido == null ? "" : textoRecebido.toLowerCase().trim();
+        String valor = valorCondicao == null ? "" : valorCondicao.toLowerCase().trim();
+        return switch (operador == null ? "" : operador) {
+            case "nao_contem" -> !texto.contains(valor);
+            case "igual" -> texto.equals(valor);
+            case "diferente" -> !texto.equals(valor);
+            default -> !valor.isBlank() && texto.contains(valor); // "contem" (padrao)
+        };
+    }
+
     private void concluir(ExecucaoFluxo execucao) {
         execucao.setStatus("concluido");
         execucao.setProximaExecucaoEm(null);
@@ -312,6 +382,11 @@ public class AutomacaoEngineService {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> comoMapa(Object valor) {
         return valor instanceof Map ? (Map<String, Object>) valor : Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> comoLista(Object valor) {
+        return valor instanceof List ? (List<Map<String, Object>>) valor : List.of();
     }
 
     private static Long comoLong(Object valor) {

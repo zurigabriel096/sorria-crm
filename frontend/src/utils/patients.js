@@ -17,6 +17,13 @@ function evalCondCustomizado(p, c) {
   if (c.op === "está preenchido") return !vazio(valor);
   if (c.op === "não está preenchido") return vazio(valor);
   if (tipo === "NUMERO" || tipo === "MOEDA") return c.op === "maior" ? (Number(valor) || 0) > +c.value : (Number(valor) || 0) < +c.value;
+  if (tipo === "DATA" && c.op === "faltam") {
+    if (vazio(valor)) return false;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dataCampo = new Date(`${valor}T00:00:00`);
+    const diasRestantes = Math.round((dataCampo.getTime() - hoje.getTime()) / 864e5);
+    return diasRestantes === +c.value;
+  }
   if (tipo === "DATA") return c.op === "maior" ? new Date(valor || 0) > new Date(c.value) : new Date(valor || 0) < new Date(c.value);
   if (tipo === "LISTA") return c.op === "é" ? valor === c.value : valor !== c.value;
   const contem = String(valor || "").toLowerCase().includes(String(c.value || "").toLowerCase());

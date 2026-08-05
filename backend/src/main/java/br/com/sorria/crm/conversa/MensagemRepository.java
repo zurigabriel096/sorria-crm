@@ -7,9 +7,14 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
     List<Mensagem> findByContatoIdOrderByCriadoEmAsc(Long contatoId);
+
+    // Base do no "condicao" (AutomacaoEngineService.resolverHandleCondicao): avalia
+    // as condicoes contra o TEXTO da ultima mensagem que o lead mandou de verdade.
+    Optional<Mensagem> findFirstByContatoIdAndDirecaoOrderByCriadoEmDesc(Long contatoId, String direcao);
 
     // Base do Agente Virtual (AgenteVirtualService.processarPendentes): pega
     // todas as mensagens de hoje pra agrupar por contato em memoria e achar

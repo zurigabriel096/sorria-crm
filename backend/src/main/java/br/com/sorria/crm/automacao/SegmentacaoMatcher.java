@@ -107,8 +107,17 @@ public class SegmentacaoMatcher {
             }
             case "DATA" -> {
                 LocalDate atual = paraData(valor);
+                if (atual == null) yield false;
+                // "faltam": dinamico (compara com HOJE+N dias, nao com uma data fixa) -
+                // base do gatilho "consulta em N dia(s)" (ver AutomacaoEngineService e o
+                // fluxo-modelo de confirmacao). Espelha exatamente evalCondCustomizado em
+                // frontend/src/utils/patients.js.
+                if ("faltam".equals(op)) {
+                    long diasRestantes = ChronoUnit.DAYS.between(LocalDate.now(), atual);
+                    yield diasRestantes == (long) paraNumero(value);
+                }
                 LocalDate comparado = paraData(value != null ? String.valueOf(value) : null);
-                if (atual == null || comparado == null) yield false;
+                if (comparado == null) yield false;
                 yield "maior".equals(op) ? atual.isAfter(comparado) : atual.isBefore(comparado);
             }
             case "LISTA" -> "é".equals(op) ? igual(valor, value) : !igual(valor, value);
