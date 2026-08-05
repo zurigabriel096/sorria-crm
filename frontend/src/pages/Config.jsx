@@ -277,19 +277,35 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
   const [finalidade, setFinalidade] = useState("DISPARO");
   const [salvando, setSalvando] = useState(false);
   const [numeroParaConectar, setNumeroParaConectar] = useState(null);
+  // Avancado: vincular instancia QUE JA EXISTE (ex.: criada manualmente num
+  // servidor Evolution GO alternativo) em vez de criar uma nova do zero.
+  const [avancadoAberto, setAvancadoAberto] = useState(false);
+  const [tokenExistente, setTokenExistente] = useState("");
+  const [instanciaExistente, setInstanciaExistente] = useState("");
+  const [servidorUrlExistente, setServidorUrlExistente] = useState("");
 
   const carregar = () => listNumeros().then(setNumeros).catch(() => setNumeros([]));
   useEffect(() => { carregar(); }, []);
 
+  const limparForm = () => {
+    setNome(""); setFinalidade("DISPARO"); setFormAberto(false);
+    setAvancadoAberto(false); setTokenExistente(""); setInstanciaExistente(""); setServidorUrlExistente("");
+  };
+
   const salvar = async () => {
     if (!nome.trim()) return showToast("Dê um nome pra esse número", "warn");
+    if (avancadoAberto && !tokenExistente.trim()) return showToast("Informe o token da instância já existente", "warn");
     setSalvando(true);
     try {
-      const criado = await createNumero(nome.trim(), finalidade);
-      setNome(""); setFinalidade("DISPARO"); setFormAberto(false);
-      showToast("Número criado — agora conecte escaneando o QR", "ok");
+      const avancado = avancadoAberto
+        ? { token: tokenExistente.trim(), instancia: instanciaExistente.trim() || undefined, servidorUrl: servidorUrlExistente.trim() || undefined }
+        : undefined;
+      const criado = await createNumero(nome.trim(), finalidade, avancado);
+      const jaConectada = avancadoAberto;
+      limparForm();
+      showToast(jaConectada ? "Número vinculado" : "Número criado — agora conecte escaneando o QR", "ok");
       carregar();
-      setNumeroParaConectar(criado.id);
+      if (!jaConectada) setNumeroParaConectar(criado.id);
     } catch (e) {
       showToast(e.message || "Erro ao adicionar número", "warn");
     } finally {
@@ -354,6 +370,26 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
                 <option value="AQUECIMENTO">Aquecimento (Sorr.ia Protect — nunca dispara campanha)</option>
               </select>
             </Field>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: T.inkSoft }}>
+              <input type="checkbox" checked={avancadoAberto} onChange={(e) => setAvancadoAberto(e.target.checked)} />
+              Essa instância já existe (ex.: criada num servidor Evolution GO alternativo)
+            </label>
+            {avancadoAberto && (
+              <div style={{ display: "grid", gap: 10, padding: 10, borderRadius: 8, background: T.lineSoft }}>
+                <Field label="Token da instância">
+                  <input style={s.input} placeholder="token já gerado na Evolution" value={tokenExistente} onChange={(e) => setTokenExistente(e.target.value)} />
+                </Field>
+                <Field label="Nome da instância na Evolution (opcional)">
+                  <input style={s.input} placeholder="deixa em branco pra usar o mesmo nome de cima" value={instanciaExistente} onChange={(e) => setInstanciaExistente(e.target.value)} />
+                </Field>
+                <Field label="URL do servidor (em branco = servidor principal)">
+                  <input style={s.input} placeholder="https://outro-servidor.fly.dev" value={servidorUrlExistente} onChange={(e) => setServidorUrlExistente(e.target.value)} />
+                </Field>
+                <div style={{ fontSize: 11.5, color: T.inkSoft }}>
+                  Já registra o webhook automaticamente — não precisa escanear QR (a instância já está conectada).
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8 }}>
               <button style={{ ...s.btnGhostSm, flex: 1, justifyContent: "center" }} onClick={() => setFormAberto(false)}>Cancelar</button>
               <button style={{ ...s.btnPrimarySm, flex: 1, justifyContent: "center" }} disabled={salvando} onClick={salvar}>

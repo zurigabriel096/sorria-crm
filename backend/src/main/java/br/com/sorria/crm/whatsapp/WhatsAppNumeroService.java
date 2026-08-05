@@ -30,11 +30,35 @@ public class WhatsAppNumeroService {
     // com o webhook ja apontando pro numeroId certo. So falta escanear o QR
     // (ver gerarQrCode) - nao muda nada de quem ja tinha numero cadastrado do
     // jeito antigo, esse fluxo so vale pros novos.
+    //
+    // dto.token() preenchido = instancia JA EXISTE de verdade (ex.: criada
+    // manualmente num servidor alternativo, ver dto.servidorUrl()) - so
+    // vincula e registra o webhook, sem chamar criarInstancia (que so sabe
+    // falar com o GLOBAL_API_KEY do servidor principal). Adicionado 05/08/2026
+    // depois de um registro automatico via CommandLineRunner falhar de forma
+    // misteriosa so na inicializacao - esse caminho (requisicao HTTP normal,
+    // igual toda tela do app) e' o que comprovadamente funciona.
     public WhatsAppNumeroDTO criar(WhatsAppNumeroDTO dto) {
+        boolean instanciaJaExiste = dto.token() != null && !dto.token().isBlank();
+        boolean aquecimento = "AQUECIMENTO".equals(dto.finalidade());
+
+        if (instanciaJaExiste) {
+            WhatsAppNumero numero = new WhatsAppNumero();
+            numero.setNome(dto.nome());
+            numero.setToken(dto.token());
+            numero.setInstancia(dto.instancia() != null && !dto.instancia().isBlank() ? dto.instancia() : dto.nome());
+            numero.setServidorUrl(dto.servidorUrl());
+            numero.setFinalidade(aquecimento ? "AQUECIMENTO" : "DISPARO");
+            if (aquecimento) numero.setAquecimentoIniciadoEm(java.time.LocalDate.now());
+            WhatsAppNumero salvo = repository.save(numero);
+            String webhookUrl = backendUrl + "/api/whatsapp/webhook?numeroId=" + salvo.getId();
+            evolutionApiClient.registrarWebhook(salvo.getToken(), webhookUrl, salvo.getServidorUrl());
+            return toDTOComStatus(salvo);
+        }
+
         WhatsAppNumero numero = new WhatsAppNumero();
         numero.setNome(dto.nome());
         numero.setToken(UUID.randomUUID().toString());
-        boolean aquecimento = "AQUECIMENTO".equals(dto.finalidade());
         numero.setFinalidade(aquecimento ? "AQUECIMENTO" : "DISPARO");
         if (aquecimento) numero.setAquecimentoIniciadoEm(java.time.LocalDate.now());
         WhatsAppNumero salvo = repository.save(numero);
@@ -60,21 +84,6 @@ public class WhatsAppNumeroService {
             throw new NoSuchElementException("Número não encontrado: " + id);
         }
         repository.deleteById(id);
-    }
-
-    // Registra um numero cuja instancia JA EXISTE de verdade num servidor Evolution
-    // GO (criada por fora, ex.: outro servidor dedicado a numeros "saudaveis" -
-    // ver sorria-evolution-saudavel) - ao contrario de criar(), NAO chama
-    // criarInstancia (nao tem como, o GLOBAL_API_KEY desse outro servidor nao
-    // esta configurado aqui). So guarda o vinculo pro CRM usar essa instancia
-    // pra enviar/receber mensagem de verdade.
-    public WhatsAppNumeroDTO registrarExistente(String nome, String instancia, String token, String servidorUrl) {
-        WhatsAppNumero numero = new WhatsAppNumero();
-        numero.setNome(nome);
-        numero.setInstancia(instancia);
-        numero.setToken(token);
-        numero.setServidorUrl(servidorUrl);
-        return toDTOComStatus(repository.save(numero));
     }
 
     public String gerarQrCode(Long id) {

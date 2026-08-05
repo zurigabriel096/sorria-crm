@@ -7,7 +7,10 @@ import { api } from "./client";
 // finalidade: "DISPARO" (padrao) ou "AQUECIMENTO" (Sorr.ia Protect - nunca
 // aparece como opcao de disparo de campanha).
 export const listNumeros = () => api.get("/api/whatsapp/numeros");
-export const createNumero = (nome, finalidade) => api.post("/api/whatsapp/numeros", { nome, finalidade });
+// avancado (opcional): {token, instancia, servidorUrl} - pra vincular uma
+// instancia QUE JA EXISTE (ex.: criada manualmente num servidor alternativo)
+// em vez de criar uma nova. Omitido = comportamento normal (cria do zero).
+export const createNumero = (nome, finalidade, avancado) => api.post("/api/whatsapp/numeros", { nome, finalidade, ...avancado });
 export const deleteNumero = (id) => api.del(`/api/whatsapp/numeros/${id}`);
 
 // Conectar um numero secundario direto pelo app (QR/pareamento/desconectar),
