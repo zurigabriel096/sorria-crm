@@ -2,6 +2,7 @@ import { Handle, Position } from "@xyflow/react";
 
 const RESUMO = {
   segmentacao: (e) => `Segmentação: ${e.segmentacao?.nome || "não escolhida"}`,
+  mensagemRecebida: (e) => `Mensagem recebida (${e.mensagemRecebida?.esperaMinutos ?? 1}min sem resposta)${e.mensagemRecebida?.segmentacao ? ` · ${e.mensagemRecebida.segmentacao.nome}` : ""}`,
   automacaoMarketing: () => "Automação de marketing",
 };
 

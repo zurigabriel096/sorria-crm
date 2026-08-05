@@ -43,23 +43,34 @@ function corpoConfiguravel(id, data, etapas) {
     );
   }
   if (data.tipo === "aguardar_mensagem") {
+    const dias = Number(data.prazoDias) || 0;
+    const horas = Number(data.prazoHoras) || 0;
+    const minutos = Number(data.prazoMinutos) || 0;
+    const temPrazo = dias > 0 || horas > 0 || minutos > 0;
+    const campoPrazo = (rotulo, chave, valor, max) => (
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <input
+          className="nodrag" type="number" min={0} max={max} style={{ ...inputEstilo, width: 48 }}
+          value={valor} onChange={(e) => mudar({ [chave]: Math.max(0, Math.min(max, Number(e.target.value) || 0)) })}
+        />
+        <span style={{ fontSize: 11.5, color: "#5C6E7E" }}>{rotulo}</span>
+      </div>
+    );
     return (
       <div>
         <div style={{ fontSize: 12, color: "#5C6E7E", lineHeight: 1.5, marginBottom: 8 }}>
           Pausa o fluxo até o lead responder qualquer mensagem no WhatsApp.
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: "#5C6E7E" }}>Prazo:</span>
-          <input
-            className="nodrag" type="number" min={0} max={365} style={{ ...inputEstilo, width: 60 }}
-            value={data.prazoDias ?? 0} onChange={(e) => mudar({ prazoDias: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}
-          />
-          <span style={{ fontSize: 12, color: "#5C6E7E" }}>dias</span>
+        <div style={{ fontSize: 11.5, color: "#5C6E7E", marginBottom: 4 }}>Prazo (0 em tudo = espera pra sempre):</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {campoPrazo("dias", "prazoDias", dias, 365)}
+          {campoPrazo("horas", "prazoHoras", horas, 23)}
+          {campoPrazo("min", "prazoMinutos", minutos, 59)}
         </div>
-        <div style={{ fontSize: 11, color: "#8A9AA6", marginTop: 4 }}>
-          {Number(data.prazoDias) > 0
-            ? `Se não responder em ${data.prazoDias} dia(s), segue pro próximo passo mesmo assim (marcado como "sem resposta").`
-            : "0 = espera pra sempre, sem prazo (não segue sozinho se o lead nunca responder)."}
+        <div style={{ fontSize: 11, color: "#8A9AA6", marginTop: 6 }}>
+          {temPrazo
+            ? `Se não responder em ${dias}d ${horas}h ${minutos}min, segue pro próximo passo mesmo assim (marcado como "sem resposta").`
+            : "Espera pra sempre, sem prazo (não segue sozinho se o lead nunca responder)."}
         </div>
       </div>
     );

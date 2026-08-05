@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -109,12 +111,12 @@ public class AutomacaoEngineService {
 
     private void processarEntradaDeUmFluxo(FluxoAutomacao fluxo) throws JsonProcessingException {
         // Corte de seguranca (Fase 5): com contato de teste configurado, ignora a
-        // segmentacao de entrada por completo - o fluxo so roda pra esse contato,
-        // mesmo que ele nao bata com o publico real. Deixa o ADMIN validar o ciclo
-        // inteiro (mensagem, tag, aguardar resposta) num numero real e controlado
-        // antes de tirar o campo e liberar pra quem realmente bate com a segmentacao.
+        // segmentacao/gatilho de entrada por completo - o fluxo so roda pra esse
+        // contato, mesmo que ele nao bata com o publico real. Dedup DIARIO (nao
+        // permanente) pra dar pra retestar o mesmo fluxo em dias diferentes sem
+        // precisar zerar nada no banco (05/08/2026).
         if (fluxo.getContatoTesteId() != null) {
-            criarExecucaoSeNaoExiste(fluxo, fluxo.getContatoTesteId());
+            criarExecucaoSeNaoExisteHoje(fluxo, fluxo.getContatoTesteId());
             return;
         }
 
@@ -124,7 +126,13 @@ public class AutomacaoEngineService {
         if (inicio == null || inicio.data() == null) return;
 
         Map<String, Object> entrada = comoMapa(inicio.data().get("entrada"));
-        if (!"segmentacao".equals(entrada.get("tipoCondicao"))) return; // automacaoMarketing: sem gatilho real ainda
+        String tipoCondicao = textoOuNull(entrada.get("tipoCondicao"));
+
+        if ("mensagemRecebida".equals(tipoCondicao)) {
+            processarEntradaPorMensagemRecebida(fluxo, entrada);
+            return;
+        }
+        if (!"segmentacao".equals(tipoCondicao)) return; // automacaoMarketing: sem gatilho real ainda
 
         Map<String, Object> segmentacaoRef = comoMapa(entrada.get("segmentacao"));
         Long segmentacaoId = comoLong(segmentacaoRef.get("id"));
@@ -139,8 +147,58 @@ public class AutomacaoEngineService {
         }
     }
 
+    // Gatilho por EVENTO (mensagem recebida) em vez de atributo (segmentacao) -
+    // pedido do Samuel (05/08/2026) pra migrar a logica do Agente Virtual ("1a
+    // mensagem do dia sem resposta") pra dentro da Automacao, com acesso a
+    // Condicao/tags/estagio de verdade dali pra frente. Espelha
+    // AgenteVirtualService.processarPendentes, so que cria ExecucaoFluxo em vez
+    // de mandar a resposta direto. Filtro de Segmentacao opcional (ex.: so quem
+    // tem um Campo Personalizado com determinado valor) - cobre o pedido de
+    // "condicionamento de campo personalizado" sem precisar de UI nova, reusa
+    // a Segmentacao que ja existe.
+    private void processarEntradaPorMensagemRecebida(FluxoAutomacao fluxo, Map<String, Object> entrada) {
+        Map<String, Object> config = comoMapa(entrada.get("mensagemRecebida"));
+        int esperaMinutos = Math.max(1, comoInteiro(config.get("esperaMinutos"), 1));
+        Long segmentacaoId = comoLong(comoMapa(config.get("segmentacao")).get("id"));
+        Segmentacao segmentacaoFiltro = segmentacaoId != null ? segmentacaoRepository.findById(segmentacaoId).orElse(null) : null;
+
+        LocalDateTime inicioDoDia = LocalDate.now().atStartOfDay();
+        LocalDateTime agora = LocalDateTime.now();
+        List<Mensagem> mensagensHoje = mensagemRepository.findByCriadoEmGreaterThanEqualOrderByContatoIdAscCriadoEmAsc(inicioDoDia);
+
+        Map<Long, List<Mensagem>> porContato = new LinkedHashMap<>();
+        for (Mensagem m : mensagensHoje) {
+            porContato.computeIfAbsent(m.getContatoId(), k -> new ArrayList<>()).add(m);
+        }
+
+        for (Map.Entry<Long, List<Mensagem>> entry : porContato.entrySet()) {
+            List<Mensagem> doDia = entry.getValue();
+            Mensagem primeira = doDia.get(0);
+            if (!"ENTRADA".equals(primeira.getDirecao())) continue;
+            if (agora.isBefore(primeira.getCriadoEm().plusMinutes(esperaMinutos))) continue;
+            boolean jaRespondida = doDia.stream().anyMatch(m -> "SAIDA".equals(m.getDirecao()) && m.getCriadoEm().isAfter(primeira.getCriadoEm()));
+            if (jaRespondida) continue;
+
+            Contato contato = contatoRepository.findById(entry.getKey()).orElse(null);
+            if (contato == null) continue;
+            if (segmentacaoFiltro != null && !segmentacaoMatcher.bate(contato, segmentacaoFiltro)) continue;
+
+            criarExecucaoSeNaoExisteHoje(fluxo, contato.getId());
+        }
+    }
+
     private void criarExecucaoSeNaoExiste(FluxoAutomacao fluxo, Long contatoId) {
         if (execucaoFluxoRepository.existsByFluxoIdAndContatoId(fluxo.getId(), contatoId)) return;
+        ExecucaoFluxo execucao = new ExecucaoFluxo();
+        execucao.setFluxoId(fluxo.getId());
+        execucao.setContatoId(contatoId);
+        execucaoFluxoRepository.save(execucao);
+    }
+
+    // Dedup DIARIO (nao permanente) - ver ExecucaoFluxoRepository.
+    private void criarExecucaoSeNaoExisteHoje(FluxoAutomacao fluxo, Long contatoId) {
+        LocalDateTime inicioDoDia = LocalDate.now().atStartOfDay();
+        if (execucaoFluxoRepository.existsByFluxoIdAndContatoIdAndCriadoEmGreaterThanEqual(fluxo.getId(), contatoId, inicioDoDia)) return;
         ExecucaoFluxo execucao = new ExecucaoFluxo();
         execucao.setFluxoId(fluxo.getId());
         execucao.setContatoId(contatoId);
@@ -288,11 +346,19 @@ public class AutomacaoEngineService {
                 return new ResultadoNo("ativo", proximo != null ? proximo : LocalDateTime.now());
             }
             case "aguardar_mensagem" -> {
-                // prazoDias=0 (ou ausente) mantem o comportamento antigo: espera pra
-                // sempre, sem timeout (ver FlowNode.jsx). Com prazo > 0, processarAvancos
-                // pega essa linha de volta mesmo sem resposta - ver TAG_SEM_RESPOSTA.
+                // dias/horas/minutos combinados - todos 0 (ou ausentes) mantem o
+                // comportamento antigo: espera pra sempre, sem timeout (ver
+                // FlowNode.jsx). Com prazo > 0, processarAvancos pega essa linha de
+                // volta mesmo sem resposta - ver TAG_SEM_RESPOSTA. Horas/minutos
+                // adicionados pra testes rapidos e follow-ups mais finos (pedido do
+                // Samuel, 05/08/2026).
                 int prazoDias = comoInteiro(data.get("prazoDias"), 0);
-                LocalDateTime prazo = prazoDias > 0 ? LocalDateTime.now().plusDays(prazoDias) : null;
+                int prazoHoras = comoInteiro(data.get("prazoHoras"), 0);
+                int prazoMinutos = comoInteiro(data.get("prazoMinutos"), 0);
+                boolean temPrazo = prazoDias > 0 || prazoHoras > 0 || prazoMinutos > 0;
+                LocalDateTime prazo = temPrazo
+                        ? LocalDateTime.now().plusDays(prazoDias).plusHours(prazoHoras).plusMinutes(prazoMinutos)
+                        : null;
                 return new ResultadoNo("aguardando_resposta", prazo);
             }
             default -> log.warn("Tipo de acao desconhecido \"{}\" no fluxo {}, no {}", tipo, fluxo.getId(), no.id());

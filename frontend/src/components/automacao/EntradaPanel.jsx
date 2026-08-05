@@ -51,6 +51,41 @@ export function EntradaPanel({ entrada, onMudar, onFechar }) {
         </select>
       )}
 
+      <button style={cardEstilo(e.tipoCondicao === "mensagemRecebida")} onClick={() => onMudar({ tipoCondicao: "mensagemRecebida" })}>
+        <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16263B" }}>Mensagem recebida (1ª do dia, sem resposta)</div>
+        <div style={{ fontSize: 12, color: "#5C6E7E", marginTop: 3 }}>
+          Dispara quando a primeira mensagem do dia de um lead fica um tempo sem nenhuma resposta (de humano ou de outra automação) - mesmo gatilho do Agente Virtual, agora dentro da Automação.
+        </div>
+      </button>
+      {e.tipoCondicao === "mensagemRecebida" && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12.5, color: "#5C6E7E" }}>Espera</span>
+            <input
+              type="number" min={1} max={1440}
+              style={{ width: 64, height: 34, border: "1px solid #E6EDEC", borderRadius: 8, padding: "0 8px", fontSize: 13 }}
+              value={e.mensagemRecebida?.esperaMinutos ?? 1}
+              onChange={(ev) => onMudar({ mensagemRecebida: { ...e.mensagemRecebida, esperaMinutos: Math.max(1, Math.min(1440, Number(ev.target.value) || 1)) } })}
+            />
+            <span style={{ fontSize: 12.5, color: "#5C6E7E" }}>minuto(s) sem resposta</span>
+          </div>
+          <div style={{ fontSize: 11.5, color: "#8A96A3", marginBottom: 8 }}>
+            Opcional: restrinja a uma Segmentação (ex.: só quem tem um Campo Personalizado com determinado valor) - em branco, vale pra qualquer lead que mandar mensagem.
+          </div>
+          <select
+            style={{ width: "100%", height: 40, border: "1px solid #E6EDEC", borderRadius: 10, padding: "0 12px", fontSize: 13.5 }}
+            value={e.mensagemRecebida?.segmentacao?.id || ""}
+            onChange={(ev) => {
+              const seg = segmentacoes.find((s) => s.id === Number(ev.target.value)) || null;
+              onMudar({ mensagemRecebida: { ...e.mensagemRecebida, segmentacao: seg ? { id: seg.id, nome: seg.nome } : null } });
+            }}
+          >
+            <option value="">Qualquer lead (sem restrição)</option>
+            {segmentacoes.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
+          </select>
+        </div>
+      )}
+
       <button style={cardEstilo(e.tipoCondicao === "automacaoMarketing")} onClick={() => onMudar({ tipoCondicao: "automacaoMarketing" })}>
         <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16263B" }}>Automação de marketing</div>
         <div style={{ fontSize: 12, color: "#5C6E7E", marginTop: 3 }}>

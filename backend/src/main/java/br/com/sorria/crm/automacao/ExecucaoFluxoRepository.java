@@ -12,6 +12,12 @@ public interface ExecucaoFluxoRepository extends JpaRepository<ExecucaoFluxo, Lo
     // batendo com a segmentacao em ticks seguintes.
     boolean existsByFluxoIdAndContatoId(Long fluxoId, Long contatoId);
 
+    // Dedup DIARIO (nao permanente) - usado pelo gatilho "mensagem recebida"
+    // (precisa disparar de novo em dias diferentes pro mesmo contato) e pelo
+    // corte de seguranca de contatoTesteId (pra dar pra retestar o mesmo
+    // fluxo em dias diferentes sem precisar zerar nada no banco).
+    boolean existsByFluxoIdAndContatoIdAndCriadoEmGreaterThanEqual(Long fluxoId, Long contatoId, LocalDateTime desde);
+
     List<ExecucaoFluxo> findByStatusAndProximaExecucaoEmLessThanEqual(String status, LocalDateTime agora);
 
     // Fase 4: quando o contato manda uma mensagem de verdade, MensagemService
