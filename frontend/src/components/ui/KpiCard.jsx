@@ -13,7 +13,9 @@ export function KpiCard({ label, value, sub, icon, highlight, borderColor, onCli
       <div style={{ ...s.kpiIcon, background: highlight ? "rgba(255,255,255,.18)" : T.lineSoft }}>{icon}</div>
       <div style={{ fontSize: 12.5, color: highlight ? "rgba(255,255,255,.85)" : T.inkSoft, marginTop: 12 }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 800, color: highlight ? "#fff" : T.ink }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: highlight ? "rgba(255,255,255,.75)" : T.inkSoft }}>{sub}</div>}
+      {/* Sempre renderiza (mesmo sem "sub") - card sem essa linha ficava mais
+          baixo que os outros na mesma grade, altura inconsistente. */}
+      <div style={{ fontSize: 12, color: highlight ? "rgba(255,255,255,.75)" : T.inkSoft }}>{sub || " "}</div>
     </div>
   );
 }

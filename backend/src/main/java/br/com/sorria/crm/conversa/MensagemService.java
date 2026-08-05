@@ -154,15 +154,30 @@ public class MensagemService {
 
         String telefone = sender.split("[:@]")[0].replaceAll("\\D", "");
         List<Contato> encontrados = contatoRepository.findByTelefone(telefone);
+        Contato contato;
         if (encontrados.isEmpty()) {
-            log.info("Webhook Evolution: numero {} nao corresponde a nenhum lead conhecido", telefone);
-            return;
+            // Numero desconhecido manda mensagem espontanea - cria lead novo em vez
+            // de descartar (antes a mensagem nem era gravada, so um log). Nome fica
+            // generico ate o Agente Virtual (ou um humano) perguntar e preencher de
+            // verdade. Volume real de mensagem espontanea e' baixo (poucas por dia,
+            // transacional) - risco de "spam virar lead" e' aceitavel nesse volume
+            // (decisao explicita do Samuel, 04/08/2026).
+            Long novoId = contatoService.importarLinha(new ContatoDTO(
+                    null, null, "Novo contato (WhatsApp)", telefone, null, null, null, null, null, null,
+                    null, null, true, null, null, "WhatsApp (mensagem espontânea)", null, null, null, null, null));
+            contato = novoId != null ? contatoRepository.findById(novoId).orElse(null) : null;
+            if (contato == null) {
+                log.warn("Webhook Evolution: falha ao criar lead novo pro numero {}", telefone);
+                return;
+            }
+            log.info("Webhook Evolution: numero {} nao era conhecido - criado como novo lead (id={})", telefone, novoId);
+        } else {
+            if (encontrados.size() > 1) {
+                log.warn("Webhook Evolution: numero {} bate com {} contatos - usando o primeiro (id={})",
+                        telefone, encontrados.size(), encontrados.get(0).getId());
+            }
+            contato = encontrados.get(0);
         }
-        if (encontrados.size() > 1) {
-            log.warn("Webhook Evolution: numero {} bate com {} contatos - usando o primeiro (id={})",
-                    telefone, encontrados.size(), encontrados.get(0).getId());
-        }
-        Contato contato = encontrados.get(0);
 
         Mensagem mensagem = new Mensagem();
         mensagem.setContatoId(contato.getId());

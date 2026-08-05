@@ -517,8 +517,8 @@ export default function App() {
           {view === "plano" && <Plano showToast={showToast} usuario={usuario} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
           {view === "config" && <Config showToast={showToast} usuario={usuario} />}
-          {view === "aquecimento" && <Aquecimento showToast={showToast} />}
-          {view === "agenteVirtual" && <AgenteVirtual showToast={showToast} />}
+          {view === "aquecimento" && <Aquecimento showToast={showToast} usuario={usuario} />}
+          {view === "agenteVirtual" && <AgenteVirtual showToast={showToast} usuario={usuario} />}
         </div>
       </div>
       {toast && <Toast toast={toast} />}

@@ -11,12 +11,17 @@ import { getAquecimentoConfig, setAquecimentoConfig, getAquecimentoStatus } from
 // Config > Outros numeros), numa curva de volume crescente + intervalo
 // "ritmo humano" entre envios. NUNCA promete "sem bloqueio" - so reduz risco.
 // Chave-mestra comeca desligada (AquecimentoConfig.ativo) - so ADMIN liga.
-export function Aquecimento({ showToast }) {
+// Item de menu visivel pra todo colaborador (pedido explicito), mas so ADMIN
+// ve a configuracao de verdade - os demais nem chegam a chamar a API (que ja
+// e' @PreAuthorize ADMIN no backend, ver AquecimentoController).
+export function Aquecimento({ showToast, usuario }) {
+  const souAdmin = usuario?.papel === "ADMIN";
   const [config, setConfig] = useState(null);
   const [status, setStatus] = useState(null);
   const [salvando, setSalvando] = useState(false);
 
   const carregar = () => {
+    if (!souAdmin) return;
     getAquecimentoConfig().then(setConfig).catch(() => showToast("Erro ao carregar configuração", "warn"));
     getAquecimentoStatus().then(setStatus).catch(() => setStatus([]));
   };
@@ -24,10 +29,10 @@ export function Aquecimento({ showToast }) {
   useEffect(() => { carregar(); }, []);
   // Enquanto ativo, atualiza o status a cada 20s pra acompanhar em quase-tempo-real.
   useEffect(() => {
-    if (!config?.ativo) return;
+    if (!souAdmin || !config?.ativo) return;
     const t = setInterval(() => getAquecimentoStatus().then(setStatus).catch(() => {}), 20000);
     return () => clearInterval(t);
-  }, [config?.ativo]);
+  }, [souAdmin, config?.ativo]);
 
   const salvar = async (patch) => {
     const novo = { ...config, ...patch };
@@ -43,6 +48,18 @@ export function Aquecimento({ showToast }) {
       setSalvando(false);
     }
   };
+
+  if (!souAdmin) {
+    return (
+      <div style={{ display: "grid", gap: 18, maxWidth: 820 }}>
+        <Card title="Sorr.ia Protect">
+          <div style={{ fontSize: 14, color: T.inkSoft }}>
+            Essa área é restrita ao administrador da conta.
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (!config || !status) return <div style={{ color: T.inkSoft, fontSize: 14, padding: "20px 0" }}>Carregando Sorr.ia Protect...</div>;
 

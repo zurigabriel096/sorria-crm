@@ -37,17 +37,17 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
   // ADMIN/GESTOR - ver App.jsx viewInicialPara. Antes so dava pra voltar
   // pra la deslogando e logando de novo, sem nenhuma entrada de menu.
   const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
-  // "Sorr.ia Protect" mexe em infraestrutura de WhatsApp (numeros dedicados
-  // a aquecimento) - so ADMIN ve, mesmo criterio de Configurações. "Agente
-  // Virtual" responde lead automaticamente em nome da clinica - mesmo criterio.
-  const itemsComProtect = usuario?.papel === "ADMIN"
-    ? [
-        ...ITEMS_BASE.slice(0, -1),
-        ["aquecimento", "Sorr.ia Protect", IconShield],
-        ["agenteVirtual", "Agente Virtual", IconChat],
-        ITEMS_BASE[ITEMS_BASE.length - 1],
-      ]
-    : ITEMS_BASE;
+  // "Sorr.ia Protect" e "Agente Virtual" mexem em infraestrutura de WhatsApp/
+  // resposta automatica em nome da clinica - visiveis pra todo colaborador
+  // (pedido explicito), mas so ADMIN consegue de fato ver a configuracao e
+  // editar dentro da tela (Aquecimento.jsx/AgenteVirtual.jsx bloqueiam pra
+  // quem nao e' ADMIN). "true" no fim de cada item = destaque visual (grifado).
+  const itemsComProtect = [
+    ...ITEMS_BASE.slice(0, -1),
+    ["aquecimento", "Sorr.ia Protect", IconShield, true],
+    ["agenteVirtual", "Agente Virtual", IconChat, true],
+    ITEMS_BASE[ITEMS_BASE.length - 1],
+  ];
   const ITEMS = souAdminOuGestor ? itemsComProtect : [["inicio", "Início", IconHome], ...itemsComProtect];
 
   // Só semeia aberto se a página inicial já cair no grupo; depois disso o estado
@@ -91,7 +91,7 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
       <nav style={{ flex: 1, padding: collapsed ? "46px 10px 4px" : "46px 12px 4px", overflowY: "auto" }}>
         {ITEMS.map((item) => {
           if (Array.isArray(item)) {
-            const [key, label, Icon] = item;
+            const [key, label, Icon, destaque] = item;
             const active = view === key || (view === "disparo" && key === "campanhas");
             return (
               <button
@@ -99,9 +99,15 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
                 onClick={() => setView(key)}
                 className="navItem"
                 title={label}
-                style={{ ...s.navItem, justifyContent: collapsed ? "center" : "flex-start", padding: collapsed ? "11px 0" : "11px 14px", ...(active ? s.navItemActive : {}) }}
+                style={{
+                  ...s.navItem,
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  padding: collapsed ? "11px 0" : "11px 14px",
+                  ...(destaque ? { background: T.gold + "17", borderLeft: `3px solid ${T.gold}`, paddingLeft: collapsed ? 0 : 11 } : {}),
+                  ...(active ? s.navItemActive : {}),
+                }}
               >
-                <Icon color={active ? T.primary : T.inkSoft} /> {!collapsed && <span className="fadeItem">{label}</span>}
+                <Icon color={active ? T.primary : (destaque ? T.gold : T.inkSoft)} /> {!collapsed && <span className="fadeItem">{label}</span>}
               </button>
             );
           }

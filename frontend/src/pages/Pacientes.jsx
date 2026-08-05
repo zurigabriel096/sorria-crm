@@ -100,6 +100,13 @@ export function Pacientes({
   const [fCampoValor, setFCampoValor] = useState(filtroInicial?.campo ? { campo: filtroInicial.campo, valor: filtroInicial.valor } : null);
   const [ordenacao, setOrdenacao] = useState(null); // null | {chave, direcao: "asc"|"desc"}
   const [q, setQ] = useState("");
+  // Paginacao da tabela - antes era um corte fixo em 200 linhas sem nenhum
+  // jeito de ver o resto (listaOrdenada.slice(0,200)); agora pagina de
+  // verdade, com tamanho escolhivel (max 50). So melhora a renderizacao/UX
+  // desta tela - nao reduz a memoria do backend (GET /api/contacts continua
+  // trazendo a base inteira de uma vez, isso e' outra correcao, ainda nao feita).
+  const [pagina, setPagina] = useState(1);
+  const [tamanhoPagina, setTamanhoPagina] = useState(50);
   const [etapas, setEtapas] = useState([]);
   const [unificando, setUnificando] = useState(false);
   const [maisAcoesAberto, setMaisAcoesAberto] = useState(false);
@@ -209,6 +216,11 @@ export function Pacientes({
   };
   const mudarCondicao = (i, patch) => setCondicoes((cs) => cs.map((c, k) => (k === i ? { ...c, ...patch } : c)));
 
+  // Volta pra pagina 1 sempre que o resultado filtrado muda - senao o
+  // usuario podia ficar "presos" numa pagina 5 que nao existe mais depois
+  // de estreitar o filtro.
+  useEffect(() => { setPagina(1); }, [q, condicoes, fCampoValor]);
+
   const filtered = patients.filter((p) => {
     if (fCampoValor && valorDoCampoPainel(p, fCampoValor.campo) !== fCampoValor.valor) return false;
     if (!condicoes.every((c) => evalCond(p, c))) return false;
@@ -242,6 +254,10 @@ export function Pacientes({
         return 0;
       })
     : filtered;
+
+  const totalPaginas = Math.max(1, Math.ceil(listaOrdenada.length / tamanhoPagina));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const listaDaPagina = listaOrdenada.slice((paginaAtual - 1) * tamanhoPagina, paginaAtual * tamanhoPagina);
 
   if (!patients.length) {
     return (
@@ -338,7 +354,7 @@ export function Pacientes({
               </tr>
             </thead>
             <tbody>
-              {listaOrdenada.slice(0, 200).map((p) => (
+              {listaDaPagina.map((p) => (
                 <tr key={p.id} className="prow" onClick={() => onAbrirPaciente(p, "dados")}>
                   <td style={s.tdL}>
                     <div style={{ fontWeight: 600, color: T.primary }}>{p.nome}</div>
@@ -358,7 +374,26 @@ export function Pacientes({
           </table>
         </div>
       </Card>
-      <div style={{ fontSize: 12.5, color: T.inkSoft }}>Mostrando {Math.min(200, filtered.length)} de {filtered.length}. Clique num lead para ver o cadastro. O "Exportar Lead" já sai com suas edições.</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 12.5, color: T.inkSoft }}>
+        <span>
+          Mostrando {listaOrdenada.length ? (paginaAtual - 1) * tamanhoPagina + 1 : 0}–{Math.min(paginaAtual * tamanhoPagina, listaOrdenada.length)} de {listaOrdenada.length}.
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Por página:</span>
+          <select
+            value={tamanhoPagina} style={{ ...s.select, padding: "3px 8px", fontSize: 12.5 }}
+            onChange={(e) => { setTamanhoPagina(Number(e.target.value)); setPagina(1); }}
+          >
+            {[10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button style={s.btnGhostSm} disabled={paginaAtual <= 1} onClick={() => setPagina((p) => p - 1)}>‹ Anterior</button>
+          <span>Página {paginaAtual} de {totalPaginas}</span>
+          <button style={s.btnGhostSm} disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>Próxima ›</button>
+        </div>
+        <span>Clique num lead para ver o cadastro. O "Exportar Lead" já sai com suas edições.</span>
+      </div>
 
       {maisAcoesAberto && (
         <MaisAcoesDrawer onFechar={() => setMaisAcoesAberto(false)}>

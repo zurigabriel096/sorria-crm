@@ -14,7 +14,11 @@ import {
 // externa nem custo por conversa. Dispara quando a primeira mensagem do dia
 // de um contato fica 1 minuto sem nenhuma resposta (humano ou o próprio
 // agente). Chave-mestra começa desligada - só ADMIN liga.
-export function AgenteVirtual({ showToast }) {
+// Item de menu visivel pra todo colaborador (pedido explicito), mas so ADMIN
+// ve a configuracao de verdade - os demais nem chegam a chamar a API (que ja
+// e' @PreAuthorize ADMIN no backend, ver AgenteVirtualController).
+export function AgenteVirtual({ showToast, usuario }) {
+  const souAdmin = usuario?.papel === "ADMIN";
   const [config, setConfig] = useState(null);
   const [perguntas, setPerguntas] = useState(null);
   const [salvandoConfig, setSalvandoConfig] = useState(false);
@@ -22,6 +26,7 @@ export function AgenteVirtual({ showToast }) {
   const [salvandoPergunta, setSalvandoPergunta] = useState(false);
 
   const carregar = () => {
+    if (!souAdmin) return;
     getAgenteVirtualConfig().then(setConfig).catch(() => showToast("Erro ao carregar configuração", "warn"));
     listarPerguntasFrequentes().then(setPerguntas).catch(() => setPerguntas([]));
   };
@@ -71,6 +76,18 @@ export function AgenteVirtual({ showToast }) {
       showToast(e.message || "Erro ao excluir pergunta", "warn");
     }
   };
+
+  if (!souAdmin) {
+    return (
+      <div style={{ display: "grid", gap: 18, maxWidth: 820 }}>
+        <Card title="Agente Virtual">
+          <div style={{ fontSize: 14, color: T.inkSoft }}>
+            Essa área é restrita ao administrador da conta.
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (!config || !perguntas) return <div style={{ color: T.inkSoft, fontSize: 14, padding: "20px 0" }}>Carregando Agente Virtual...</div>;
 
