@@ -110,6 +110,14 @@ public class EtapaKanbanService {
         return toDTO(repository.save(etapa));
     }
 
+    // Nota fixa mostrada no topo da coluna no Kanban - texto livre, sem
+    // validacao (pode ficar em branco pra remover a nota).
+    public EtapaKanbanDTO atualizarDescricao(Long id, String descricao) {
+        EtapaKanban etapa = buscar(id);
+        etapa.setDescricao(descricao);
+        return toDTO(repository.save(etapa));
+    }
+
     private void criarTagVinculada(EtapaKanban etapa, String nomeTag) {
         if (tagRepository.findByEtapaId(etapa.getId()).isPresent()) return;
         Tag tag = new Tag();
@@ -141,6 +149,6 @@ public class EtapaKanbanService {
     }
 
     private EtapaKanbanDTO toDTO(EtapaKanban e) {
-        return new EtapaKanbanDTO(e.getId(), e.getNome(), e.getOrdem(), e.isEtapaFinal(), e.getLimiarInatividadeDias());
+        return new EtapaKanbanDTO(e.getId(), e.getNome(), e.getOrdem(), e.isEtapaFinal(), e.getLimiarInatividadeDias(), e.getDescricao());
     }
 }

@@ -31,7 +31,12 @@ public record ContatoDTO(
         // Somente leitura - gravado so por MensagemService, ignorado se vier num PUT/POST.
         LocalDateTime ultimaMensagemEm,
         String ultimaMensagemDirecao,
+        // Somente leitura - mesma origem de ultimaMensagemEm/Direcao acima.
+        String ultimaMensagemTexto,
         // Editavel - o follow-up agendado pelo colaborador.
-        LocalDateTime proximaAcaoEm
+        LocalDateTime proximaAcaoEm,
+        // Somente leitura - gravado so no @PrePersist, ignorado se vier num PUT/POST.
+        // Null pra leads criados antes deste campo existir.
+        LocalDateTime criadoEm
 ) {
 }

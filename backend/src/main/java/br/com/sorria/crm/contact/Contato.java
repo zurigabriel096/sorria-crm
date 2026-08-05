@@ -99,6 +99,13 @@ public class Contato {
     // "ENTRADA" | "SAIDA" - direcao da ultima mensagem trocada com esse lead.
     private String ultimaMensagemDirecao;
 
+    // Texto da ultima mensagem (mesmo denormalizado de ultimaMensagemEm/Direcao,
+    // ver MensagemService.atualizarUltimaMensagem) - usado no Kanban (Conversas.jsx)
+    // pra mostrar uma previa da conversa direto no card de quem ainda nao tem
+    // nome salvo (lead criado automatico de numero desconhecido).
+    @Column(length = 4000)
+    private String ultimaMensagemTexto;
+
     // Follow-up agendado pelo colaborador (ex.: "retornar dia X") - ao
     // contrario dos dois campos acima, esse e' editavel pelo usuario. Base
     // dos filtros Vencidos/Hoje/Amanha/Esta semana da Fila de Trabalho.
@@ -116,4 +123,19 @@ public class Contato {
     @Column(name = "valor")
     @BatchSize(size = 50)
     private Map<String, String> camposCustomizados = new HashMap<>();
+
+    // Nullable de proposito (sem @Column(nullable=false)) - leads criados antes
+    // deste campo existir ficam null, tratados como "nao e' novo" nas
+    // estatisticas do Kanban (correto, nao sabemos a data real de criacao
+    // deles). NUNCA declarar nullable=false num campo novo numa tabela que ja
+    // tem linha - Postgres recusa "ADD COLUMN NOT NULL" sem DEFAULT, e o
+    // Hibernate (ddl-auto=update) so loga aviso e segue sem a coluna existir
+    // de verdade (foi exatamente a causa do incidente de WhatsAppNumero.finalidade
+    // em 05/08/2026).
+    private LocalDateTime criadoEm;
+
+    @PrePersist
+    protected void aoCriar() {
+        if (this.criadoEm == null) this.criadoEm = LocalDateTime.now();
+    }
 }

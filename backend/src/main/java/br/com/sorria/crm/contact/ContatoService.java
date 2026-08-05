@@ -319,7 +319,8 @@ public class ContatoService {
                 c.getId(), c.getCod(), c.getNome(), c.getTelefone(), c.getEmail(), c.getFinanc(), c.getInadimplenteDesde(),
                 c.getDentista(), c.getUltAtendimento(), c.getRecencia(), c.getEstagio(),
                 c.getResponsavelId(), c.isElegivel(), c.getEnviado(), c.getTags(), c.getOrigem(), c.getOrdemKanban(),
-                c.getCamposCustomizados(), c.getUltimaMensagemEm(), c.getUltimaMensagemDirecao(), c.getProximaAcaoEm()
+                c.getCamposCustomizados(), c.getUltimaMensagemEm(), c.getUltimaMensagemDirecao(), c.getUltimaMensagemTexto(),
+                c.getProximaAcaoEm(), c.getCriadoEm()
         );
     }
 }

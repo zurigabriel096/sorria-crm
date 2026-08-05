@@ -8,12 +8,17 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { listNumeros, contatosPorNumero } from "../api/whatsappNumeros";
 import { listMensagens, enviarMensagem, carregarMidiaBlobUrl } from "../api/mensagens";
 import { getWhatsAppStatus } from "../api/whatsapp";
-import { listEtapas, createEtapa, renameEtapa, deleteEtapa, marcarEtapaFinal, definirLimiarInatividade } from "../api/etapas";
+import { listEtapas, createEtapa, renameEtapa, deleteEtapa, marcarEtapaFinal, definirLimiarInatividade, definirDescricaoEtapa } from "../api/etapas";
 import { listColaboradores } from "../api/colaboradores";
 import { iniciais } from "../utils/usuario";
 import { dataHora, tempoDesde } from "../utils/format";
 
 const POLL_MENSAGENS_MS = 4000;
+// Mesmo texto usado em MensagemService.registrarEntrada (backend) quando um
+// numero desconhecido manda mensagem e vira lead automatico, sem nome de
+// verdade ainda - o card mostra o telefone + previa da mensagem em vez do
+// nome, ate alguem (humano ou Agente Virtual) preencher de verdade.
+const LEAD_SEM_NOME = "Novo contato (WhatsApp)";
 const EMOJIS = ["😀", "😂", "😍", "🙏", "👍", "👋", "❤️", "😢", "😮", "🎉", "✅", "❌", "🔥", "💬", "📅", "😅", "🤔", "👏"];
 
 // Avatar do responsavel no card - foto de perfil, ou iniciais numa bolinha
@@ -309,6 +314,8 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const [nomeEdicao, setNomeEdicao] = useState("");
   const [editandoLimiar, setEditandoLimiar] = useState(null); // id da etapa em edição do limiar de inatividade
   const [limiarEdicao, setLimiarEdicao] = useState("");
+  const [editandoDescricao, setEditandoDescricao] = useState(null); // id da etapa em edição da nota fixa
+  const [descricaoEdicao, setDescricaoEdicao] = useState("");
   const [novaColuna, setNovaColuna] = useState(false);
   const [nomeNovaColuna, setNomeNovaColuna] = useState("");
   const [etapaNovaAguardandoTag, setEtapaNovaAguardandoTag] = useState(null); // nome da coluna, depois de confirmado
@@ -430,6 +437,20 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     }
   };
 
+  // Nota fixa no topo da coluna (ex.: instrução da etapa pro time) - texto
+  // livre, em branco remove a nota.
+  const salvarDescricao = async (etapa) => {
+    const texto = descricaoEdicao.trim();
+    if (texto === (etapa.descricao || "")) { setEditandoDescricao(null); return; }
+    try {
+      await definirDescricaoEtapa(etapa.id, texto);
+      setEditandoDescricao(null);
+      carregarEtapas();
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar nota da coluna", "warn");
+    }
+  };
+
   // Passo 1: confirma o nome da coluna e abre o passo 2 (nome da tag), em vez
   // de criar direto com o mesmo nome da coluna sem perguntar.
   const confirmarNomeColuna = () => {
@@ -467,6 +488,35 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     setFiltroSemResponsavel(false);
   };
 
+  // Faixa de estatisticas acima do Kanban (mesmo espirito da faixa do Kommo) -
+  // sobre o mesmo recorte de leads que os filtros de responsavel ja aplicam
+  // nas colunas, pra bater com o que a pessoa esta de fato vendo no board.
+  const estatisticas = useMemo(() => {
+    const visiveis = patients.filter(passaFiltroResponsavel);
+    const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
+    const inicioAmanha = new Date(inicioHoje); inicioAmanha.setDate(inicioAmanha.getDate() + 1);
+    const inicioOntem = new Date(inicioHoje); inicioOntem.setDate(inicioOntem.getDate() - 1);
+    const agora = new Date();
+
+    let comTarefaHoje = 0, semTarefa = 0, atrasados = 0, novosHoje = 0, novosOntem = 0;
+    for (const p of visiveis) {
+      if (!p.proximaAcaoEm) {
+        semTarefa++;
+      } else {
+        const data = new Date(p.proximaAcaoEm);
+        if (data < agora) atrasados++;
+        else if (data >= inicioHoje && data < inicioAmanha) comTarefaHoje++;
+      }
+      if (p.criadoEm) {
+        const criado = new Date(p.criadoEm);
+        if (criado >= inicioHoje && criado < inicioAmanha) novosHoje++;
+        else if (criado >= inicioOntem && criado < inicioHoje) novosOntem++;
+      }
+    }
+    return { total: visiveis.length, comTarefaHoje, semTarefa, atrasados, novosHoje, novosOntem };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patients, filtroSemResponsavel, filtroResponsaveisSel]);
+
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
@@ -480,6 +530,20 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
           </div>
         </div>
         <button style={s.btnPrimarySm} onClick={() => setIniciarAberto(true)}>+ Iniciar conversa</button>
+      </div>
+      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", padding: "10px 14px", background: T.lineSoft, borderRadius: 10 }}>
+        {[
+          ["Leads no board", estatisticas.total],
+          ["Com tarefa hoje", estatisticas.comTarefaHoje],
+          ["Sem tarefa atribuída", estatisticas.semTarefa],
+          ["Atrasados", estatisticas.atrasados],
+          ["Novos hoje / ontem", `${estatisticas.novosHoje} / ${estatisticas.novosOntem}`],
+        ].map(([rotulo, valor]) => (
+          <div key={rotulo}>
+            <div style={{ fontSize: 10.5, color: T.inkSoft, fontWeight: 700, textTransform: "uppercase", letterSpacing: .3 }}>{rotulo}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: T.ink }}>{valor}</div>
+          </div>
+        ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 11.5, fontWeight: 700, color: T.inkSoft }}>Responsável:</span>
@@ -543,6 +607,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                   {souAdmin && renomeando !== etapa.id && (
                     <DotMenu items={[
                       { label: "Renomear", onClick: () => { setRenomeando(etapa.id); setNomeEdicao(etapa.nome); } },
+                      { label: etapa.descricao ? "Editar nota da coluna" : "Adicionar nota da coluna", onClick: () => { setEditandoDescricao(etapa.id); setDescricaoEdicao(etapa.descricao || ""); } },
                       { label: etapa.etapaFinal ? "Desmarcar etapa final" : "Marcar como etapa final", onClick: () => alternarEtapaFinal(etapa) },
                       ...(etapa.etapaFinal ? [{
                         label: "Definir limiar de inatividade",
@@ -552,6 +617,23 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                     ]} />
                   )}
                 </div>
+                {editandoDescricao === etapa.id ? (
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <textarea
+                      autoFocus
+                      style={{ ...s.input, fontSize: 11.5, minHeight: 54, resize: "vertical" }}
+                      placeholder="Ex.: Estes leads foram qualificados pelo bot — mova pra atendimento e agende."
+                      value={descricaoEdicao}
+                      onChange={(e) => setDescricaoEdicao(e.target.value)}
+                      onBlur={() => salvarDescricao(etapa)}
+                      onKeyDown={(e) => { if (e.key === "Escape") setEditandoDescricao(null); }}
+                    />
+                  </div>
+                ) : etapa.descricao ? (
+                  <div style={{ fontSize: 11, color: T.inkSoft, background: T.lineSoft, borderRadius: 8, padding: "6px 8px", whiteSpace: "pre-wrap" }}>
+                    {etapa.descricao}
+                  </div>
+                ) : null}
                 {editandoLimiar === etapa.id && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: T.inkSoft }}>
                     Sumir da fila após
@@ -593,11 +675,18 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                     onClick={() => setChatAberto(p)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>{p.nome}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>
+                        {p.nome === LEAD_SEM_NOME ? `de: ${p.telefone || "número desconhecido"}` : p.nome}
+                      </div>
                       {selecao !== "todos" && idsComConversa.has(p.id) && (
                         <span style={{ color: T.primary, fontWeight: 700, fontSize: 12 }} title="Já conversou por este número">✓</span>
                       )}
                     </div>
+                    {p.nome === LEAD_SEM_NOME && p.ultimaMensagemTexto && (
+                      <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        "{p.ultimaMensagemTexto}"
+                      </div>
+                    )}
                     <div style={{ marginTop: 6 }}>
                       <BadgeUltimaMensagem ultimaMensagemEm={p.ultimaMensagemEm} ultimaMensagemDirecao={p.ultimaMensagemDirecao} />
                     </div>

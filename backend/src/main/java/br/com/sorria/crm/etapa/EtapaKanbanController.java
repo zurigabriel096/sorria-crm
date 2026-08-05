@@ -58,4 +58,10 @@ public class EtapaKanbanController {
     public EtapaKanbanDTO atualizarLimiarInatividade(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
         return service.atualizarLimiarInatividade(id, body.get("limiarInatividadeDias"));
     }
+
+    @PatchMapping("/{id}/descricao")
+    @PreAuthorize("hasRole('ADMIN')")
+    public EtapaKanbanDTO atualizarDescricao(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        return service.atualizarDescricao(id, body.get("descricao"));
+    }
 }

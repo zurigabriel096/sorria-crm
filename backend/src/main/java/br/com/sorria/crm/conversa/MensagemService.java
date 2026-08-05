@@ -126,6 +126,7 @@ public class MensagemService {
     private void atualizarUltimaMensagem(Contato contato, Mensagem mensagem) {
         contato.setUltimaMensagemEm(mensagem.getCriadoEm());
         contato.setUltimaMensagemDirecao(mensagem.getDirecao());
+        contato.setUltimaMensagemTexto(mensagem.getTexto());
         contatoRepository.save(contato);
     }
 
@@ -167,7 +168,8 @@ public class MensagemService {
             // (decisao explicita do Samuel, 04/08/2026).
             Long novoId = contatoService.importarLinha(new ContatoDTO(
                     null, null, "Novo contato (WhatsApp)", telefone, null, null, null, null, null, null,
-                    null, null, true, null, null, "WhatsApp (mensagem espontânea)", null, null, null, null, null));
+                    null, null, true, null, null, "WhatsApp (mensagem espontânea)", null, null,
+                    null, null, null, null, null));
             contato = novoId != null ? contatoRepository.findById(novoId).orElse(null) : null;
             if (contato == null) {
                 log.warn("Webhook Evolution: falha ao criar lead novo pro numero {}", telefone);

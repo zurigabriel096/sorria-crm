@@ -46,6 +46,13 @@ public class EtapaKanban {
     @ColumnDefault("60")
     private Integer limiarInatividadeDias = 60;
 
+    // Nota fixa mostrada no topo da coluna no Kanban (Conversas.jsx) - ex.:
+    // "Estes leads foram qualificados pelo bot, mova pra atendimento e agende."
+    // So texto livre, editavel pelo ADMIN. Nullable/sem default - coluna sem
+    // nota nao mostra nada no Kanban.
+    @Column(length = 1000)
+    private String descricao;
+
     @PrePersist
     protected void aoCriar() {
         this.criadoEm = LocalDateTime.now();

@@ -153,6 +153,20 @@ export default function App() {
     return () => { cancelado = true; clearInterval(intervalo); };
   }, [authed]);
 
+  // Mantem o Kanban (Conversas.jsx) e o resto do app atualizado sozinho quando
+  // algo muda o lead em segundo plano (Automacao/Agente Virtual mudando
+  // estagio, mensagem chegando por outro numero) - antes "patients" so
+  // carregava 1x no login, e um card so "pulava" de coluna depois de recarregar
+  // a pagina manualmente (pedido explicito do Samuel, 05/08/2026).
+  useEffect(() => {
+    if (!authed) return;
+    let cancelado = false;
+    const intervalo = setInterval(() => {
+      listContacts().then((res) => { if (!cancelado) setPatients(res); }).catch(() => {});
+    }, 90000);
+    return () => { cancelado = true; clearInterval(intervalo); };
+  }, [authed]);
+
   // Roda em background no servidor - so inicia o job e devolve na hora, sem
   // travar a tela; o progresso e' acompanhado pelo <JobsProgress> (ver
   // useEffect abaixo), igual tag/excluir em lote. Antes era 1 unica requisicao

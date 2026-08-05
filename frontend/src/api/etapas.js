@@ -17,3 +17,7 @@ export const marcarEtapaFinal = (id, etapaFinal) => api.patch(`/api/etapas/${id}
 // global fixo.
 export const definirLimiarInatividade = (id, limiarInatividadeDias) =>
   api.patch(`/api/etapas/${id}/limiar`, { limiarInatividadeDias });
+
+// Nota fixa mostrada no topo da coluna no Kanban (ex.: instrução da etapa).
+export const definirDescricaoEtapa = (id, descricao) =>
+  api.patch(`/api/etapas/${id}/descricao`, { descricao });
