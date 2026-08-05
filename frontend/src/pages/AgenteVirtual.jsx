@@ -1,28 +1,39 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ReactFlow, ReactFlowProvider, Background, Controls } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { T } from "../theme";
 import { s } from "../styles/s";
-import { Card } from "../components/ui/Card";
 import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import {
   getAgenteVirtualConfig, setAgenteVirtualConfig,
   listarPerguntasFrequentes, criarPerguntaFrequente, atualizarPerguntaFrequente, excluirPerguntaFrequente,
 } from "../api/agenteVirtual";
+import NoChaveMestra, { HANDLE_MENSAGEM_PADRAO } from "../components/agentevirtual/NoChaveMestra";
+import NoPergunta from "../components/agentevirtual/NoPergunta";
+import NoMensagemPadrao from "../components/agentevirtual/NoMensagemPadrao";
+
+const nodeTypes = { chave: NoChaveMestra, pergunta: NoPergunta, padrao: NoMensagemPadrao };
 
 // Agente Virtual: triagem simples SEM IA (decisão do Samuel, 04/08/2026) - só
 // casa palavra-chave escrita aqui contra o texto do lead, sem chamada de API
 // externa nem custo por conversa. Dispara quando a primeira mensagem do dia
 // de um contato fica 1 minuto sem nenhuma resposta (humano ou o próprio
 // agente). Chave-mestra começa desligada - só ADMIN liga.
-// Item de menu visivel pra todo colaborador (pedido explicito), mas so ADMIN
-// ve a configuracao de verdade - os demais nem chegam a chamar a API (que ja
-// e' @PreAuthorize ADMIN no backend, ver AgenteVirtualController).
+//
+// Visual em arvore (05/08/2026, pedido do Samuel: "quero conectar os nós, pros
+// operadores terem uma visualização da jornada") - MESMO dado/API de sempre
+// (config + lista de PerguntaFrequente), só a apresentação virou nós
+// conectados (igual ao editor de Automação) em vez de uma lista plana. Não
+// muda a logica real de casamento de palavra-chave (AgenteVirtualService
+// continua so' comparando texto, sem ordem/prioridade entre os nos).
 export function AgenteVirtual({ showToast, usuario }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [config, setConfig] = useState(null);
   const [perguntas, setPerguntas] = useState(null);
-  const [salvandoConfig, setSalvandoConfig] = useState(false);
   const [modal, setModal] = useState(null); // null | {id, palavrasChave, resposta}
+  const [editandoPadrao, setEditandoPadrao] = useState(false);
+  const [mensagemPadraoEdicao, setMensagemPadraoEdicao] = useState("");
   const [salvandoPergunta, setSalvandoPergunta] = useState(false);
 
   const carregar = () => {
@@ -36,16 +47,19 @@ export function AgenteVirtual({ showToast, usuario }) {
   const salvarConfig = async (patch) => {
     const novo = { ...config, ...patch };
     setConfig(novo);
-    setSalvandoConfig(true);
     try {
       const salvo = await setAgenteVirtualConfig(novo);
       setConfig(salvo);
       showToast("Configuração salva", "ok");
     } catch (e) {
       showToast(e.message || "Erro ao salvar configuração", "warn");
-    } finally {
-      setSalvandoConfig(false);
     }
+  };
+
+  const abrirEdicaoPadrao = () => { setMensagemPadraoEdicao(config.mensagemPadrao); setEditandoPadrao(true); };
+  const salvarMensagemPadrao = async () => {
+    setEditandoPadrao(false);
+    await salvarConfig({ mensagemPadrao: mensagemPadraoEdicao });
   };
 
   const salvarPergunta = async () => {
@@ -77,14 +91,46 @@ export function AgenteVirtual({ showToast, usuario }) {
     }
   };
 
+  const abrirNovaPergunta = () => setModal({ id: null, palavrasChave: "", resposta: "" });
+  const abrirEditarPergunta = (id) => {
+    const p = perguntas.find((x) => x.id === Number(id));
+    if (p) setModal({ id: p.id, palavrasChave: p.palavrasChave, resposta: p.resposta });
+  };
+
+  const ALTURA_LINHA = 90;
+  const nodes = useMemo(() => {
+    if (!config || !perguntas) return [];
+    const lista = [
+      { id: "chave", type: "chave", position: { x: 40, y: Math.max(0, (perguntas.length * ALTURA_LINHA) / 2 - 60) }, data: { ativo: config.ativo, perguntas, onAlternarAtivo: () => salvarConfig({ ativo: !config.ativo }) } },
+    ];
+    perguntas.forEach((p, i) => {
+      lista.push({
+        id: String(p.id), type: "pergunta", position: { x: 440, y: i * ALTURA_LINHA },
+        data: { palavrasChave: p.palavrasChave, resposta: p.resposta, onEditar: abrirEditarPergunta, onExcluir: excluir },
+      });
+    });
+    lista.push({
+      id: "padrao", type: "padrao", position: { x: 440, y: perguntas.length * ALTURA_LINHA },
+      data: { mensagemPadrao: config.mensagemPadrao, onEditar: abrirEdicaoPadrao },
+    });
+    return lista;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config, perguntas]);
+
+  const edges = useMemo(() => {
+    if (!perguntas) return [];
+    const lista = perguntas.map((p) => ({
+      id: `edge-chave-${p.id}`, source: "chave", sourceHandle: String(p.id), target: String(p.id),
+      style: { stroke: T.primary }, animated: true,
+    }));
+    lista.push({ id: "edge-chave-padrao", source: "chave", sourceHandle: HANDLE_MENSAGEM_PADRAO, target: "padrao", style: { stroke: "#8A9AA6", strokeDasharray: "4 4" } });
+    return lista;
+  }, [perguntas]);
+
   if (!souAdmin) {
     return (
       <div style={{ display: "grid", gap: 18, maxWidth: 820 }}>
-        <Card title="Agente Virtual">
-          <div style={{ fontSize: 14, color: T.inkSoft }}>
-            Essa área é restrita ao administrador da conta.
-          </div>
-        </Card>
+        <div style={s.aviso}>Essa área é restrita ao administrador da conta.</div>
       </div>
     );
   }
@@ -92,62 +138,25 @@ export function AgenteVirtual({ showToast, usuario }) {
   if (!config || !perguntas) return <div style={{ color: T.inkSoft, fontSize: 14, padding: "20px 0" }}>Carregando Agente Virtual...</div>;
 
   return (
-    <div style={{ display: "grid", gap: 18, maxWidth: 820 }}>
+    <div style={{ display: "grid", gap: 14, maxWidth: 1100 }}>
       <div style={s.aviso}>
         <b>Sem IA de propósito.</b> O agente só casa as palavras-chave que você cadastrar aqui contra a
         mensagem do lead — nunca inventa resposta sobre saúde, financeiro ou qualquer outro assunto.
         Se nada bater, ele manda a mensagem padrão avisando que alguém vai responder.
       </div>
 
-      <Card title="Chave-mestra">
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <button
-            onClick={() => salvarConfig({ ativo: !config.ativo })}
-            disabled={salvandoConfig}
-            style={{ ...s.btnPrimarySm, background: config.ativo ? T.coral : T.primary }}
-          >
-            {config.ativo ? "Desligar" : "Ligar"} o Agente Virtual
-          </button>
-          <span style={{ ...s.tagOk, ...(config.ativo ? {} : { color: T.inkSoft, background: T.lineSoft }) }}>
-            {config.ativo ? "● Ativo — respondendo automaticamente" : "● Inativo"}
-          </span>
-        </div>
-        <div style={{ fontSize: 12, color: T.inkSoft, marginTop: 10 }}>
-          Dispara quando a primeira mensagem do dia de um lead fica 1 minuto sem nenhuma resposta
-          (de humano ou do próprio agente).
-        </div>
-      </Card>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button style={s.btnPrimarySm} onClick={abrirNovaPergunta}>+ Nova pergunta</button>
+      </div>
 
-      <Card title="Mensagem padrão (quando nenhuma pergunta bater)">
-        <textarea
-          style={{ ...s.input, width: "100%", minHeight: 70, resize: "vertical" }}
-          value={config.mensagemPadrao}
-          onChange={(e) => setConfig({ ...config, mensagemPadrao: e.target.value })}
-          onBlur={() => salvarConfig({ mensagemPadrao: config.mensagemPadrao })}
-        />
-      </Card>
-
-      <Card title="Perguntas frequentes">
-        <button style={{ ...s.btnGhostSm, marginBottom: 12 }} onClick={() => setModal({ id: null, palavrasChave: "", resposta: "" })}>
-          + Nova pergunta
-        </button>
-        {!perguntas.length ? (
-          <div style={{ fontSize: 13, color: T.inkSoft }}>Nenhuma pergunta cadastrada ainda.</div>
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {perguntas.map((p) => (
-              <div key={p.id} style={{ padding: "10px 12px", background: T.lineSoft, borderRadius: 8, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: T.primary, fontWeight: 700 }}>{p.palavrasChave}</div>
-                  <div style={{ fontSize: 13, color: T.ink, marginTop: 4 }}>{p.resposta}</div>
-                </div>
-                <button style={s.btnGhostSm} onClick={() => setModal({ id: p.id, palavrasChave: p.palavrasChave, resposta: p.resposta })}>Editar</button>
-                <button style={{ ...s.btnGhostSm, color: T.coral }} onClick={() => excluir(p.id)}>Excluir</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <div style={{ height: 520, background: "#F7F9FA", borderRadius: 14, border: `1px solid ${T.line}`, position: "relative" }}>
+        <ReactFlowProvider>
+          <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView proOptions={{ hideAttribution: true }}>
+            <Background gap={18} color="#DDE4E8" />
+            <Controls position="bottom-left" showInteractive={false} />
+          </ReactFlow>
+        </ReactFlowProvider>
+      </div>
 
       {modal && (
         <Modal title={modal.id ? "Editar pergunta" : "Nova pergunta"} onClose={() => setModal(null)}>
@@ -172,6 +181,21 @@ export function AgenteVirtual({ showToast, usuario }) {
             <button style={{ ...s.btnPrimary, flex: 1, opacity: salvandoPergunta ? .6 : 1 }} onClick={salvarPergunta} disabled={salvandoPergunta}>
               {salvandoPergunta ? "Salvando..." : "Salvar"}
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {editandoPadrao && (
+        <Modal title="Mensagem padrão (quando nenhuma pergunta bater)" onClose={() => setEditandoPadrao(false)}>
+          <textarea
+            autoFocus
+            style={{ ...s.input, width: "100%", minHeight: 90 }}
+            value={mensagemPadraoEdicao}
+            onChange={(e) => setMensagemPadraoEdicao(e.target.value)}
+          />
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setEditandoPadrao(false)}>Cancelar</button>
+            <button style={{ ...s.btnPrimary, flex: 1 }} onClick={salvarMensagemPadrao}>Salvar</button>
           </div>
         </Modal>
       )}
