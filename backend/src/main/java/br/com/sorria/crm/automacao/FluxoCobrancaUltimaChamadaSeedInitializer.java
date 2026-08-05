@@ -21,7 +21,7 @@ import java.util.Map;
 @Slf4j
 public class FluxoCobrancaUltimaChamadaSeedInitializer implements CommandLineRunner {
 
-    private static final String NOME_CAMPO_PARCELAS = "Parcelas em atraso";
+    private static final String NOME_CAMPO_PARCELAS = "Atrasadas";
     private static final String NOME_SEGMENTACAO = "Inadimplente há 30+ dias";
     private static final String NOME_FLUXO = "Cobrança última chamada (30+ dias) - modelo";
     private static final String HANDLE_FALLBACK = "__fallback__";

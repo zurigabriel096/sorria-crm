@@ -25,7 +25,7 @@ import java.util.Map;
 @Slf4j
 public class FluxoCobrancaFirmeSeedInitializer implements CommandLineRunner {
 
-    private static final String NOME_CAMPO_PARCELAS = "Parcelas em atraso";
+    private static final String NOME_CAMPO_PARCELAS = "Atrasadas";
     private static final String NOME_SEGMENTACAO = "Inadimplente há 15+ dias";
     private static final String NOME_FLUXO = "Cobrança firme (15+ dias) - modelo";
     private static final String HANDLE_FALLBACK = "__fallback__";

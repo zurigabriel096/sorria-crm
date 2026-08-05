@@ -21,16 +21,18 @@ import java.util.Map;
 //
 // Depende do operador "faltam" (SegmentacaoMatcher/Segmentacoes.jsx, tambem
 // adicionado nesta sessao) pra disparar so quando faltar exatamente 1 dia pra
-// consulta - usa um Campo Personalizado tipo DATA chamado "Data da consulta"
-// como PLACEHOLDER: se a base do Samuel ja tiver um campo com nome diferente
-// pra isso, so trocar o nome na condicao da Segmentacao (tela de Segmentacoes)
-// ou renomear o campo pra bater - nao precisa mexer em codigo nenhum.
+// consulta - usa os Campos Personalizados reais "Próx. Atend." (DATA) e
+// "Hora Próx. Atend." que ja existem na base (confirmado por print do
+// Samuel, 05/08/2026 - nomes corrigidos aqui e via
+// CamposReaisFluxosMigrationInitializer pro fluxo ja seedado com o
+// placeholder antigo "Data da consulta").
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class FluxoConfirmacaoConsultaSeedInitializer implements CommandLineRunner {
 
-    private static final String NOME_CAMPO_DATA = "Data da consulta";
+    private static final String NOME_CAMPO_DATA = "Próx. Atend.";
+    private static final String NOME_CAMPO_HORA = "Hora Próx. Atend.";
     private static final String NOME_SEGMENTACAO = "Consulta amanhã (D-1)";
     private static final String NOME_FLUXO = "Confirmação de consulta (D-1) - modelo";
     private static final String HANDLE_FALLBACK = "__fallback__";
@@ -73,7 +75,7 @@ public class FluxoConfirmacaoConsultaSeedInitializer implements CommandLineRunne
 
         nodes.add(mensagem("msg1", 420, 260,
                 "Oi {nome}! Passando pra confirmar: sua consulta na Orthodontic é amanhã ({diasPara:" + NOME_CAMPO_DATA
-                        + "} dia). Posso confirmar sua presença? Responda SIM pra confirmar ou REMARCAR se precisar mudar 🙂"));
+                        + "} dia), às {" + NOME_CAMPO_HORA + "}. Posso confirmar sua presença? Responda SIM pra confirmar ou REMARCAR se precisar mudar 🙂"));
         nodes.add(acao("wait1", 780, 260, "aguardar_mensagem", "Aguardar mensagens do contato", Map.of("prazoDias", 1)));
         nodes.add(condicao("cond1", 1140, 260, List.of(
                 Map.of("id", "sim1", "operador", "contem", "valor", "sim"),

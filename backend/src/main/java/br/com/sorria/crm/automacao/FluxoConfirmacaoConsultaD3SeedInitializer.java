@@ -13,31 +13,26 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-// Fluxo-modelo pedido pelo Samuel (05/08/2026): cobranca por inadimplencia, tom
-// leve/inicial - primeiro de 3 estagios (suave/firme/ultima chamada), pra
-// equipe SO AJUSTAR. Criado JA INATIVO, mesmo cuidado dos outros seeds -
-// CommandLineRunner protegido por try/catch de proposito (nao-fatal), ver
-// incidente WhatsAppNumero.finalidade em 05/08/2026.
+// Segundo toque de confirmacao de consulta - D-3, mais leve/informativo (o D-1,
+// ver FluxoConfirmacaoConsultaSeedInitializer, e' quem pede confirmacao de
+// verdade). Pedido do Samuel (05/08/2026): "seria interessante que essa
+// abordagem acontecesse umas duas vezes, faltando tres dias e faltando um
+// dia". Fluxo SEPARADO do D-1 de proposito (mesmo motivo dos 3 fluxos de
+// cobranca): o motor dedupa por (fluxo, contato) pra sempre, entao so um
+// fluxo por marco de dias garante que o lead recebe os dois toques.
 //
-// Gatilho: usa "financ" + "diasInadimplente", campos REAIS que ja existem hoje
-// (nao um placeholder) - dispara 5+ dias apos o lead ficar Inadimplente.
-// Mensagem referencia "{Atrasadas}", Campo Personalizado real que ja existe
-// na base (confirmado por print do Samuel, 05/08/2026 - antes usava o
-// placeholder "Parcelas em atraso", corrigido aqui e via
-// CamposReaisFluxosMigrationInitializer pros 3 fluxos ja seedados).
-//
-// Numero de disparo: deixado null (numero principal) de proposito - o Samuel
-// pediu pra restringir esse tipo de automacao de baixo volume aos numeros
-// "saudaveis" (RTL/Sara/Joao); escolher qual, no seletor novo do editor visual
-// (EditorFluxo.jsx), e' decisao dele, nao fixada em codigo.
+// Usa os Campos Personalizados reais "Próx. Atend." (DATA) e
+// "Hora Próx. Atend." que ja existem na base (confirmado por print do
+// Samuel, 05/08/2026).
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class FluxoCobrancaSuaveSeedInitializer implements CommandLineRunner {
+public class FluxoConfirmacaoConsultaD3SeedInitializer implements CommandLineRunner {
 
-    private static final String NOME_CAMPO_PARCELAS = "Atrasadas";
-    private static final String NOME_SEGMENTACAO = "Inadimplente há 5+ dias";
-    private static final String NOME_FLUXO = "Cobrança amigável (5+ dias) - modelo";
+    private static final String NOME_CAMPO_DATA = "Próx. Atend.";
+    private static final String NOME_CAMPO_HORA = "Hora Próx. Atend.";
+    private static final String NOME_SEGMENTACAO = "Consulta em 3 dias (D-3)";
+    private static final String NOME_FLUXO = "Confirmação de consulta (D-3) - modelo";
     private static final String HANDLE_FALLBACK = "__fallback__";
 
     private final SegmentacaoRepository segmentacaoRepository;
@@ -69,23 +64,25 @@ public class FluxoCobrancaSuaveSeedInitializer implements CommandLineRunner {
         entrada.put("automacaoMarketing", null);
         Map<String, Object> dataInicio = new LinkedHashMap<>();
         dataInicio.put("entrada", entrada);
-        nodes.add(no("inicio", "start", 60, 220, dataInicio));
+        nodes.add(no("inicio", "start", 60, 260, dataInicio));
 
-        nodes.add(mensagem("msg1", 420, 220,
-                "Oi {nome}! Notamos uma pendência em aberto ({" + NOME_CAMPO_PARCELAS
-                        + "} parcela(s)). Sem estresse, dá pra resolver rapidinho — quer que eu te ajude a renegociar agora? Responda RENEGOCIAR 💙"));
-        nodes.add(acao("wait1", 780, 220, "aguardar_mensagem", "Aguardar mensagens do contato", Map.of("prazoDias", 2)));
-        nodes.add(condicao("cond1", 1140, 220, List.of(
-                Map.of("id", "sim1", "operador", "contem", "valor", "renegociar")
+        nodes.add(mensagem("msg1", 420, 260,
+                "Oi {nome}! Passando pra avisar: sua consulta na Orthodontic está marcada pra daqui a {diasPara:" + NOME_CAMPO_DATA
+                        + "} dias, às {" + NOME_CAMPO_HORA + "}. Já anota na agenda 📅 Se precisar remarcar, é só responder REMARCAR."));
+        nodes.add(acao("wait1", 780, 260, "aguardar_mensagem", "Aguardar mensagens do contato", Map.of("prazoDias", 1)));
+        nodes.add(condicao("cond1", 1140, 260, List.of(
+                Map.of("id", "remarcar1", "operador", "contem", "valor", "remarcar")
         )));
-        nodes.add(acao("tagRenegociou", 1500, 140, "adicionar_tag", "Adicionar tag", Map.of("tag", "Renegociação solicitada")));
-        nodes.add(acao("tagSemResposta", 1500, 320, "adicionar_tag", "Adicionar tag", Map.of("tag", "Cobrança suave: sem resposta")));
+        nodes.add(acao("estagioRemarcar", 1500, 140, "alterar_estagio", "Alterar Estágio dos Leads", Map.of("estagio", "Solicitação")));
+        nodes.add(acao("tagRemarcar", 1860, 140, "adicionar_tag", "Adicionar tag", Map.of("tag", "Pediu remarcar")));
+        nodes.add(acao("semAcao", 1500, 320, "adicionar_tag", "Adicionar tag", Map.of("tag", "Aviso D-3 enviado")));
 
         ligar(edges, "inicio", "msg1");
         ligar(edges, "msg1", "wait1");
         ligar(edges, "wait1", "cond1");
-        ligarComHandle(edges, "cond1", "tagRenegociou", "sim1");
-        ligarComHandle(edges, "cond1", "tagSemResposta", HANDLE_FALLBACK);
+        ligarComHandle(edges, "cond1", "estagioRemarcar", "remarcar1");
+        ligar(edges, "estagioRemarcar", "tagRemarcar");
+        ligarComHandle(edges, "cond1", "semAcao", HANDLE_FALLBACK);
 
         FluxoAutomacao fluxo = new FluxoAutomacao();
         fluxo.setNome(NOME_FLUXO);
@@ -94,13 +91,13 @@ public class FluxoCobrancaSuaveSeedInitializer implements CommandLineRunner {
         fluxo.setEdgesJson(objectMapper.writeValueAsString(edges));
         fluxoAutomacaoRepository.save(fluxo);
 
-        log.info("Seed: fluxo-modelo '{}' criado (inativo, precisa revisao - confira o nome do Campo Personalizado de parcelas e o numero de disparo antes de ativar).", NOME_FLUXO);
+        log.info("Seed: fluxo-modelo '{}' criado (inativo, precisa revisao antes de ativar).", NOME_FLUXO);
     }
 
     private Segmentacao criarSegmentacao() {
         Segmentacao s = new Segmentacao();
         s.setNome(NOME_SEGMENTACAO);
-        s.setGroupsJson("[[{\"field\":\"financ\",\"op\":\"é\",\"value\":\"Inadimplente\"},{\"field\":\"diasInadimplente\",\"op\":\"maior\",\"value\":5}]]");
+        s.setGroupsJson("[[{\"field\":\"custom:DATA:" + NOME_CAMPO_DATA + "\",\"op\":\"faltam\",\"value\":3}]]");
         return segmentacaoRepository.save(s);
     }
 
