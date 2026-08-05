@@ -38,8 +38,21 @@ public class FluxoNaoCompareceuSeedInitializer implements CommandLineRunner {
     private final FluxoAutomacaoRepository fluxoAutomacaoRepository;
     private final ObjectMapper objectMapper;
 
+    // Nao-fatal de proposito: um CommandLineRunner que lanca exception derruba
+    // o boot inteiro (ja causou crash-loop de verdade neste projeto - ver
+    // incidente WhatsAppNumero.finalidade em 05/08/2026). Falhar aqui so
+    // significa que o fluxo-modelo nao foi criado ainda, nunca deve tirar o
+    // sistema do ar.
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
+        try {
+            criarSeNaoExiste();
+        } catch (Exception e) {
+            log.error("Falha ao criar o fluxo-modelo '{}' (seed nao-fatal, sistema continua no ar): {}", NOME_FLUXO, e.getMessage(), e);
+        }
+    }
+
+    private void criarSeNaoExiste() throws Exception {
         if (fluxoAutomacaoRepository.findAll().stream().anyMatch(f -> NOME_FLUXO.equals(f.getNome()))) return;
 
         Segmentacao segmentacao = segmentacaoRepository.findByNome(NOME_SEGMENTACAO)
