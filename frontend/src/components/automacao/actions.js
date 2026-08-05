@@ -36,6 +36,7 @@ export const CATEGORIAS = [
     itens: [
       { tipo: "aguardar_mensagem", nome: "Aguardar mensagens do contato" },
       { tipo: "esperar_segundos", nome: "Esperar alguns segundos" },
+      { tipo: "pausar_horario_comercial", nome: "Aguardar horário comercial" },
     ],
   },
   {

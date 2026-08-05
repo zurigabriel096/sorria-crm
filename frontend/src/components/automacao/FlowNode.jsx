@@ -62,6 +62,25 @@ function corpoConfiguravel(id, data) {
       </div>
     );
   }
+  if (data.tipo === "pausar_horario_comercial") {
+    return (
+      <div>
+        <div style={{ fontSize: 12, color: "#5C6E7E", lineHeight: 1.5, marginBottom: 8 }}>
+          Só deixa passar pro próximo passo dentro do horário configurado (madrugada/fora do horário ficam esperando).
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+          <span style={{ fontSize: 12, color: "#5C6E7E" }}>Das</span>
+          <input className="nodrag" type="time" style={{ ...inputEstilo, width: 90 }} value={data.horaInicio || "08:00"} onChange={(e) => mudar({ horaInicio: e.target.value })} />
+          <span style={{ fontSize: 12, color: "#5C6E7E" }}>até</span>
+          <input className="nodrag" type="time" style={{ ...inputEstilo, width: 90 }} value={data.horaFim || "19:00"} onChange={(e) => mudar({ horaFim: e.target.value })} />
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#5C6E7E" }}>
+          <input className="nodrag" type="checkbox" checked={data.diasUteis !== false} onChange={(e) => mudar({ diasUteis: e.target.checked })} />
+          Só dias úteis (seg a sex)
+        </label>
+      </div>
+    );
+  }
   return <div style={{ fontSize: 12, color: "#5C6E7E", lineHeight: 1.5 }}>{data.subtitulo || "Clique pra configurar essa ação."}</div>;
 }
 

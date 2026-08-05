@@ -18,7 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -271,6 +273,16 @@ public class AutomacaoEngineService {
                 int segundos = comoInteiro(data.get("segundos"), 30);
                 return new ResultadoNo("ativo", LocalDateTime.now().plusSeconds(segundos));
             }
+            case "pausar_horario_comercial" -> {
+                // Segunda peca do Bot Matriz (Kommo) que faltava: prende a execucao ate
+                // o proximo horario permitido em vez de mandar mensagem de madrugada/fim
+                // de semana. Transparente pro fluxo (so atrasa proximaExecucaoEm) - nao
+                // muda status nem consome um "passo visivel" alem desse.
+                LocalDateTime proximo = proximoHorarioComercial(
+                        textoOuNull(data.get("horaInicio")), textoOuNull(data.get("horaFim")),
+                        !Boolean.FALSE.equals(data.get("diasUteis")));
+                return new ResultadoNo("ativo", proximo != null ? proximo : LocalDateTime.now());
+            }
             case "aguardar_mensagem" -> {
                 // prazoDias=0 (ou ausente) mantem o comportamento antigo: espera pra
                 // sempre, sem timeout (ver FlowNode.jsx). Com prazo > 0, processarAvancos
@@ -282,6 +294,44 @@ public class AutomacaoEngineService {
             default -> log.warn("Tipo de acao desconhecido \"{}\" no fluxo {}, no {}", tipo, fluxo.getId(), no.id());
         }
         return new ResultadoNo("ativo", LocalDateTime.now());
+    }
+
+    // null quando AGORA ja esta dentro do horario permitido (segue direto,
+    // sem atraso nenhum); senao, o proximo instante valido (hoje mais tarde,
+    // ou o "horaInicio" de um proximo dia valido) - guarda de 8 dias e' so
+    // seguranca (nunca deveria precisar de mais que 1 semana pra achar um
+    // dia util, mesmo com feriados nao considerados aqui).
+    private LocalDateTime proximoHorarioComercial(String horaInicioStr, String horaFimStr, boolean apenasDiasUteis) {
+        LocalTime inicio = parseHora(horaInicioStr, LocalTime.of(8, 0));
+        LocalTime fim = parseHora(horaFimStr, LocalTime.of(19, 0));
+        LocalDateTime agora = LocalDateTime.now();
+        if (dentroDoHorarioComercial(agora, inicio, fim, apenasDiasUteis)) return null;
+
+        LocalDate dia = agora.toLocalDate();
+        for (int i = 0; i < 8; i++) {
+            boolean diaValido = !apenasDiasUteis || dia.getDayOfWeek().getValue() <= 5; // 1=segunda .. 5=sexta
+            if (diaValido) {
+                LocalDateTime candidato = LocalDateTime.of(dia, inicio);
+                if (candidato.isAfter(agora)) return candidato;
+            }
+            dia = dia.plusDays(1);
+        }
+        return LocalDateTime.of(dia, inicio);
+    }
+
+    private static boolean dentroDoHorarioComercial(LocalDateTime momento, LocalTime inicio, LocalTime fim, boolean apenasDiasUteis) {
+        if (apenasDiasUteis && momento.getDayOfWeek().getValue() > 5) return false;
+        LocalTime hora = momento.toLocalTime();
+        return !hora.isBefore(inicio) && hora.isBefore(fim);
+    }
+
+    private static LocalTime parseHora(String valor, LocalTime padrao) {
+        if (valor == null || valor.isBlank()) return padrao;
+        try {
+            return LocalTime.parse(valor.length() > 5 ? valor.substring(0, 5) : valor);
+        } catch (Exception e) {
+            return padrao;
+        }
     }
 
     // Par (status, proximo horario) que uma execucao de no devolve - com status
