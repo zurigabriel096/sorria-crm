@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { T, AVATAR_COLORS } from "../../theme";
 import { s } from "../../styles/s";
 import { Modal } from "./Modal";
+import { IconCheck } from "../icons";
 import { lerPlanilhaBruta, sugerirMapeamento, montarPacientes, CAMPOS_IMPORTACAO } from "../../utils/patients";
 
 const IGNORAR = "ignorar";
@@ -135,23 +136,54 @@ export function ImportMappingModal({ file, onClose, onConfirmar, showToast, camp
             Pra cada informação do Sorr.ia, escolha qual coluna da sua planilha corresponde a ela.
             O que não existir na planilha, deixe em "Ignorar".
           </p>
-          <div style={{ display: "grid", gap: 10, maxHeight: 260, overflowY: "auto", paddingRight: 4 }}>
-            {CAMPOS_IMPORTACAO.map((campo) => (
-              <div key={campo.chave} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 12, alignItems: "center" }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>
-                  {campo.rotulo}
-                  {campo.obrigatorio && <span style={{ color: T.coral }}> *</span>}
+          <div style={{ display: "grid", gap: 2, maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>
+            {CAMPOS_IMPORTACAO.map((campo) => {
+              const colIdx = mapeamento[campo.chave] ?? null;
+              const mapeado = colIdx != null;
+              const primeiraLinha = rows[hi + 1];
+              const previa = mapeado && primeiraLinha ? String(primeiraLinha[colIdx] ?? "").trim() : "";
+              return (
+                <div key={campo.chave} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 4px", borderBottom: `1px solid ${T.lineSoft}` }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: "50%", flexShrink: 0, display: "grid", placeItems: "center",
+                    background: mapeado ? "#E1F4F0" : T.lineSoft,
+                  }}>
+                    {mapeado ? <IconCheck color="#0E9484" width={11} height={11} /> : <span style={{ width: 8, height: 2, background: T.inkSoft, borderRadius: 1 }} />}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: mapeado ? T.ink : T.inkSoft, textDecoration: mapeado ? "none" : "line-through" }}>
+                      {campo.rotulo}{campo.obrigatorio && <span style={{ color: T.coral }}> *</span>}
+                    </div>
+                    {campo.obrigatorio ? (
+                      <div style={{ fontSize: 11, color: T.coral, marginTop: 2 }}>Campo obrigatório pra identificar o lead</div>
+                    ) : mapeado ? (
+                      <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        Pré-visualização: {previa || "(vazio)"}
+                      </div>
+                    ) : null}
+                  </div>
+                  <select
+                    style={{ ...s.select, width: 220 }}
+                    disabled={!campo.obrigatorio && !mapeado}
+                    value={colIdx ?? IGNORAR}
+                    onChange={(e) => escolher(campo.chave, e.target.value)}
+                  >
+                    {!mapeado && <option value={IGNORAR}>Não importar</option>}
+                    {headers.map((h, i) => <option key={i} value={i}>{h || `(coluna ${i + 1})`}</option>)}
+                  </select>
+                  {!campo.obrigatorio && (
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.inkSoft, flexShrink: 0, width: 100 }}>
+                      <input
+                        type="checkbox"
+                        checked={!mapeado}
+                        onChange={(e) => escolher(campo.chave, e.target.checked ? IGNORAR : String(headers.length ? 0 : IGNORAR))}
+                      />
+                      Não importar
+                    </label>
+                  )}
                 </div>
-                <select
-                  style={s.select}
-                  value={mapeamento[campo.chave] ?? IGNORAR}
-                  onChange={(e) => escolher(campo.chave, e.target.value)}
-                >
-                  {!campo.obrigatorio && <option value={IGNORAR}>Ignorar</option>}
-                  {headers.map((h, i) => <option key={i} value={i}>{h || `(coluna ${i + 1})`}</option>)}
-                </select>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div style={{ height: 1, background: T.line, margin: "16px 0" }} />
