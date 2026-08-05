@@ -17,6 +17,7 @@ import { MensagemPanel } from "./MensagemPanel";
 import ActionsPanel from "./ActionsPanel";
 import { AjudaZoomButton } from "./AjudaZoomModal";
 import { getFluxo, updateFluxo, ativarFluxo } from "../../api/automacoes";
+import { listNumeros } from "../../api/whatsappNumeros";
 import { gerarId } from "../../utils/automacao/ids";
 
 const nodeTypes = { start: StartNode, action: FlowNode, mensagem: MensagemNode, placeholder: PlaceholderNode, condicao: CondicaoNode };
@@ -48,6 +49,9 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
   const [edges, setEdges, onEdgesChange] = useEdgesState(fluxo.edges || []);
   const [ativo, setAtivo] = useState(!!fluxo.ativo);
   const [contatoTesteId, setContatoTesteId] = useState(fluxo.contatoTesteId || null);
+  const [whatsappNumeroId, setWhatsappNumeroId] = useState(fluxo.whatsappNumeroId || null);
+  const [numeros, setNumeros] = useState([]);
+  useEffect(() => { listNumeros().then(setNumeros).catch(() => setNumeros([])); }, []);
   const [painelAberto, setPainelAberto] = useState(true);
   const [painelAtivo, setPainelAtivo] = useState(null);
   const [ultimoSalvamentoEm, setUltimoSalvamentoEm] = useState(null);
@@ -118,10 +122,21 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     return n;
   });
 
+  const mudarWhatsappNumero = async (valor) => {
+    const id = valor ? Number(valor) : null;
+    setWhatsappNumeroId(id);
+    try {
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId, whatsappNumeroId: id });
+      showToast(id ? "Número de disparo definido" : "Voltou a usar o número principal", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar número de disparo", "warn");
+    }
+  };
+
   const persistir = async (mostrarToast) => {
     setSalvando(true);
     try {
-      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId });
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId, whatsappNumeroId });
       setUltimoSalvamentoEm(Date.now());
       if (mostrarToast) showToast("Fluxo salvo", "ok");
     } catch (e) {
@@ -153,7 +168,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
   const escolherContatoTeste = async (id) => {
     setContatoTesteId(id);
     try {
-      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId: id });
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId: id, whatsappNumeroId });
       showToast(id ? "Contato de teste definido — o fluxo só roda pra ele" : "Contato de teste removido", "ok");
     } catch (e) {
       showToast(e.message || "Erro ao salvar contato de teste", "warn");
@@ -165,7 +180,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     const t = setInterval(() => persistir(false), 4 * 60 * 1000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, ativo, contatoTesteId]);
+  }, [nodes, edges, ativo, contatoTesteId, whatsappNumeroId]);
 
   useEffect(() => {
     const t = setInterval(() => setAgora(Date.now()), 10000);
@@ -183,6 +198,19 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
         <span style={{ ...s.tagOk, background: ativo ? "#E1F4F0" : "rgba(255,255,255,.12)", color: ativo ? "#0E9484" : "#fff" }}>{ativo ? "● Ativo" : "○ Inativo"}</span>
         <div style={{ flex: 1 }} />
         {textoSalvo && <span style={{ fontSize: 12, color: "#9db4c9" }}>{textoSalvo}</span>}
+        {souAdmin && (
+          <select
+            title="Qual número de WhatsApp esse fluxo usa pra mandar mensagem - deixe em branco pra usar o número principal. Recomendado: só números de baixo volume (nunca os de disparo em massa)."
+            value={whatsappNumeroId ? String(whatsappNumeroId) : ""}
+            onChange={(e) => mudarWhatsappNumero(e.target.value)}
+            style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontSize: 12.5, fontWeight: 600, padding: "7px 10px", borderRadius: 9, border: "none" }}
+          >
+            <option value="" style={{ color: T.ink }}>Número principal</option>
+            {numeros.filter((n) => n.finalidade !== "AQUECIMENTO").map((n) => (
+              <option key={n.id} value={n.id} style={{ color: T.ink }}>{n.nome}</option>
+            ))}
+          </select>
+        )}
         <button onClick={() => setPainelAberto((o) => !o)} title="Ações disponíveis" style={{ width: 32, height: 32, borderRadius: 9, background: painelAberto ? T.primary : "rgba(255,255,255,.08)", color: "#fff", display: "grid", placeItems: "center" }}>☰</button>
         <button onClick={() => persistir(true)} disabled={salvando} style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 13, padding: "8px 14px", borderRadius: 9 }}>{salvando ? "Salvando..." : "Salvar"}</button>
         {souAdmin && (

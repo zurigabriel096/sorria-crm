@@ -41,6 +41,14 @@ public class FluxoAutomacao {
     // realmente bate com a segmentacao. Ver AutomacaoEngineService.processarEntradaDeUmFluxo.
     private Long contatoTesteId;
 
+    // Qual numero de WhatsApp esse fluxo usa pra mandar mensagem - null = numero
+    // principal (comportamento antigo, retrocompativel). Pedido do Samuel
+    // (05/08/2026): restringir automacao de baixo volume (cobranca, confirmacao
+    // de consulta) aos numeros "saudaveis" (RTL/Sara/Joao), nunca aos numeros
+    // usados pra disparo em massa - a escolha de QUAL numero fica com o ADMIN no
+    // editor, nao fixa em codigo (nomes de pessoa podem mudar).
+    private Long whatsappNumeroId;
+
     private LocalDateTime atualizadoEm;
 
     @PrePersist

@@ -10,6 +10,8 @@ import br.com.sorria.crm.conversa.MensagemService;
 import br.com.sorria.crm.segment.Segmentacao;
 import br.com.sorria.crm.segment.SegmentacaoRepository;
 import br.com.sorria.crm.whatsapp.EvolutionApiClient;
+import br.com.sorria.crm.whatsapp.WhatsAppNumero;
+import br.com.sorria.crm.whatsapp.WhatsAppNumeroRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,9 +55,9 @@ import java.util.stream.Collectors;
 //   retoma de verdade e' MensagemService.retomarExecucoesAguardandoResposta (Fase 4), chamado toda
 //   vez que o webhook do Evolution recebe uma resposta real do contato (tag "Automação: respondeu").
 //   Com um prazo configurado no no (FlowNode.jsx), processarAvancos tambem retoma sozinho quando o
-//   prazo estoura sem resposta (tag "Automação: sem resposta") - ainda sem ramificacao de verdade no
-//   grafo (o motor so segue a primeira aresta de cada no), entao os dois casos seguem o MESMO
-//   caminho depois - a diferenca fica registrada so pela tag, pra filtrar/comparar em Segmentacoes.
+//   prazo estoura sem resposta (tag "Automação: sem resposta") - a diferenca fica registrada pela
+//   tag, E (desde o no "condicao", 05/08/2026) pode de verdade mudar o caminho do grafo dali pra
+//   frente, se o fluxo tiver uma condicao checando o texto da resposta.
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -83,6 +85,7 @@ public class AutomacaoEngineService {
     private final EvolutionApiClient evolutionApiClient;
     private final MensagemService mensagemService;
     private final MensagemRepository mensagemRepository;
+    private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final ObjectMapper objectMapper;
 
     @Scheduled(fixedDelay = 30_000)
@@ -230,7 +233,7 @@ public class AutomacaoEngineService {
 
         Map<String, Object> data = proximo.data() != null ? proximo.data() : Map.of();
         ResultadoNo resultado = switch (proximo.type()) {
-            case "mensagem" -> executarNoMensagem(contato, data);
+            case "mensagem" -> executarNoMensagem(fluxo, contato, data);
             case "action" -> executarNoAcao(fluxo, proximo, contato, data);
             default -> {
                 log.warn("Tipo de no desconhecido \"{}\" no fluxo {}, no {}", proximo.type(), fluxo.getId(), proximo.id());
@@ -248,11 +251,11 @@ public class AutomacaoEngineService {
         execucaoFluxoRepository.save(execucao);
     }
 
-    private ResultadoNo executarNoMensagem(Contato contato, Map<String, Object> data) {
+    private ResultadoNo executarNoMensagem(FluxoAutomacao fluxo, Contato contato, Map<String, Object> data) {
         Object textoBruto = data.get("texto");
         String texto = textoBruto != null ? String.valueOf(textoBruto) : null;
         if (texto != null && !texto.isBlank()) {
-            enviarMensagemComPacing(contato, SubstituicaoVariaveis.aplicar(texto, contato));
+            enviarMensagemComPacing(fluxo, contato, SubstituicaoVariaveis.aplicar(texto, contato));
         }
         Map<String, Object> atraso = comoMapa(data.get("atraso"));
         long segundosAtraso = comoInteiro(atraso.get("dias"), 0) * 86400L
@@ -340,20 +343,36 @@ public class AutomacaoEngineService {
     private record ResultadoNo(String status, LocalDateTime proximaExecucaoEm) {
     }
 
-    private void enviarMensagemComPacing(Contato contato, String texto) {
-        // "Digitando" pro mesmo contato antes de mandar (mesmo padrao do
-        // AquecimentoService) - tokenInstancia nulo cai pro numero principal
-        // dentro de simularDigitando (ver EvolutionApiClient).
-        int digitandoMs = DIGITANDO_MIN_MS + ThreadLocalRandom.current().nextInt(DIGITANDO_VARIACAO_MS);
-        evolutionApiClient.simularDigitando(null, contato.getTelefone(), digitandoMs);
+    private void enviarMensagemComPacing(FluxoAutomacao fluxo, Contato contato, String texto) {
+        // whatsappNumeroId nulo cai pro numero principal (token/servidorUrl null
+        // -> resolverUrl usa o padrao, ver EvolutionApiClient) - comportamento
+        // antigo preservado. Preenchido, usa o numero especifico escolhido no
+        // editor (corte pedido pelo Samuel: automacao de baixo volume so nos
+        // numeros "saudaveis", nunca nos de disparo em massa).
+        String token = null;
+        String servidorUrl = null;
+        if (fluxo.getWhatsappNumeroId() != null) {
+            WhatsAppNumero numero = whatsAppNumeroRepository.findById(fluxo.getWhatsappNumeroId()).orElse(null);
+            if (numero != null) {
+                token = numero.getToken();
+                servidorUrl = numero.getServidorUrl();
+            } else {
+                log.warn("Fluxo {} aponta pra whatsappNumeroId {} que nao existe mais - usando numero principal.",
+                        fluxo.getId(), fluxo.getWhatsappNumeroId());
+            }
+        }
 
-        String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), texto);
+        // "Digitando" pro mesmo contato antes de mandar (mesmo padrao do
+        // AquecimentoService).
+        int digitandoMs = DIGITANDO_MIN_MS + ThreadLocalRandom.current().nextInt(DIGITANDO_VARIACAO_MS);
+        evolutionApiClient.simularDigitando(token, contato.getTelefone(), digitandoMs, servidorUrl);
+
+        String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), texto, token, servidorUrl);
         // Sem isso, mensagem de fluxo nao aparecia no Kanban (Conversas.jsx) nem
         // atualizava Contato.ultimaMensagemEm - a Fila de Trabalho nao sabia que a
-        // automacao tinha acabado de falar com o lead. Numero principal sempre
-        // (FluxoAutomacao nao tem campo de numero alternativo).
+        // automacao tinha acabado de falar com o lead.
         if ("Entregue".equals(status)) {
-            mensagemService.registrarSaidaExterna(contato.getId(), null, texto);
+            mensagemService.registrarSaidaExterna(contato.getId(), fluxo.getWhatsappNumeroId(), texto);
         }
         try {
             int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (INTERVALO_PACING_SEGUNDOS * 1000 * 0.4) + 1);
