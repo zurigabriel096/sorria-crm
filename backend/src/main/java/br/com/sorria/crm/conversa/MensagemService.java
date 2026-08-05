@@ -5,6 +5,7 @@ import br.com.sorria.crm.automacao.ExecucaoFluxoRepository;
 import br.com.sorria.crm.contact.Contato;
 import br.com.sorria.crm.contact.ContatoRepository;
 import br.com.sorria.crm.contact.ContatoService;
+import br.com.sorria.crm.contact.dto.ContatoDTO;
 import br.com.sorria.crm.conversa.dto.EnviarMensagemRequest;
 import br.com.sorria.crm.conversa.dto.MensagemDTO;
 import br.com.sorria.crm.user.Usuario;
