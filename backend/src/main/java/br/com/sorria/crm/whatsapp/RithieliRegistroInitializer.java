@@ -49,7 +49,7 @@ public class RithieliRegistroInitializer {
     public void run() {
         if (marcadorRepository.count() > 0) return;
         try {
-            if (whatsAppNumeroRepository.findAll().stream().noneMatch(n -> TOKEN_RITHIELI.equals(n.getToken()))) {
+            if (!whatsAppNumeroRepository.existsByToken(TOKEN_RITHIELI)) {
                 WhatsAppNumeroDTO salvo = whatsAppNumeroService.registrarExistente("Rithieli", "Rithieli", TOKEN_RITHIELI, SERVIDOR_SAUDAVEL);
                 String webhookUrl = backendUrl + "/api/whatsapp/webhook?numeroId=" + salvo.id();
                 evolutionApiClient.registrarWebhook(TOKEN_RITHIELI, webhookUrl, SERVIDOR_SAUDAVEL);
