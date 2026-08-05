@@ -79,13 +79,15 @@ public class TemplateService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe um numero de telefone valido.");
         }
         String tokenInstancia = null;
+        String servidorUrl = null;
         if (whatsappNumeroId != null) {
-            tokenInstancia = whatsAppNumeroRepository.findById(whatsappNumeroId)
-                    .map(WhatsAppNumero::getToken)
+            WhatsAppNumero numeroEscolhido = whatsAppNumeroRepository.findById(whatsappNumeroId)
                     .orElseThrow(() -> new NoSuchElementException("Numero de disparo nao encontrado: " + whatsappNumeroId));
+            tokenInstancia = numeroEscolhido.getToken();
+            servidorUrl = numeroEscolhido.getServidorUrl();
         }
         String mensagem = (template.getCorpo() != null ? template.getCorpo() : "").replace("{nome}", "Teste");
-        return evolutionApiClient.enviarMensagem(numero, mensagem, tokenInstancia);
+        return evolutionApiClient.enviarMensagem(numero, mensagem, tokenInstancia, servidorUrl);
     }
 
     private static String normalizarTelefone(String bruto) {
