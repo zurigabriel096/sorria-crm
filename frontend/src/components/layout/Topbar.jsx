@@ -6,6 +6,24 @@ import { ColorPicker } from "../ui/ColorPicker";
 import { AvatarUploader } from "../ui/AvatarUploader";
 import { iniciais } from "../../utils/usuario";
 
+// Data/hora ao vivo no topo, visível em qualquer tela - pedido pra dar
+// referencia de "agora" pra quem esta olhando prazo/proxima acao/etc.
+function RelogioAoVivo() {
+  const [agora, setAgora] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const data = agora.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
+  const hora = agora.toLocaleTimeString("pt-BR");
+  return (
+    <div style={{ textAlign: "right", lineHeight: 1.25 }}>
+      <div style={{ fontSize: 10.5, color: T.inkSoft, textTransform: "capitalize" }}>{data}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, fontVariantNumeric: "tabular-nums" }}>{hora}</div>
+    </div>
+  );
+}
+
 const TITLES = {
   dashboard: "Painel executivo", pacientes: "Base de Leads", segmentacoes: "Segmentações",
   campanhas: "Campanhas", templates: "Templates de WhatsApp", automacoes: "Automação", disparo: "Novo disparo",
@@ -40,6 +58,7 @@ export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarCol
         <div style={{ fontSize: 18, fontWeight: 700, color: T.ink }}>{TITLES[view]}</div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <RelogioAoVivo />
         <button
           onClick={() => { if (!sistemaAtivo) onReportarProblema(); }}
           title={sistemaAtivo ? "Sistema operando normalmente" : "Clique para reportar o problema"}

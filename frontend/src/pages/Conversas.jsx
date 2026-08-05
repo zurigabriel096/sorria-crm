@@ -324,6 +324,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   const [filtroSemResponsavel, setFiltroSemResponsavel] = useState(false);
   const [filtroResponsaveisSel, setFiltroResponsaveisSel] = useState([]); // ids (string) selecionados no campo
   const [iniciarAberto, setIniciarAberto] = useState(false);
+  const [buscaConversa, setBuscaConversa] = useState("");
 
   useEffect(() => { listColaboradores().then(setColaboradores).catch(() => setColaboradores([])); }, []);
 
@@ -478,6 +479,15 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     return true;
   };
 
+  // Por nome OU telefone - existe pra achar leads sem nome (ex.: "Novo contato
+  // (WhatsApp)", criado automatico por numero desconhecido) que o nome sozinho
+  // nao localiza em meio a uma coluna cheia.
+  const passaBusca = (p) => {
+    const termo = buscaConversa.trim().toLowerCase();
+    if (!termo) return true;
+    return (p.nome || "").toLowerCase().includes(termo) || (p.telefone || p.tel || "").toLowerCase().includes(termo);
+  };
+
   const alternarSemResponsavel = () => {
     setFiltroSemResponsavel((v) => !v);
     setFiltroResponsaveisSel([]);
@@ -492,7 +502,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
   // sobre o mesmo recorte de leads que os filtros de responsavel ja aplicam
   // nas colunas, pra bater com o que a pessoa esta de fato vendo no board.
   const estatisticas = useMemo(() => {
-    const visiveis = patients.filter(passaFiltroResponsavel);
+    const visiveis = patients.filter((p) => passaFiltroResponsavel(p) && passaBusca(p));
     const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
     const inicioAmanha = new Date(inicioHoje); inicioAmanha.setDate(inicioAmanha.getDate() + 1);
     const inicioOntem = new Date(inicioHoje); inicioOntem.setDate(inicioOntem.getDate() - 1);
@@ -515,7 +525,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
     }
     return { total: visiveis.length, comTarefaHoje, semTarefa, atrasados, novosHoje, novosOntem };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patients, filtroSemResponsavel, filtroResponsaveisSel]);
+  }, [patients, filtroSemResponsavel, filtroResponsaveisSel, buscaConversa]);
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -546,6 +556,14 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          style={{ ...s.input, height: 30, fontSize: 12.5, width: 220 }}
+          placeholder="🔎 Buscar conversa por nome ou telefone..."
+          value={buscaConversa}
+          onChange={(e) => setBuscaConversa(e.target.value)}
+        />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 11.5, fontWeight: 700, color: T.inkSoft }}>Responsável:</span>
         <button
           onClick={alternarSemResponsavel}
@@ -574,7 +592,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
         <div style={{ display: "flex", gap: 14, alignItems: "start", overflowX: "auto", paddingBottom: 8 }}>
           {etapas.map((etapa) => {
             const doEstagio = patients
-              .filter((p) => (p.estagio || "Lead") === etapa.nome && passaFiltroResponsavel(p))
+              .filter((p) => (p.estagio || "Lead") === etapa.nome && passaFiltroResponsavel(p) && passaBusca(p))
               .sort((a, b) => posicao(a) - posicao(b));
             return (
               <div

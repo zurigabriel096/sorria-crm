@@ -24,6 +24,10 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
   const [aba, setAba] = useState(abaInicial);
   const [p, setP] = useState(paciente);
   const [dirty, setDirty] = useState(false);
+  // Cadastro abre so-leitura de proposito: no mobile, arrastar/deslizar essa
+  // caixa pra ler os dados as vezes tocava sem querer num input (nome/telefone/
+  // email) e abria o teclado. So vira editavel de verdade clicando no lapis.
+  const [editando, setEditando] = useState(false);
   const [etapas, setEtapas] = useState(["Lead"]);
   const [colaboradores, setColaboradores] = useState([]);
   const [ordemCampos, setOrdemCamposState] = useState(ORDEM_PADRAO);
@@ -63,9 +67,25 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
     .filter((h) => h.contatoId === paciente.id)
     .sort((a, b) => new Date(b.horaCompleta || 0) - new Date(a.horaCompleta || 0));
 
+  const rotuloOuTraco = (v) => (v && String(v).trim() ? v : "—");
+  const valorSoLeituraJsx = (texto) => (
+    <div style={{ ...s.input, display: "flex", alignItems: "center", background: T.bg, color: T.ink, cursor: "default" }}>{texto}</div>
+  );
+
   // Um Field por campo fixo - a ORDEM de renderizacao vem de ordemCampos
-  // (configuravel pelo lapisinho), o conteudo de cada um continua fixo.
+  // (configuravel pelo lapisinho de reordenar), o conteudo de cada um continua
+  // fixo. Fora do modo edicao, mostra texto estatico em vez de input/select -
+  // ver "editando" acima.
   const campoFixoJsx = (chave) => {
+    if (!editando) {
+      const texto = {
+        nome: rotuloOuTraco(p.nome), cod: rotuloOuTraco(p.cod), tel: rotuloOuTraco(p.tel), email: rotuloOuTraco(p.email),
+        estagio: p.estagio || "Lead",
+        responsavelId: colaboradores.find((c) => c.id === p.responsavelId)?.nome || "Sem responsável",
+        financ: rotuloOuTraco(p.financ), dentista: rotuloOuTraco(p.dentista), elegivel: p.elegivel ? "Sim" : "Não",
+      }[chave];
+      return <Field key={chave} label={ROTULOS_CAMPOS[chave] || chave}>{valorSoLeituraJsx(texto)}</Field>;
+    }
     switch (chave) {
       case "nome": return <Field key={chave} label="Nome"><input style={s.input} value={p.nome} onChange={(e) => set("nome", e.target.value)} /></Field>;
       case "cod": return <Field key={chave} label="Código"><input style={s.input} value={p.cod} onChange={(e) => set("cod", e.target.value)} /></Field>;
@@ -105,14 +125,23 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
         >
           <IconBook color={aba === "historico" ? "#fff" : T.inkSoft} /> Histórico do cliente
         </button>
-        {souAdmin && aba === "dados" && (
-          <button
-            onClick={() => { setReordenando((r) => !r); setErroOrdem(null); }}
-            title="Reordenar campos do cadastro"
-            style={{ ...s.collapseBtn, marginLeft: "auto" }}
-          >
-            <IconEdit color={reordenando ? T.primary : T.inkSoft} width={15} height={15} />
-          </button>
+        {aba === "dados" && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+            {!editando && (
+              <button onClick={() => setEditando(true)} style={{ ...s.btnGhostSm, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <IconEdit color={T.primary} width={13} height={13} /> Editar
+              </button>
+            )}
+            {souAdmin && (
+              <button
+                onClick={() => { setReordenando((r) => !r); setErroOrdem(null); }}
+                title="Reordenar campos do cadastro"
+                style={s.collapseBtn}
+              >
+                <IconEdit color={reordenando ? T.primary : T.inkSoft} width={15} height={15} />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -142,35 +171,49 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
             {ordemCampos.map((chave) => campoFixoJsx(chave))}
           </div>
           <Field label="Próxima ação (follow-up)">
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                type="datetime-local"
-                style={{ ...s.input, flex: 1 }}
-                value={p.proximaAcaoEm ? p.proximaAcaoEm.slice(0, 16) : ""}
-                onChange={(e) => set("proximaAcaoEm", e.target.value || null)}
-              />
-              {p.proximaAcaoEm && <button style={s.btnGhostSm} onClick={() => set("proximaAcaoEm", null)}>Limpar</button>}
-            </div>
+            {editando ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="datetime-local"
+                  style={{ ...s.input, flex: 1 }}
+                  value={p.proximaAcaoEm ? p.proximaAcaoEm.slice(0, 16) : ""}
+                  onChange={(e) => set("proximaAcaoEm", e.target.value || null)}
+                />
+                {p.proximaAcaoEm && <button style={s.btnGhostSm} onClick={() => set("proximaAcaoEm", null)}>Limpar</button>}
+              </div>
+            ) : valorSoLeituraJsx(p.proximaAcaoEm ? new Date(p.proximaAcaoEm).toLocaleString("pt-BR") : "Nenhuma")}
           </Field>
           <Field label="Tags">
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {tags.map((t) => {
-                const on = (p.tags || []).includes(t);
-                const cor = tagObjetos?.find((tg) => tg.nome === t)?.cor;
-                return (
-                  <button key={t} onClick={() => toggleTag(t)} style={{ ...s.tagChipBig, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: on ? 1 : .45, outline: on ? `1.5px solid ${T.primary}` : "none" }}>
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor || T.inkSoft, flexShrink: 0 }} />
-                    {t}
-                  </button>
-                );
-              })}
+              {editando ? (
+                tags.map((t) => {
+                  const on = (p.tags || []).includes(t);
+                  const cor = tagObjetos?.find((tg) => tg.nome === t)?.cor;
+                  return (
+                    <button key={t} onClick={() => toggleTag(t)} style={{ ...s.tagChipBig, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, opacity: on ? 1 : .45, outline: on ? `1.5px solid ${T.primary}` : "none" }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor || T.inkSoft, flexShrink: 0 }} />
+                      {t}
+                    </button>
+                  );
+                })
+              ) : (p.tags || []).length ? (
+                (p.tags || []).map((t) => {
+                  const cor = tagObjetos?.find((tg) => tg.nome === t)?.cor;
+                  return (
+                    <span key={t} style={{ ...s.tagChipBig, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: cor || T.inkSoft, flexShrink: 0 }} />
+                      {t}
+                    </span>
+                  );
+                })
+              ) : <span style={{ fontSize: 12.5, color: T.inkSoft }}>Nenhuma tag</span>}
             </div>
           </Field>
           {!!(camposCustomizados || []).length && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
               {camposCustomizados.map((campo) => (
                 <Field key={campo.id} label={campo.nome}>
-                  {campo.tipo === "LISTA" ? (
+                  {!editando ? valorSoLeituraJsx(rotuloOuTraco(p.camposCustomizados?.[campo.nome])) : campo.tipo === "LISTA" ? (
                     <Select
                       block
                       value={p.camposCustomizados?.[campo.nome] || ""}
@@ -193,8 +236,14 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
             </div>
           )}
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Cancelar</button>
-            <button style={{ ...s.btnPrimary, flex: 1 }} onClick={() => onSave(p)}>Salvar alterações</button>
+            {editando ? (
+              <>
+                <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => { setP(paciente); setDirty(false); setEditando(false); }}>Cancelar edição</button>
+                <button style={{ ...s.btnPrimary, flex: 1 }} onClick={() => { onSave(p); setEditando(false); }}>Salvar alterações</button>
+              </>
+            ) : (
+              <button style={{ ...s.btnGhost, flex: 1 }} onClick={onClose}>Fechar</button>
+            )}
           </div>
         </>
       )}
