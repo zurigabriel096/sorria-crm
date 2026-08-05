@@ -32,15 +32,23 @@ public class RithieliRegistroInitializer implements CommandLineRunner {
     @Value("${app.backend-url}")
     private String backendUrl;
 
+    // Falha aqui NUNCA pode derrubar o boot inteiro (incidente real, 04/08/2026:
+    // sem esse try/catch, um erro numa consulta travou o app em loop de reinicio
+    // continuo) - so loga e tenta de novo no proximo restart (marcador so e'
+    // salvo se der certo).
     @Override
     public void run(String... args) {
         if (marcadorRepository.count() > 0) return;
-        if (whatsAppNumeroRepository.findAll().stream().noneMatch(n -> TOKEN_RITHIELI.equals(n.getToken()))) {
-            WhatsAppNumeroDTO salvo = whatsAppNumeroService.registrarExistente("Rithieli", "Rithieli", TOKEN_RITHIELI, SERVIDOR_SAUDAVEL);
-            String webhookUrl = backendUrl + "/api/whatsapp/webhook?numeroId=" + salvo.id();
-            evolutionApiClient.registrarWebhook(TOKEN_RITHIELI, webhookUrl, SERVIDOR_SAUDAVEL);
-            log.info("Numero da Rithieli registrado no CRM (servidor saudavel), webhook apontado pra numeroId={}.", salvo.id());
+        try {
+            if (whatsAppNumeroRepository.findAll().stream().noneMatch(n -> TOKEN_RITHIELI.equals(n.getToken()))) {
+                WhatsAppNumeroDTO salvo = whatsAppNumeroService.registrarExistente("Rithieli", "Rithieli", TOKEN_RITHIELI, SERVIDOR_SAUDAVEL);
+                String webhookUrl = backendUrl + "/api/whatsapp/webhook?numeroId=" + salvo.id();
+                evolutionApiClient.registrarWebhook(TOKEN_RITHIELI, webhookUrl, SERVIDOR_SAUDAVEL);
+                log.info("Numero da Rithieli registrado no CRM (servidor saudavel), webhook apontado pra numeroId={}.", salvo.id());
+            }
+            marcadorRepository.save(new RithieliRegistroMarcador());
+        } catch (Exception ex) {
+            log.error("Falha ao registrar numero da Rithieli - nao trava o boot, tenta de novo no proximo restart.", ex);
         }
-        marcadorRepository.save(new RithieliRegistroMarcador());
     }
 }
