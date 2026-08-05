@@ -559,7 +559,7 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <input
           style={{ ...s.input, height: 30, fontSize: 12.5, width: 220 }}
-          placeholder="🔎 Buscar conversa por nome ou telefone..."
+          placeholder="Buscar conversa por nome ou telefone..."
           value={buscaConversa}
           onChange={(e) => setBuscaConversa(e.target.value)}
         />
