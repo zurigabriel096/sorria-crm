@@ -33,6 +33,12 @@ public class MensagemService {
 
     private static final String ENTRADA = "ENTRADA";
     private static final String SAIDA = "SAIDA";
+    // Mesmo texto usado em Conversas.jsx (LEAD_SEM_NOME) pro card mostrar
+    // "de: <telefone>" em vez do nome - aqui e' o sinal de que o proximo
+    // ENTRADA desse contato deve ser interpretado como resposta a
+    // PERGUNTA_NOME, nao como uma mensagem qualquer (ver registrarEntrada).
+    private static final String LEAD_SEM_NOME = "Novo contato (WhatsApp)";
+    private static final String PERGUNTA_NOME = "Oi! 🙂 Antes de continuar, qual é o seu nome?";
 
     private final MensagemRepository mensagemRepository;
     private final ContatoRepository contatoRepository;
@@ -159,7 +165,9 @@ public class MensagemService {
         String telefone = sender.split("[:@]")[0].replaceAll("\\D", "");
         List<Contato> encontrados = contatoRepository.findByTelefone(telefone);
         Contato contato;
+        boolean contatoRecemCriado = false;
         if (encontrados.isEmpty()) {
+            contatoRecemCriado = true;
             // Numero desconhecido manda mensagem espontanea - cria lead novo em vez
             // de descartar (antes a mensagem nem era gravada, so um log). Nome fica
             // generico ate o Agente Virtual (ou um humano) perguntar e preencher de
@@ -167,7 +175,7 @@ public class MensagemService {
             // transacional) - risco de "spam virar lead" e' aceitavel nesse volume
             // (decisao explicita do Samuel, 04/08/2026).
             Long novoId = contatoService.importarLinha(new ContatoDTO(
-                    null, null, "Novo contato (WhatsApp)", telefone, null, null, null, null, null, null,
+                    null, null, LEAD_SEM_NOME, telefone, null, null, null, null, null, null,
                     null, null, true, null, null, "WhatsApp (mensagem espontânea)", null, null,
                     null, null, null, null, null));
             contato = novoId != null ? contatoRepository.findById(novoId).orElse(null) : null;
@@ -184,6 +192,18 @@ public class MensagemService {
             contato = encontrados.get(0);
         }
 
+        // Captacao de nome (sem IA, so estado): a ENTRADA que CRIA o contato
+        // nunca vira nome (ainda nao perguntamos nada) - so a proxima ENTRADA de
+        // um contato que segue com LEAD_SEM_NOME e' tratada como resposta a
+        // PERGUNTA_NOME. Guarda de tamanho evita "capturar" um paragrafo longo
+        // por engano.
+        boolean eraLeadSemNome = LEAD_SEM_NOME.equals(contato.getNome());
+        boolean nomeCapturadoAgora = false;
+        if (eraLeadSemNome && !contatoRecemCriado && texto.trim().length() <= 60) {
+            contato.setNome(capitalizarNome(texto));
+            nomeCapturadoAgora = true;
+        }
+
         Mensagem mensagem = new Mensagem();
         mensagem.setContatoId(contato.getId());
         mensagem.setWhatsappNumeroId(whatsappNumeroId);
@@ -193,6 +213,46 @@ public class MensagemService {
         Mensagem salva = mensagemRepository.save(mensagem);
         atualizarUltimaMensagem(contato, salva);
         retomarExecucoesAguardandoResposta(contato.getId());
+
+        if (nomeCapturadoAgora) {
+            log.info("Webhook Evolution: nome capturado via resposta espontanea pro contato {}: \"{}\"", contato.getId(), contato.getNome());
+            enviarMensagemDeSistema(contato, "Prazer, " + primeiroNome(contato.getNome()) + "! 😊");
+        } else if (eraLeadSemNome) {
+            // Ainda sem nome (resposta rejeitada pela guarda de tamanho, ou essa
+            // ENTRADA e' a que criou o contato agora mesmo) - so pergunta na
+            // primeira vez pra nao repetir a cada mensagem enquanto ele nao responde.
+            boolean jaPerguntou = mensagemRepository.findByContatoIdOrderByCriadoEmAsc(contato.getId()).stream()
+                    .anyMatch(m -> SAIDA.equals(m.getDirecao()) && PERGUNTA_NOME.equals(m.getTexto()));
+            if (!jaPerguntou) enviarMensagemDeSistema(contato, PERGUNTA_NOME);
+        }
+    }
+
+    // Resposta automatica (fora do fluxo de campanha/automacao) - mesmo padrao
+    // de "digitando" antes de mandar usado no resto do projeto, pra nao soar
+    // instantaneo/robotico demais.
+    private void enviarMensagemDeSistema(Contato contato, String texto) {
+        try {
+            evolutionApiClient.simularDigitando(null, contato.getTelefone(), 1500);
+            evolutionApiClient.enviarMensagem(contato.getTelefone(), texto);
+            registrarSaidaExterna(contato.getId(), null, texto);
+        } catch (Exception e) {
+            log.warn("Falha ao mandar mensagem automatica pro contato {}: {}", contato.getId(), e.getMessage());
+        }
+    }
+
+    private static String capitalizarNome(String bruto) {
+        StringBuilder sb = new StringBuilder();
+        for (String parte : bruto.trim().toLowerCase().split("\\s+")) {
+            if (parte.isBlank()) continue;
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(Character.toUpperCase(parte.charAt(0))).append(parte.substring(1));
+        }
+        return sb.length() > 0 ? sb.toString() : bruto.trim();
+    }
+
+    private static String primeiroNome(String nomeCompleto) {
+        if (nomeCompleto == null || nomeCompleto.isBlank()) return "";
+        return nomeCompleto.trim().split("\\s+")[0];
     }
 
     // Fase 4 do motor de automacao: uma resposta de verdade do lead retoma
