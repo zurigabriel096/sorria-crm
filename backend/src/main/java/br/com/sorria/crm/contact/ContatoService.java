@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -139,6 +140,17 @@ public class ContatoService {
         String estagioAntigo = contato.getEstagio();
         contato.setEstagio(novoEstagio);
         sincronizarTagDeEtapa(contato, estagioAntigo, novoEstagio);
+        contatoRepository.save(contato);
+    }
+
+    // Sinaliza urgencia na Fila de Trabalho (ordena/filtra por proximaAcaoEm) -
+    // usado pelo no de acao "sinalizar_atendimento_agora" da Automacao (pedido
+    // do Samuel, 05/08/2026), pra deixar um lead visivelmente prioritario pro
+    // time humano assumir, alem da mudanca de estagio que ja acontece
+    // separadamente (nao substitui, complementa).
+    public void marcarProximaAcaoAgora(Long contatoId) {
+        Contato contato = buscarEntidade(contatoId);
+        contato.setProximaAcaoEm(LocalDateTime.now());
         contatoRepository.save(contato);
     }
 

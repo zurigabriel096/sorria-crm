@@ -272,6 +272,7 @@ public class AutomacaoEngineService {
             case "adicionar_tag" -> contatoService.adicionarTag(contato.getId(), textoOuNull(data.get("tag")));
             case "remover_tag" -> contatoService.removerTag(contato.getId(), textoOuNull(data.get("tag")));
             case "alterar_estagio" -> contatoService.alterarEstagio(contato.getId(), textoOuNull(data.get("estagio")));
+            case "sinalizar_atendimento_agora" -> contatoService.marcarProximaAcaoAgora(contato.getId());
             case "esperar_segundos" -> {
                 int segundos = comoInteiro(data.get("segundos"), 30);
                 return new ResultadoNo("ativo", LocalDateTime.now().plusSeconds(segundos));

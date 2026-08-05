@@ -23,6 +23,7 @@ export const CATEGORIAS = [
       { tipo: "adicionar_tag", nome: "Adicionar tag" },
       { tipo: "remover_tag", nome: "Remover tag" },
       { tipo: "alterar_estagio", nome: "Alterar Estágio dos Leads" },
+      { tipo: "sinalizar_atendimento_agora", nome: "Marcar para atendimento agora" },
     ],
   },
   {

@@ -32,6 +32,10 @@ import java.util.Map;
 // diferente apontando pro mesmo no e' valido, o motor resolve por SOURCE, nao
 // por target). Uma reativacao "morna" mais ampla (fora deste fluxo) ficou
 // como ideia futura, nao construida ainda.
+//
+// "sinalizarUrgente" (05/08/2026): alem de mover pra coluna "Solicitação" do
+// Kanban, tambem marca proximaAcaoEm=agora (ver ContatoService.marcarProximaAcaoAgora)
+// pra aparecer com prioridade na Fila de Trabalho - pedido do Samuel.
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -85,6 +89,7 @@ public class FluxoNaoCompareceuSeedInitializer implements CommandLineRunner {
                 Map.of("id", "sim1", "operador", "contem", "valor", "sim")
         )));
         nodes.add(acao("estagioSolicitacao", 1500, 140, "alterar_estagio", "Alterar Estágio dos Leads", Map.of("estagio", "Solicitação")));
+        nodes.add(acao("sinalizarUrgente", 1680, 140, "sinalizar_atendimento_agora", "Marcar para atendimento agora", Map.of()));
         nodes.add(acao("tagRemarcou", 1860, 140, "adicionar_tag", "Adicionar tag", Map.of("tag", "Reagendamento solicitado")));
         nodes.add(acao("tagSemResposta", 1500, 320, "adicionar_tag", "Adicionar tag", Map.of("tag", "Não respondeu remarcação")));
 
@@ -101,7 +106,8 @@ public class FluxoNaoCompareceuSeedInitializer implements CommandLineRunner {
         ligar(edges, "msg1", "wait1");
         ligar(edges, "wait1", "cond1");
         ligarComHandle(edges, "cond1", "estagioSolicitacao", "sim1");
-        ligar(edges, "estagioSolicitacao", "tagRemarcou");
+        ligar(edges, "estagioSolicitacao", "sinalizarUrgente");
+        ligar(edges, "sinalizarUrgente", "tagRemarcou");
         ligarComHandle(edges, "cond1", "tagSemResposta", HANDLE_FALLBACK);
         ligar(edges, "tagSemResposta", "wait2");
         ligar(edges, "wait2", "msg2");

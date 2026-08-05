@@ -13,11 +13,14 @@ import java.util.Map;
 
 // Migracao pontual (05/08/2026): o fluxo "Não compareceu à consulta - modelo"
 // ja foi seedado (ver FluxoNaoCompareceuSeedInitializer) ANTES do Samuel pedir
-// a reativacao inicial pra quem nao respondeu a primeira tentativa. Como o
-// seed so roda uma vez (guarda por nome), so editar o arquivo-fonte nao
-// alcanca quem ja foi salvo - precisa de UPDATE estrutural de verdade
-// (adicionar nos/arestas no JSON ja salvo, nao so REPLACE de texto). Idempotente
-// (checa se "wait2" ja existe antes de adicionar de novo). Nao-fatal.
+// a reativacao inicial pra quem nao respondeu a primeira tentativa, e antes
+// dele pedir o passo "sinalizar_atendimento_agora" tambem. Como o seed so
+// roda uma vez (guarda por nome), so editar o arquivo-fonte nao alcanca quem
+// ja foi salvo - precisa de UPDATE estrutural de verdade (adicionar nos/
+// arestas no JSON ja salvo, nao so REPLACE de texto). Cada pedaco (reativacao,
+// sinalizar urgente) tem sua PROPRIA checagem de idempotencia, independente -
+// assim um deploy que so adiciona um pedaco novo nao pula o outro que ja foi
+// aplicado antes. Nao-fatal.
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -46,28 +49,42 @@ public class ReativacaoNaoCompareceuMigrationInitializer implements CommandLineR
 
         List<Map<String, Object>> nodes = objectMapper.readValue(fluxo.getNodesJson(), new TypeReference<List<Map<String, Object>>>() {});
         List<Map<String, Object>> edges = objectMapper.readValue(fluxo.getEdgesJson(), new TypeReference<List<Map<String, Object>>>() {});
+        boolean mudou = false;
 
-        if (nodes.stream().anyMatch(n -> "wait2".equals(n.get("id")))) return; // ja migrado
+        if (nodes.stream().noneMatch(n -> "wait2".equals(n.get("id")))) {
+            nodes.add(acao("wait2", 1860, 320, "aguardar_mensagem", "Aguardar mensagens do contato", Map.of("prazoDias", 2)));
+            nodes.add(mensagem("msg2", 2220, 320,
+                    "Oi {nome}! Ainda dá tempo de remarcar sua consulta na Orthodontic 😊 Me diga um dia que funcione melhor pra você, ou responda SIM que eu já te ajudo a encontrar um horário."));
+            nodes.add(condicao("cond2", 2580, 320, List.of(
+                    Map.of("id", "sim2", "operador", "contem", "valor", "sim")
+            )));
+            nodes.add(acao("tagFrio", 2940, 480, "adicionar_tag", "Adicionar tag", Map.of("tag", "Sem resposta - reativação inicial")));
 
-        nodes.add(acao("wait2", 1860, 320, "aguardar_mensagem", "Aguardar mensagens do contato", Map.of("prazoDias", 2)));
-        nodes.add(mensagem("msg2", 2220, 320,
-                "Oi {nome}! Ainda dá tempo de remarcar sua consulta na Orthodontic 😊 Me diga um dia que funcione melhor pra você, ou responda SIM que eu já te ajudo a encontrar um horário."));
-        nodes.add(condicao("cond2", 2580, 320, List.of(
-                Map.of("id", "sim2", "operador", "contem", "valor", "sim")
-        )));
-        nodes.add(acao("tagFrio", 2940, 480, "adicionar_tag", "Adicionar tag", Map.of("tag", "Sem resposta - reativação inicial")));
+            ligar(edges, "tagSemResposta", "wait2");
+            ligar(edges, "wait2", "msg2");
+            ligar(edges, "msg2", "cond2");
+            ligarComHandle(edges, "cond2", "estagioSolicitacao", "sim2");
+            ligarComHandle(edges, "cond2", "tagFrio", HANDLE_FALLBACK);
+            mudou = true;
+            log.info("Migracao aplicada: fluxo '{}' ganhou a reativacao inicial (wait2/msg2/cond2/tagFrio).", NOME_FLUXO);
+        }
 
-        ligar(edges, "tagSemResposta", "wait2");
-        ligar(edges, "wait2", "msg2");
-        ligar(edges, "msg2", "cond2");
-        ligarComHandle(edges, "cond2", "estagioSolicitacao", "sim2");
-        ligarComHandle(edges, "cond2", "tagFrio", HANDLE_FALLBACK);
+        // "sinalizar_atendimento_agora": insere entre estagioSolicitacao e
+        // tagRemarcou (redireciona a aresta direta que ja existia) - pedido do
+        // Samuel (05/08/2026), pra aparecer com prioridade na Fila de Trabalho.
+        if (nodes.stream().noneMatch(n -> "sinalizarUrgente".equals(n.get("id")))) {
+            nodes.add(acao("sinalizarUrgente", 1680, 140, "sinalizar_atendimento_agora", "Marcar para atendimento agora", Map.of()));
+            edges.removeIf(e -> "estagioSolicitacao".equals(e.get("source")) && "tagRemarcou".equals(e.get("target")));
+            ligar(edges, "estagioSolicitacao", "sinalizarUrgente");
+            ligar(edges, "sinalizarUrgente", "tagRemarcou");
+            mudou = true;
+            log.info("Migracao aplicada: fluxo '{}' ganhou o passo 'Marcar para atendimento agora'.", NOME_FLUXO);
+        }
 
+        if (!mudou) return;
         fluxo.setNodesJson(objectMapper.writeValueAsString(nodes));
         fluxo.setEdgesJson(objectMapper.writeValueAsString(edges));
         fluxoAutomacaoRepository.save(fluxo);
-
-        log.info("Migracao aplicada: fluxo '{}' ganhou a reativacao inicial (wait2/msg2/cond2/tagFrio).", NOME_FLUXO);
     }
 
     private Map<String, Object> no(String id, String type, int x, int y, Map<String, Object> data) {

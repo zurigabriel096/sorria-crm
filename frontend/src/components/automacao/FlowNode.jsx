@@ -64,6 +64,13 @@ function corpoConfiguravel(id, data, etapas) {
       </div>
     );
   }
+  if (data.tipo === "sinalizar_atendimento_agora") {
+    return (
+      <div style={{ fontSize: 12, color: "#5C6E7E", lineHeight: 1.5 }}>
+        Marca o lead como "próxima ação agora" — aparece com prioridade na Fila de Trabalho, pro time humano assumir. Complementa (não substitui) uma mudança de estágio.
+      </div>
+    );
+  }
   if (data.tipo === "pausar_horario_comercial") {
     return (
       <div>
