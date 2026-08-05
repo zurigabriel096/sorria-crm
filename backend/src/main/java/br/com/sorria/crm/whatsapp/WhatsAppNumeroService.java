@@ -62,20 +62,35 @@ public class WhatsAppNumeroService {
         repository.deleteById(id);
     }
 
+    // Registra um numero cuja instancia JA EXISTE de verdade num servidor Evolution
+    // GO (criada por fora, ex.: outro servidor dedicado a numeros "saudaveis" -
+    // ver sorria-evolution-saudavel) - ao contrario de criar(), NAO chama
+    // criarInstancia (nao tem como, o GLOBAL_API_KEY desse outro servidor nao
+    // esta configurado aqui). So guarda o vinculo pro CRM usar essa instancia
+    // pra enviar/receber mensagem de verdade.
+    public WhatsAppNumeroDTO registrarExistente(String nome, String instancia, String token, String servidorUrl) {
+        WhatsAppNumero numero = new WhatsAppNumero();
+        numero.setNome(nome);
+        numero.setInstancia(instancia);
+        numero.setToken(token);
+        numero.setServidorUrl(servidorUrl);
+        return toDTOComStatus(repository.save(numero));
+    }
+
     public String gerarQrCode(Long id) {
         WhatsAppNumero numero = buscar(id);
         String webhookUrl = backendUrl + "/api/whatsapp/webhook?numeroId=" + numero.getId();
-        return evolutionApiClient.obterQrCode(numero.getToken(), webhookUrl);
+        return evolutionApiClient.obterQrCode(numero.getToken(), webhookUrl, numero.getServidorUrl());
     }
 
     public String solicitarPareamento(Long id, String telefone) {
         WhatsAppNumero numero = buscar(id);
-        return evolutionApiClient.solicitarPareamento(numero.getToken(), telefone);
+        return evolutionApiClient.solicitarPareamento(numero.getToken(), telefone, numero.getServidorUrl());
     }
 
     public void desconectar(Long id) {
         WhatsAppNumero numero = buscar(id);
-        evolutionApiClient.desconectarInstancia(numero.getToken());
+        evolutionApiClient.desconectarInstancia(numero.getToken(), numero.getServidorUrl());
     }
 
     private WhatsAppNumero buscar(Long id) {
@@ -84,10 +99,10 @@ public class WhatsAppNumeroService {
     }
 
     private WhatsAppNumeroDTO toDTOComStatus(WhatsAppNumero n) {
-        Map<String, Object> status = evolutionApiClient.obterStatus(n.getToken());
+        Map<String, Object> status = evolutionApiClient.obterStatus(n.getToken(), n.getServidorUrl());
         boolean conectado = Boolean.TRUE.equals(status.get("connected")) && Boolean.TRUE.equals(status.get("loggedIn"));
         return new WhatsAppNumeroDTO(
                 n.getId(), n.getNome(), n.getInstancia(), null, n.getFinalidade(), n.getCriadoEm(),
-                conectado, String.valueOf(status.getOrDefault("nome", "")));
+                conectado, String.valueOf(status.getOrDefault("nome", "")), n.getServidorUrl());
     }
 }

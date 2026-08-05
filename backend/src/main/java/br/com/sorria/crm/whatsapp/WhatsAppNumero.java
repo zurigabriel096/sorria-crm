@@ -32,6 +32,13 @@ public class WhatsAppNumero {
     @Column(nullable = false)
     private String token;
 
+    // Base URL do servidor Evolution GO onde essa instancia mora - null =
+    // servidor principal (evolution.base-url, comportamento de sempre). Existe
+    // pra suportar mais de um servidor Evolution GO (infra separada por
+    // "frente" de disparo - ver sorria-evolution-saudavel, criado 04/08/2026
+    // pra isolar numeros de atendimento real dos numeros de campanha em massa).
+    private String servidorUrl;
+
     // "DISPARO" (padrao, retrocompativel com numero criado antes desse campo
     // existir) ou "AQUECIMENTO" - numero AQUECIMENTO nunca aparece como opcao
     // de disparo de campanha/A-B-C (ver Campanhas.jsx), so participa do ciclo

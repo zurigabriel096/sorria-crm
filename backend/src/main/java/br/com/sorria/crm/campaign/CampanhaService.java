@@ -124,7 +124,7 @@ public class CampanhaService {
     // whatsappNumeroIdOverride (opcional): usado pelo Disparo A/B/C com escolha
     // de numero (ver Campanhas.jsx) pra mandar ESSE disparo especifico por um
     // numero diferente do configurado na campanha, sem alterar o cadastro dela -
-    // null continua usando o numero salvo na campanha (resolverTokenInstancia).
+    // null continua usando o numero salvo na campanha (resolverNumero).
     public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos, Long whatsappNumeroIdOverride) {
         Campanha campanha = buscarEntidade(id);
         if (templateIdEscolhido != null && !templateIdEscolhido.equals(campanha.getTemplateId())) {
@@ -151,9 +151,9 @@ public class CampanhaService {
         int falhas = 0;
         int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
                 ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
-        String tokenInstancia = whatsappNumeroIdOverride != null
-                ? whatsAppNumeroRepository.findById(whatsappNumeroIdOverride).map(WhatsAppNumero::getToken).orElse(null)
-                : resolverTokenInstancia(campanha);
+        WhatsAppNumero numeroResolvido = resolverNumero(whatsappNumeroIdOverride != null ? whatsappNumeroIdOverride : campanha.getWhatsappNumeroId());
+        String tokenInstancia = numeroResolvido != null ? numeroResolvido.getToken() : null;
+        String servidorUrl = numeroResolvido != null ? numeroResolvido.getServidorUrl() : null;
 
         for (int i = 0; i < elegiveis.size(); i++) {
             Contato contato = elegiveis.get(i);
@@ -164,7 +164,7 @@ public class CampanhaService {
             // da primeira, nao no canal Email).
             if (!email && i > 0) {
                 try {
-                    pausarComDigitando(intervaloBaseMs, tokenInstancia, contato.getTelefone());
+                    pausarComDigitando(intervaloBaseMs, tokenInstancia, servidorUrl, contato.getTelefone());
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     log.warn("Disparo da campanha {} interrompido no meio do envio ({}/{})", campanha.getId(), i + 1, elegiveis.size());
@@ -173,7 +173,7 @@ public class CampanhaService {
             }
 
             String mensagem = SubstituicaoVariaveis.aplicar(corpoTemplate, contato);
-            String status = !email ? evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem, tokenInstancia) : "Entregue";
+            String status = !email ? evolutionApiClient.enviarMensagem(contato.getTelefone(), mensagem, tokenInstancia, servidorUrl) : "Entregue";
 
             contato.setEnviado(status);
             contatoRepository.save(contato);
@@ -225,7 +225,9 @@ public class CampanhaService {
         int falhas = 0;
         int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
                 ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
-        String tokenInstancia = resolverTokenInstancia(campanha);
+        WhatsAppNumero numeroResolvido = resolverNumero(campanha.getWhatsappNumeroId());
+        String tokenInstancia = numeroResolvido != null ? numeroResolvido.getToken() : null;
+        String servidorUrl = numeroResolvido != null ? numeroResolvido.getServidorUrl() : null;
 
         for (int i = 0; i < validos.size(); i++) {
             ProspectDTO prospect = validos.get(i);
@@ -233,7 +235,7 @@ public class CampanhaService {
 
             if (i > 0) {
                 try {
-                    pausarComDigitando(intervaloBaseMs, tokenInstancia, telefone);
+                    pausarComDigitando(intervaloBaseMs, tokenInstancia, servidorUrl, telefone);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     log.warn("Disparo pra prospects da campanha {} interrompido no meio do envio ({}/{})", campanha.getId(), i + 1, validos.size());
@@ -242,7 +244,7 @@ public class CampanhaService {
             }
 
             String mensagem = corpoTemplate.replace("{nome}", primeiroNome(prospect.nome()));
-            String status = evolutionApiClient.enviarMensagem(telefone, mensagem, tokenInstancia);
+            String status = evolutionApiClient.enviarMensagem(telefone, mensagem, tokenInstancia, servidorUrl);
 
             if ("Entregue".equals(status)) entregues++;
             else if ("Falhou".equals(status)) falhas++;
@@ -278,14 +280,14 @@ public class CampanhaService {
     // outra. simularDigitando() ja bloqueia internamente pelo tempo do "digitando"
     // (o Evolution GO segura o indicador do lado dele) - por isso so damos
     // Thread.sleep no silencio, nunca duas vezes o mesmo tempo.
-    private void pausarComDigitando(int intervaloBaseMs, String tokenInstancia, String telefoneProximoContato) throws InterruptedException {
+    private void pausarComDigitando(int intervaloBaseMs, String tokenInstancia, String servidorUrl, String telefoneProximoContato) throws InterruptedException {
         int jitterMs = ThreadLocalRandom.current().nextInt(0, (int) (intervaloBaseMs * 0.4) + 1);
         int pausaTotalMs = intervaloBaseMs + jitterMs;
         int digitandoMs = Math.min(pausaTotalMs, DIGITANDO_MIN_MS + ThreadLocalRandom.current().nextInt(DIGITANDO_VARIACAO_MS));
         int silencioMs = pausaTotalMs - digitandoMs;
         if (silencioMs > 0) Thread.sleep(silencioMs);
         if (tokenInstancia != null && telefoneProximoContato != null) {
-            evolutionApiClient.simularDigitando(tokenInstancia, telefoneProximoContato, digitandoMs);
+            evolutionApiClient.simularDigitando(tokenInstancia, telefoneProximoContato, digitandoMs, servidorUrl);
         } else {
             Thread.sleep(digitandoMs);
         }
@@ -294,11 +296,11 @@ public class CampanhaService {
     // null (nao escolheu numero) = usa sempre o numero principal, fixo na config
     // do EvolutionApiClient - preserva o comportamento de campanhas criadas antes
     // deste campo existir, sem depender de qual numero foi cadastrado por ultimo.
-    private String resolverTokenInstancia(Campanha campanha) {
-        if (campanha.getWhatsappNumeroId() == null) return null;
-        return whatsAppNumeroRepository.findById(campanha.getWhatsappNumeroId())
-                .map(WhatsAppNumero::getToken)
-                .orElse(null);
+    // Devolve a entidade inteira (nao so o token) - servidorUrl mora nela tambem,
+    // pra dispatch escolher o servidor Evolution GO certo (ver WhatsAppNumero.servidorUrl).
+    private WhatsAppNumero resolverNumero(Long whatsappNumeroId) {
+        if (whatsappNumeroId == null) return null;
+        return whatsAppNumeroRepository.findById(whatsappNumeroId).orElse(null);
     }
 
     private String resolverCorpoMensagem(Campanha campanha, Template template, boolean email) {

@@ -16,6 +16,8 @@ public record WhatsAppNumeroDTO(
         String finalidade,
         LocalDateTime criadoEm,
         Boolean conectado,
-        String nomeConectado
+        String nomeConectado,
+        // null = servidor Evolution GO principal - ver WhatsAppNumero.servidorUrl.
+        String servidorUrl
 ) {
 }

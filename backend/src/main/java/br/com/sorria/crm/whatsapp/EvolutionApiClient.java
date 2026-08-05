@@ -34,6 +34,13 @@ public class EvolutionApiClient {
     @Value("${evolution.global-api-key:}")
     private String globalApiKey;
 
+    // null/vazio = servidor principal (baseUrl) - ver WhatsAppNumero.servidorUrl.
+    // Existe pra suportar mais de um servidor Evolution GO (infra separada por
+    // "frente" de disparo, ver sorria-evolution-saudavel).
+    private String resolverUrl(String servidorUrlOverride) {
+        return servidorUrlOverride != null && !servidorUrlOverride.isBlank() ? servidorUrlOverride : baseUrl;
+    }
+
     /**
      * Envia uma mensagem via Evolution API. Quando evolution.base-url nao esta configurado
      * (ambiente demo/dev sem instancia de WhatsApp real), simula o envio e devolve um status
@@ -53,7 +60,13 @@ public class EvolutionApiClient {
      * secundario cadastrado em WhatsAppNumero.
      */
     public String enviarMensagem(String telefone, String mensagem, String tokenInstancia) {
-        if (baseUrl == null || baseUrl.isBlank()) {
+        return enviarMensagem(telefone, mensagem, tokenInstancia, null);
+    }
+
+    /** Mesmo envio, mas de um servidor Evolution GO especifico (ver WhatsAppNumero.servidorUrl). */
+    public String enviarMensagem(String telefone, String mensagem, String tokenInstancia, String servidorUrl) {
+        String urlServidor = resolverUrl(servidorUrl);
+        if (urlServidor == null || urlServidor.isBlank()) {
             log.info("[Evolution API simulada] Envio para {}: {}", telefone, mensagem);
             return statusAleatorio();
         }
@@ -62,7 +75,7 @@ public class EvolutionApiClient {
             // Evolution GO (evolution-foundation/evolution-go): POST /send/text, autenticado
             // pelo header "apikey" com o TOKEN DA INSTANCIA (nao o GLOBAL_API_KEY) - o token
             // de instancia e obtido em GET /instance/all com o GLOBAL_API_KEY.
-            String url = baseUrl + "/send/text";
+            String url = urlServidor + "/send/text";
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -101,16 +114,22 @@ public class EvolutionApiClient {
      * Mesma consulta de status, mas de uma instancia qualquer (por token) -
      * usada pra mostrar o status ao vivo de numeros secundarios cadastrados.
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> obterStatus(String tokenInstancia) {
-        if (baseUrl == null || baseUrl.isBlank()) {
+        return obterStatus(tokenInstancia, null);
+    }
+
+    /** Mesma consulta, mas de um servidor Evolution GO especifico (ver WhatsAppNumero.servidorUrl). */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> obterStatus(String tokenInstancia, String servidorUrl) {
+        String urlServidor = resolverUrl(servidorUrl);
+        if (urlServidor == null || urlServidor.isBlank()) {
             return Map.of("connected", false, "loggedIn", false, "nome", "");
         }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("apikey", tokenInstancia);
             ResponseEntity<Map> resp = restTemplate.exchange(
-                    baseUrl + "/instance/status", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+                    urlServidor + "/instance/status", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
             return Map.of(
                     "connected", Boolean.TRUE.equals(data.get("Connected")),
@@ -190,13 +209,19 @@ public class EvolutionApiClient {
      * campo de numero alternativo, sempre manda pelo numero principal).
      */
     public void simularDigitando(String tokenInstancia, String telefoneDestino, int delayMs) {
-        if (baseUrl == null || baseUrl.isBlank()) return;
+        simularDigitando(tokenInstancia, telefoneDestino, delayMs, null);
+    }
+
+    /** Mesma simulacao, mas de um servidor Evolution GO especifico (ver WhatsAppNumero.servidorUrl). */
+    public void simularDigitando(String tokenInstancia, String telefoneDestino, int delayMs, String servidorUrl) {
+        String urlServidor = resolverUrl(servidorUrl);
+        if (urlServidor == null || urlServidor.isBlank()) return;
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("apikey", tokenInstancia != null && !tokenInstancia.isBlank() ? tokenInstancia : apiKey);
             Map<String, Object> body = Map.of("number", telefoneDestino, "state", "composing", "delay", delayMs);
-            restTemplate.postForEntity(baseUrl + "/instance/presence", new HttpEntity<>(body, headers), String.class);
+            restTemplate.postForEntity(urlServidor + "/instance/presence", new HttpEntity<>(body, headers), String.class);
         } catch (RestClientException ex) {
             log.warn("Falha ao simular 'digitando' pra {}: {}", telefoneDestino, ex.getMessage());
         }
@@ -221,13 +246,19 @@ public class EvolutionApiClient {
 
     /** Mesma desconexao, mas de uma instancia qualquer (por token) - ver enviarMensagem(3 args). */
     public void desconectarInstancia(String tokenInstancia) {
-        if (baseUrl == null || baseUrl.isBlank()) {
+        desconectarInstancia(tokenInstancia, null);
+    }
+
+    /** Mesma desconexao, mas de um servidor Evolution GO especifico (ver WhatsAppNumero.servidorUrl). */
+    public void desconectarInstancia(String tokenInstancia, String servidorUrl) {
+        String urlServidor = resolverUrl(servidorUrl);
+        if (urlServidor == null || urlServidor.isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
         }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("apikey", tokenInstancia);
-            restTemplate.exchange(baseUrl + "/instance/logout", HttpMethod.DELETE, new HttpEntity<>(headers), String.class);
+            restTemplate.exchange(urlServidor + "/instance/logout", HttpMethod.DELETE, new HttpEntity<>(headers), String.class);
         } catch (RestClientException ex) {
             log.warn("Falha ao desconectar instancia Evolution: {}", ex.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel desconectar o numero atual. Tente novamente.");
@@ -251,9 +282,15 @@ public class EvolutionApiClient {
      * pra qual endpoint essa instancia deve mandar eventos de mensagem recebida -
      * ver WhatsAppWebhookController "numeroId" na query string.
      */
-    @SuppressWarnings("unchecked")
     public String obterQrCode(String tokenInstancia, String webhookUrl) {
-        if (baseUrl == null || baseUrl.isBlank()) {
+        return obterQrCode(tokenInstancia, webhookUrl, null);
+    }
+
+    /** Mesma geracao de QR, mas de um servidor Evolution GO especifico (ver WhatsAppNumero.servidorUrl). */
+    @SuppressWarnings("unchecked")
+    public String obterQrCode(String tokenInstancia, String webhookUrl, String servidorUrl) {
+        String urlServidor = resolverUrl(servidorUrl);
+        if (urlServidor == null || urlServidor.isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
         }
         HttpHeaders headers = new HttpHeaders();
@@ -264,7 +301,7 @@ public class EvolutionApiClient {
             headersConnect.set("apikey", tokenInstancia);
             Map<String, Object> body = new java.util.HashMap<>(Map.of("immediate", true, "subscribe", List.of("QRCODE")));
             if (webhookUrl != null && !webhookUrl.isBlank()) body.put("webhookUrl", webhookUrl);
-            restTemplate.postForEntity(baseUrl + "/instance/connect", new HttpEntity<>(body, headersConnect), String.class);
+            restTemplate.postForEntity(urlServidor + "/instance/connect", new HttpEntity<>(body, headersConnect), String.class);
         } catch (RestClientException ex) {
             log.warn("Falha ao iniciar conexao para gerar QR code: {}", ex.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel iniciar a conexao. Tente novamente.");
@@ -276,7 +313,7 @@ public class EvolutionApiClient {
             try {
                 Thread.sleep(2000);
                 ResponseEntity<Map> resp = restTemplate.exchange(
-                        baseUrl + "/instance/qr", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+                        urlServidor + "/instance/qr", HttpMethod.GET, new HttpEntity<>(headers), Map.class);
                 Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
                 Object qrcode = data != null ? data.get("qrcode") : null;
                 if (qrcode != null) return String.valueOf(qrcode);
@@ -301,9 +338,15 @@ public class EvolutionApiClient {
     }
 
     /** Mesmo pareamento, mas de uma instancia qualquer (por token) - ver obterQrCode(2 args). */
-    @SuppressWarnings("unchecked")
     public String solicitarPareamento(String tokenInstancia, String telefone) {
-        if (baseUrl == null || baseUrl.isBlank()) {
+        return solicitarPareamento(tokenInstancia, telefone, null);
+    }
+
+    /** Mesmo pareamento, mas de um servidor Evolution GO especifico (ver WhatsAppNumero.servidorUrl). */
+    @SuppressWarnings("unchecked")
+    public String solicitarPareamento(String tokenInstancia, String telefone, String servidorUrl) {
+        String urlServidor = resolverUrl(servidorUrl);
+        if (urlServidor == null || urlServidor.isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Evolution API nao configurada neste ambiente.");
         }
         String numero = telefone == null ? "" : telefone.replaceAll("\\D", "");
@@ -316,7 +359,7 @@ public class EvolutionApiClient {
             headers.set("apikey", tokenInstancia);
             Map<String, Object> body = Map.of("phone", numero, "subscribe", List.of());
             ResponseEntity<Map> resp = restTemplate.postForEntity(
-                    baseUrl + "/instance/pair", new HttpEntity<>(body, headers), Map.class);
+                    urlServidor + "/instance/pair", new HttpEntity<>(body, headers), Map.class);
             Map<String, Object> data = (Map<String, Object>) resp.getBody().get("data");
             Object codigo = data.get("PairingCode");
             if (codigo == null) {
@@ -333,6 +376,28 @@ public class EvolutionApiClient {
         } catch (RestClientException ex) {
             log.warn("Falha ao solicitar pairing code para {}: {}", numero, ex.getMessage());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Nao foi possivel gerar o codigo de pareamento. Tente novamente.");
+        }
+    }
+
+    /**
+     * So registra/atualiza o webhook de uma instancia JA conectada (POST
+     * /instance/connect com webhookUrl, sem esperar/consultar QR) - diferente
+     * de obterQrCode(3 args), que assume que ainda vai escanear algo e tenta
+     * ler o QR por ~15s (falharia aqui, a instancia ja esta logada). Mesmo
+     * endpoint que WhatsAppNumeroService.gerarQrCode usa, so sem a parte de QR.
+     */
+    public void registrarWebhook(String tokenInstancia, String webhookUrl, String servidorUrl) {
+        String urlServidor = resolverUrl(servidorUrl);
+        if (urlServidor == null || urlServidor.isBlank()) return;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("apikey", tokenInstancia);
+            Map<String, Object> body = Map.of("immediate", true, "subscribe", List.of(), "webhookUrl", webhookUrl);
+            restTemplate.postForEntity(urlServidor + "/instance/connect", new HttpEntity<>(body, headers), String.class);
+        } catch (RestClientException ex) {
+            log.warn("Falha ao registrar webhook pra instancia (token {}...): {}",
+                    tokenInstancia != null && tokenInstancia.length() > 6 ? tokenInstancia.substring(0, 6) : tokenInstancia, ex.getMessage());
         }
     }
 

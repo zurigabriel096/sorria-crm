@@ -80,12 +80,14 @@ public class MensagemService {
                 .orElseThrow(() -> new NoSuchElementException("Usuario nao encontrado"));
 
         String token = null;
+        String servidorUrl = null;
         if (req.whatsappNumeroId() != null) {
-            token = whatsAppNumeroRepository.findById(req.whatsappNumeroId())
-                    .map(WhatsAppNumero::getToken)
+            WhatsAppNumero numero = whatsAppNumeroRepository.findById(req.whatsappNumeroId())
                     .orElseThrow(() -> new NoSuchElementException("Numero nao encontrado: " + req.whatsappNumeroId()));
+            token = numero.getToken();
+            servidorUrl = numero.getServidorUrl();
         }
-        evolutionApiClient.enviarMensagem(contato.getTelefone(), req.texto(), token);
+        evolutionApiClient.enviarMensagem(contato.getTelefone(), req.texto(), token, servidorUrl);
 
         Mensagem mensagem = new Mensagem();
         mensagem.setContatoId(contatoId);
