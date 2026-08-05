@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
@@ -35,7 +36,16 @@ public class MensagemMidiaController {
     private final ContatoRepository contatoRepository;
     private final ContatoService contatoService;
     private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate = new RestTemplate();
+    // Sem timeout, um servidor de midia lento/fora do ar trava a requisicao pra
+    // sempre (mesmo bug corrigido em EvolutionApiClient nesta sessao).
+    private final RestTemplate restTemplate = criarRestTemplateComTimeout();
+
+    private static RestTemplate criarRestTemplateComTimeout() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(8_000);
+        factory.setReadTimeout(15_000);
+        return new RestTemplate(factory);
+    }
 
     @GetMapping("/{id}/midia")
     @SuppressWarnings("unchecked")

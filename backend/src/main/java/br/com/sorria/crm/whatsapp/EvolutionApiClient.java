@@ -8,6 +8,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
@@ -22,8 +23,24 @@ import java.util.Random;
 @Slf4j
 public class EvolutionApiClient {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    // SimpleClientHttpRequestFactory sem timeout configurado espera PRA SEMPRE
+    // (connect/read timeout = -1 por padrao) - se qualquer servidor Evolution
+    // (principal ou um secundario, ex.: sorria-evolution-saudavel) ficar
+    // inalcancavel/lento, toda chamada trava sem nunca lancar exception,
+    // travando "Carregando..."/"Verificando..." pra sempre na tela (ninguem dos
+    // try/catch(RestClientException) espalhados por esta classe chega a rodar,
+    // porque nunca ha exception - so silencio). Com timeout, um servidor fora
+    // do ar vira ResourceAccessException (subclasse de RestClientException) em
+    // poucos segundos, e cai nos mesmos catches que ja existem.
+    private final RestTemplate restTemplate = criarRestTemplateComTimeout();
     private final Random random = new Random();
+
+    private static RestTemplate criarRestTemplateComTimeout() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(8_000);
+        factory.setReadTimeout(15_000);
+        return new RestTemplate(factory);
+    }
 
     @Value("${evolution.base-url}")
     private String baseUrl;
