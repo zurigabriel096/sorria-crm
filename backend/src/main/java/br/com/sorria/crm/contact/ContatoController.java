@@ -63,7 +63,7 @@ public class ContatoController {
 
     @GetMapping("/lote/{jobId}")
     public Map<String, Object> statusImportacaoLote(@PathVariable String jobId) {
-        return statusDTO(loteJobService.status(jobId));
+        return statusImportacaoDTO(loteJobService.status(jobId));
     }
 
     @PutMapping("/{id}")
@@ -191,6 +191,25 @@ public class ContatoController {
         dto.put("afetados", status.getAfetados());
         dto.put("concluido", status.isConcluido());
         dto.put("resultados", status.getResultados());
+        return dto;
+    }
+
+    // So pra importacao: "resultados" mapeado pros ids (ResultadoImportacaoLinha
+    // -> Long, mesmo formato de sempre pra "Importações" em Segmentacoes.jsx
+    // montar a segmentacao da leva), mais "criados"/"atualizados" - pedido do
+    // Samuel (05/08/2026) pro historico de importacoes mostrar Novos/Atualizados.
+    private Map<String, Object> statusImportacaoDTO(LoteJobStatus<?> status) {
+        List<Long> ids = status.getResultados().stream()
+                .map(r -> r instanceof ResultadoImportacaoLinha ri ? ri.id() : (Long) r)
+                .toList();
+        Map<String, Object> dto = new java.util.HashMap<>();
+        dto.put("total", status.getTotal());
+        dto.put("processados", status.getProcessados());
+        dto.put("afetados", status.getAfetados());
+        dto.put("concluido", status.isConcluido());
+        dto.put("resultados", ids);
+        dto.put("criados", status.getCriados());
+        dto.put("atualizados", status.getAtualizados());
         return dto;
     }
 }

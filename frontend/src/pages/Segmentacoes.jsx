@@ -263,7 +263,14 @@ export function Segmentacoes({
                           <span key={i}>
                             {i > 0 && <b style={{ color: T.primary }}> E </b>}
                             {c.field === "id"
-                              ? <span>{(c.value || []).length} leads específicos, extraídos em {dataHora(seg.atualizadoEm)}</span>
+                              ? (
+                                <span>
+                                  {(c.value || []).length} leads específicos, extraídos em {dataHora(seg.atualizadoEm)}
+                                  {seg.origem === "IMPORTACAO" && (seg.criados != null || seg.atualizados != null) && (
+                                    <> · <b style={{ color: "#0E9484" }}>{seg.criados ?? 0} novo(s)</b> · <b style={{ color: T.primary }}>{seg.atualizados ?? 0} atualizado(s)</b></>
+                                  )}
+                                </span>
+                              )
                               : <>{fieldMeta[c.field]?.label || c.field} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b></>}
                           </span>
                         ))}

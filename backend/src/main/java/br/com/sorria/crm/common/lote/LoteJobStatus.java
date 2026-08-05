@@ -19,6 +19,10 @@ public class LoteJobStatus<R> {
     private volatile boolean concluido = false;
     private volatile long concluidoEmMillis = 0;
     private final List<R> resultados = Collections.synchronizedList(new java.util.ArrayList<>());
+    // So incrementados quando R implementa ContadorCriadoAtualizado (hoje so
+    // a importacao de planilha) - ficam em 0 pra qualquer outro tipo de lote.
+    private final AtomicInteger criados = new AtomicInteger(0);
+    private final AtomicInteger atualizados = new AtomicInteger(0);
 
     public LoteJobStatus(int total) {
         this.total = total;
@@ -62,10 +66,22 @@ public class LoteJobStatus<R> {
     }
 
     void adicionarResultado(R resultado) {
-        if (resultado != null) resultados.add(resultado);
+        if (resultado == null) return;
+        resultados.add(resultado);
+        if (resultado instanceof ContadorCriadoAtualizado c) {
+            if (c.isCriado()) criados.incrementAndGet(); else atualizados.incrementAndGet();
+        }
     }
 
     public List<R> getResultados() {
         return resultados;
+    }
+
+    public int getCriados() {
+        return criados.get();
+    }
+
+    public int getAtualizados() {
+        return atualizados.get();
     }
 }

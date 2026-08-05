@@ -86,24 +86,36 @@ public class ContatoService {
     // Retorna o id do Contato resultante (criado ou mesclado) - usado pra
     // "Importações" em Segmentacoes.jsx criar uma segmentacao com exatamente
     // os leads dessa leva, sem precisar adivinhar por telefone/nome depois.
-    public Long importarLinha(ContatoDTO dto) {
+    public ResultadoImportacaoLinha importarLinha(ContatoDTO dto) {
         if (dto.nome() == null || dto.nome().isBlank()) return null;
-        return criarOuMesclarEntidade(dto).getId();
+        EntidadeResultado r = criarOuMesclarEntidadeComInfo(dto);
+        return new ResultadoImportacaoLinha(r.contato().getId(), r.criado());
     }
 
     private Contato criarOuMesclarEntidade(ContatoDTO dto) {
+        return criarOuMesclarEntidadeComInfo(dto).contato();
+    }
+
+    // criado=true quando nao existia contato com esse telefone ainda (linha
+    // nova de verdade), false quando mesclou num cadastro que ja existia -
+    // so importa pra "Novos"/"Atualizados" na importacao em lote (ver
+    // ResultadoImportacaoLinha); criar()/atualizar() avulsos ignoram o boolean.
+    private record EntidadeResultado(Contato contato, boolean criado) {
+    }
+
+    private EntidadeResultado criarOuMesclarEntidadeComInfo(ContatoDTO dto) {
         String telefone = normalizarTelefone(dto.telefone());
         if (telefone != null) {
             Optional<Contato> existente = contatoRepository.findByTelefone(telefone).stream().findFirst();
             if (existente.isPresent()) {
                 Contato principal = existente.get();
                 mesclarNoExistente(principal, dto);
-                return contatoRepository.save(principal);
+                return new EntidadeResultado(contatoRepository.save(principal), false);
             }
         }
         Contato contato = new Contato();
         aplicar(dto, contato);
-        return contatoRepository.save(contato);
+        return new EntidadeResultado(contatoRepository.save(contato), true);
     }
 
     public ContatoDTO atualizar(Long id, ContatoDTO dto) {

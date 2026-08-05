@@ -55,6 +55,8 @@ public class SegmentacaoService {
     private void aplicar(SegmentacaoDTO dto, Segmentacao seg) {
         seg.setNome(dto.nome());
         seg.setOrigem(dto.origem());
+        seg.setCriados(dto.criados());
+        seg.setAtualizados(dto.atualizados());
         try {
             seg.setGroupsJson(objectMapper.writeValueAsString(dto.groups()));
         } catch (JsonProcessingException e) {
@@ -66,7 +68,8 @@ public class SegmentacaoService {
         try {
             Object groups = objectMapper.readValue(seg.getGroupsJson(), Object.class);
             return new SegmentacaoDTO(seg.getId(), seg.getNome(), groups,
-                    Boolean.TRUE.equals(seg.getArquivado()), seg.getOrigem(), seg.getAtualizadoEm());
+                    Boolean.TRUE.equals(seg.getArquivado()), seg.getOrigem(), seg.getAtualizadoEm(),
+                    seg.getCriados(), seg.getAtualizados());
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("groupsJson corrompido pra segmentacao " + seg.getId(), e);
         }

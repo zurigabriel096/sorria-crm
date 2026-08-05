@@ -34,6 +34,13 @@ public class Segmentacao {
     // "Importações" em Segmentacoes.jsx, nao afeta avaliacao de condicao.
     private String origem;
 
+    // So preenchido quando origem="IMPORTACAO" - quantos leads da leva foram
+    // criados (nao existiam antes, telefone novo) vs atualizados (mesclados
+    // num cadastro que ja existia) - ver ContatoService.importarLinha. Null
+    // pra qualquer segmentacao que nao veio de importacao.
+    private Integer criados;
+    private Integer atualizados;
+
     private LocalDateTime atualizadoEm;
 
     @PrePersist

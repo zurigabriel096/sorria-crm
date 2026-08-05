@@ -13,6 +13,9 @@ public record SegmentacaoDTO(
         @NotNull Object groups,
         Boolean arquivado,
         String origem,
-        LocalDateTime atualizadoEm
+        LocalDateTime atualizadoEm,
+        // So preenchido quando origem="IMPORTACAO" - ver Segmentacao.criados/atualizados.
+        Integer criados,
+        Integer atualizados
 ) {
 }

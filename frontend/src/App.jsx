@@ -280,6 +280,8 @@ export default function App() {
                 nome: j.nomeImportacao,
                 groups: [[{ field: "id", op: "in", value: s.resultados }]],
                 origem: "IMPORTACAO",
+                criados: s.criados,
+                atualizados: s.atualizados,
               })
                 .then(() => showToast(`Segmentação "${j.nomeImportacao}" criada (aba Importações)`, "ok"))
                 .catch(() => showToast(`Importação concluída, mas não consegui criar a segmentação "${j.nomeImportacao}"`, "warn"));
