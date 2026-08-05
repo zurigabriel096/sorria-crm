@@ -12,7 +12,7 @@ import { listNumeros } from "../api/whatsappNumeros";
 import { dispatchCampaign, getCampaignPerformance } from "../api/campaigns";
 import { matchSeg } from "../utils/patients";
 
-const vazio = () => ({ id: null, nome: "", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 60, whatsappNumeroId: "", modoProspects: false });
+const vazio = () => ({ id: null, nome: "Campanha • ", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 60, whatsappNumeroId: "", modoProspects: false });
 
 // Escalonamento entre números no Disparo A/B/C: em vez de todos os números
 // começarem juntos (padrão que os sistemas antiabuso do WhatsApp associam

@@ -43,16 +43,6 @@ export function MensagemPanel({ data, onMudar, onFechar, camposCustomizados }) {
     onMudar({ atraso: { ...(data.atraso || { dias: 0, horas: 0, minutos: 0, segundos: 0 }), [campo]: num } });
   };
 
-  const adicionarResposta = () => {
-    onMudar({ respostasRapidas: [...(data.respostasRapidas || []), { id: crypto.randomUUID(), texto: "" }] });
-  };
-  const mudarResposta = (id, texto) => {
-    onMudar({ respostasRapidas: (data.respostasRapidas || []).map((r) => (r.id === id ? { ...r, texto } : r)) });
-  };
-  const removerResposta = (id) => {
-    onMudar({ respostasRapidas: (data.respostasRapidas || []).filter((r) => r.id !== id) });
-  };
-
   const adicionarBloco = (tipo) => {
     onMudar({ blocosConteudo: [...(data.blocosConteudo || []), { id: crypto.randomUUID(), tipo, texto: "", arquivo: null }] });
   };
@@ -94,19 +84,6 @@ export function MensagemPanel({ data, onMudar, onFechar, camposCustomizados }) {
           <button onClick={() => onMudar({ imagem: null })} style={{ color: "#B0463E", fontSize: 11 }}>remover</button>
         </div>
       )}
-
-      {(data.respostasRapidas || []).map((r) => (
-        <div key={r.id} style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <input
-            value={r.texto} onChange={(e) => mudarResposta(r.id, e.target.value)} placeholder="Resposta rápida..."
-            style={{ flex: 1, height: 36, border: "1px solid #E6EDEC", borderRadius: 8, padding: "0 10px", fontSize: 12.5 }}
-          />
-          <button onClick={() => removerResposta(r.id)} style={{ color: "#B0463E", fontSize: 12 }}>×</button>
-        </div>
-      ))}
-      <button onClick={adicionarResposta} style={{ width: "100%", padding: "9px 0", borderRadius: 10, border: "1px dashed #CBD5DB", color: "#5C6E7E", fontSize: 12.5, fontWeight: 600, marginBottom: 16 }}>
-        + Adicionar Resposta Rápida
-      </button>
 
       <div style={{ fontSize: 11, fontWeight: 700, color: "#8A96A3", textTransform: "uppercase", letterSpacing: .4, marginBottom: 8 }}>
         Adicione um dos blocos de conteúdo

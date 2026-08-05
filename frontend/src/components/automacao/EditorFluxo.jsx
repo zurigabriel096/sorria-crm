@@ -33,7 +33,7 @@ function noInicioPadrao() {
 
 function criarNoDeItem(item) {
   if (item.tipo === "enviar_mensagem") {
-    return { type: "mensagem", data: { texto: "", imagem: null, respostasRapidas: [], blocosConteudo: [], atraso: { dias: 0, horas: 0, minutos: 0, segundos: 0 } } };
+    return { type: "mensagem", data: { texto: "", imagem: null, blocosConteudo: [], atraso: { dias: 0, horas: 0, minutos: 0, segundos: 0 } } };
   }
   if (item.tipo === "condicao") {
     return { type: "condicao", data: { condicoes: [{ id: gerarId("cond"), operador: "contem", valor: "" }] } };

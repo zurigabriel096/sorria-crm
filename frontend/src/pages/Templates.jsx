@@ -104,7 +104,7 @@ export function Templates({ templates, setTemplates, objetivos, objetivoObjetos,
           <button style={{ ...s.toggleBtn, ...(verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(true)}>Arquivados</button>
         </div>
         <div style={{ flex: 1 }} />
-        <button style={s.btnPrimarySm} onClick={() => setModal({ id: null, nome: "", categoria: "Utilidade", campanha: objetivos[0], corpo: "", imagem: "", ativo: true })}>+ Novo template</button>
+        <button style={s.btnPrimarySm} onClick={() => setModal({ id: null, nome: "Template • ", categoria: "Utilidade", campanha: objetivos[0], corpo: "", imagem: "", ativo: true })}>+ Novo template</button>
       </div>
       {!lista.length && <Card><div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>{verArquivados ? "Nenhum template arquivado." : "Nenhum template ativo."}</div></Card>}
       <div style={s.cardGrid}>

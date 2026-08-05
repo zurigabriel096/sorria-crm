@@ -25,7 +25,6 @@ export default function MensagemNode({ id, data }) {
             <div style={{ fontSize: 12.5, color: "#16263B" }}>
               {data.imagem && <div style={{ fontSize: 11, color: "#0FA895", fontWeight: 700, marginBottom: 3 }}>🖼 {data.imagem.nome}</div>}
               {data.texto && <div style={{ overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{data.texto}</div>}
-              {data.respostasRapidas?.length > 0 && <div style={{ fontSize: 11, color: "#5C6E7E", marginTop: 4 }}>{data.respostasRapidas.length} resposta(s) rápida(s)</div>}
               {data.blocosConteudo?.length > 0 && <div style={{ fontSize: 11, color: "#5C6E7E", marginTop: 2 }}>+{data.blocosConteudo.length} bloco(s) de conteúdo</div>}
             </div>
           )}

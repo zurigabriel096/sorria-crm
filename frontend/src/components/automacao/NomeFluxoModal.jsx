@@ -5,7 +5,7 @@ import { Modal } from "./AutomacaoModal";
 // Se o fluxo ainda nao tem nome quando a pessoa tenta salvar/publicar, App.jsx
 // reabre esse modal de novo - nao da pra persistir um fluxo sem nome.
 export function NomeFluxoModal({ aberto, nomeAtual, onFechar, onConfirmar }) {
-  const [valor, setValor] = useState(nomeAtual || "");
+  const [valor, setValor] = useState(nomeAtual || "Fluxo • ");
 
   if (!aberto) return null;
 

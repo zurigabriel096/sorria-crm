@@ -240,7 +240,7 @@ export function Segmentacoes({
               <button style={{ ...s.toggleBtn, ...(aba === "arquivadas" ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setAba("arquivadas")}>Arquivadas</button>
               <button style={{ ...s.toggleBtn, ...(aba === "importacoes" ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setAba("importacoes")}>Importações</button>
             </div>
-            <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: null, nome: "", groups: [novoGrupo()] })}>+ Nova segmentação</button>
+            <button style={s.btnPrimarySm} onClick={() => setBuilder({ id: null, nome: "Segmentação • ", groups: [novoGrupo()] })}>+ Nova segmentação</button>
           </div>
         </div>
         {segmentosDaAba.length === 0 && (
