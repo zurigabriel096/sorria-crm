@@ -11,7 +11,8 @@ import { getWhatsAppStatus } from "../api/whatsapp";
 import { listEtapas, createEtapa, renameEtapa, deleteEtapa, marcarEtapaFinal, definirLimiarInatividade, definirDescricaoEtapa } from "../api/etapas";
 import { listColaboradores } from "../api/colaboradores";
 import { iniciais } from "../utils/usuario";
-import { dataHora, tempoDesde } from "../utils/format";
+import { dataHora, tempoDesde, dataHoraRelativa } from "../utils/format";
+import { IconUserPlaceholder } from "../components/icons";
 
 const POLL_MENSAGENS_MS = 4000;
 // Mesmo texto usado em MensagemService.registrarEntrada (backend) quando um
@@ -56,7 +57,7 @@ function BadgeUltimaMensagem({ ultimaMensagemEm, ultimaMensagemDirecao }) {
       color: aguardando ? T.coral : T.inkSoft,
       display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
     }}>
-      {aguardando ? `⏱ aguardando há ${tempoDesde(ultimaMensagemEm)}` : `✓ respondido há ${tempoDesde(ultimaMensagemEm)}`}
+      {aguardando ? `⏱ aguardando há ${tempoDesde(ultimaMensagemEm)}` : `✓ atendido há ${tempoDesde(ultimaMensagemEm)}`}
     </span>
   );
 }
@@ -687,11 +688,14 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                       moverParaPosicao(draggedId, etapa.nome, vizinhos, indiceAlvo);
                     }}
                     style={{
-                      ...s.campCard, cursor: "grab", position: "relative", paddingBottom: 22,
+                      ...s.campCard, cursor: "grab", position: "relative", paddingBottom: 22, paddingLeft: 44,
                       borderLeft: `3px solid ${p.ultimaMensagemDirecao === "ENTRADA" ? T.coral : "transparent"}`,
                     }}
                     onClick={() => setChatAberto(p)}
                   >
+                    <div style={{ position: "absolute", left: 10, top: 10, width: 26, height: 26, borderRadius: "50%", background: T.lineSoft, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                      <IconUserPlaceholder color={T.inkSoft} width={15} height={15} />
+                    </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink }}>
                         {p.nome === LEAD_SEM_NOME ? `de: ${p.telefone || "número desconhecido"}` : p.nome}
@@ -700,13 +704,14 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
                         <span style={{ color: T.primary, fontWeight: 700, fontSize: 12 }} title="Já conversou por este número">✓</span>
                       )}
                     </div>
-                    {p.nome === LEAD_SEM_NOME && p.ultimaMensagemTexto && (
+                    {p.ultimaMensagemTexto && (
                       <div style={{ fontSize: 11.5, color: T.inkSoft, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         "{p.ultimaMensagemTexto}"
                       </div>
                     )}
-                    <div style={{ marginTop: 6 }}>
+                    <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 2 }}>
                       <BadgeUltimaMensagem ultimaMensagemEm={p.ultimaMensagemEm} ultimaMensagemDirecao={p.ultimaMensagemDirecao} />
+                      {p.ultimaMensagemEm && <span style={{ fontSize: 10, color: T.inkSoft }}>{dataHoraRelativa(p.ultimaMensagemEm)}</span>}
                     </div>
                     <div style={{ position: "absolute", bottom: 8, right: 8 }}>
                       <AvatarResponsavel colaborador={colaboradores.find((c) => c.id === p.responsavelId)} />

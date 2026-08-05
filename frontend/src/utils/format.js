@@ -29,3 +29,18 @@ export const tempoDesde = (iso) => {
   if (h < 24) return `${h}h`;
   return `${Math.floor(h / 24)}d`;
 };
+
+// "Hoje às 14:35"/"Ontem às 09:10"/"03/08 às 18:20" - pedido explicito no
+// card do Kanban (Conversas.jsx): complementa o "há Xh" relativo com o
+// horario/data absoluto de verdade, igual ao rotulo do Kommo.
+export const dataHoraRelativa = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const hoje = new Date();
+  const ontem = new Date(hoje); ontem.setDate(ontem.getDate() - 1);
+  const mesmoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (mesmoDia(d, hoje)) return `Hoje às ${hora}`;
+  if (mesmoDia(d, ontem)) return `Ontem às ${hora}`;
+  return `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às ${hora}`;
+};
