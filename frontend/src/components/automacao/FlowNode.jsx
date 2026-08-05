@@ -1,11 +1,13 @@
+import { useEffect, useState } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { corDoTipo, categoriaDoTipo, ESTAGIOS_LEAD } from "./actions";
+import { corDoTipo, categoriaDoTipo } from "./actions";
+import { listEtapas } from "../../api/etapas";
 
 const inputEstilo = { width: "100%", height: 34, border: "1px solid #E6EDEC", borderRadius: 8, padding: "0 10px", fontSize: 12.5 };
 
 // Corpo de configuracao real (nao decorativo) por tipo - so os tipos que tem
 // um parametro simples ganham isso; os demais caem no fallback generico.
-function corpoConfiguravel(id, data) {
+function corpoConfiguravel(id, data, etapas) {
   const mudar = (patch) => data.onMudarConfig?.(id, patch);
 
   if (data.tipo === "adicionar_tag" || data.tipo === "remover_tag") {
@@ -24,7 +26,7 @@ function corpoConfiguravel(id, data) {
         </div>
         <select className="nodrag" style={inputEstilo} value={data.estagio || ""} onChange={(e) => mudar({ estagio: e.target.value })}>
           <option value="">Selecione o estágio...</option>
-          {ESTAGIOS_LEAD.map((e) => <option key={e} value={e}>{e}</option>)}
+          {etapas.map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
       </>
     );
@@ -88,6 +90,15 @@ function corpoConfiguravel(id, data) {
 // corpo com a configuracao real do tipo (ver corpoConfiguravel).
 export default function FlowNode({ id, data }) {
   const cor = corDoTipo(data.tipo);
+  // Buscado ao vivo (nao mais o array fixo ESTAGIOS_LEAD, que ficou parado
+  // em "Lead/Lead Qualificado/Cliente" desde antes da reestruturacao do
+  // Kanban em 8 colunas - so o dropdown "Alterar Estagio" nunca tinha sido
+  // atualizado pra puxar as etapas reais, ver api/etapas.js).
+  const [etapas, setEtapas] = useState([]);
+  useEffect(() => {
+    if (data.tipo !== "alterar_estagio") return;
+    listEtapas().then((lista) => setEtapas(lista.map((e) => e.nome))).catch(() => {});
+  }, [data.tipo]);
   return (
     <div style={{ width: 260, borderRadius: 12, background: "#fff", boxShadow: "0 6px 18px rgba(20,40,55,.12)", border: "1px solid #E6EDEC", overflow: "hidden" }}>
       <Handle type="target" position={Position.Left} style={{ width: 10, height: 10, background: cor, border: "2px solid #fff" }} />
@@ -99,7 +110,7 @@ export default function FlowNode({ id, data }) {
         </div>
         <button className="nodrag" onClick={() => data.onExcluir?.(id)} style={{ color: "#fff", opacity: .8, fontSize: 15, lineHeight: 1, flexShrink: 0 }} title="Excluir">×</button>
       </div>
-      <div style={{ padding: "10px 12px" }}>{corpoConfiguravel(id, data)}</div>
+      <div style={{ padding: "10px 12px" }}>{corpoConfiguravel(id, data, etapas)}</div>
       <Handle type="source" position={Position.Right} style={{ width: 10, height: 10, background: cor, border: "2px solid #fff" }} />
     </div>
   );

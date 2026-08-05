@@ -22,6 +22,11 @@ import { gerarId } from "../../utils/automacao/ids";
 
 const nodeTypes = { start: StartNode, action: FlowNode, mensagem: MensagemNode, placeholder: PlaceholderNode, condicao: CondicaoNode };
 
+// Mesmo vocabulario de OPERADORES em CondicaoNode.jsx - usado so pra montar
+// o rotulo da aresta (ver edgesComRotulo), nao reexportado de la pra nao
+// criar dependencia cruzada por um mapa tao pequeno.
+const OPERADOR_ROTULO = { contem: "contém", nao_contem: "não contém", igual: "é igual a", diferente: "é diferente de" };
+
 function noInicioPadrao() {
   return { id: "inicio", type: "start", position: { x: 60, y: 220 }, data: { entrada: null } };
 }
@@ -120,6 +125,24 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     if (n.type === "action") return { ...n, data: { ...n.data, onExcluir: excluirNo, onMudarConfig: mudarConfigAcao } };
     if (n.type === "condicao") return { ...n, data: { ...n.data, onExcluir: excluirNo, onMudarConfig: mudarConfigAcao } };
     return n;
+  });
+
+  // Rotulo na PROPRIA seta (nao so dentro do no de Condição) - pedido do
+  // Samuel: "poderia ter essa nomenclatura desses dois nozinhos que estao
+  // saindo" (qual condicao cada aresta representa). So visual - nunca
+  // persistido (nao entra em "edges", que e' o que "persistir" salva),
+  // recalculado a cada render a partir da condicao de verdade, entao nunca
+  // fica desatualizado se o texto da condicao mudar.
+  const edgesComRotulo = edges.map((e) => {
+    const origem = nodes.find((n) => n.id === e.source);
+    if (origem?.type !== "condicao") return e;
+    const condicoes = origem.data?.condicoes || [];
+    const condicao = condicoes.find((c) => c.id === e.sourceHandle);
+    const rotulo = condicao
+      ? `${OPERADOR_ROTULO[condicao.operador] || condicao.operador} "${condicao.valor}"`
+      : e.sourceHandle === "__fallback__" ? "nenhuma bateu" : null;
+    if (!rotulo) return e;
+    return { ...e, label: rotulo, labelBgStyle: { fill: "#fff", fillOpacity: .92 }, labelStyle: { fontSize: 10.5, fill: "#5C6E7E", fontWeight: 700 } };
   });
 
   const mudarWhatsappNumero = async (valor) => {
@@ -228,7 +251,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
         )}
         <div style={{ flex: 1, position: "relative" }}>
           <ReactFlow
-            nodes={nodesComCallback} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+            nodes={nodesComCallback} edges={edgesComRotulo} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
             onConnect={onConnect} onConnectStart={onConnectStart} onConnectEnd={onConnectEnd} nodeTypes={nodeTypes} fitView
           >
             <Background gap={18} color="#D7DEE3" />

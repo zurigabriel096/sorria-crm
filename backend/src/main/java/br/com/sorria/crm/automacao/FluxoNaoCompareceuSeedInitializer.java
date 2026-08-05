@@ -24,6 +24,14 @@ import java.util.Map;
 // Kanban, editar cadastro, importacao, automacao). Ou seja: assim que um card
 // e' arrastado pra essa coluna, a tag "Não compareceu" e' adicionada de verdade
 // e a Segmentacao abaixo (por tag) bate sozinha.
+//
+// Reativacao inicial (05/08/2026, pedido do Samuel): quem nao respondeu a
+// primeira mensagem em 2 dias ganha UMA segunda tentativa (wait2/msg2/cond2)
+// antes de esfriar de vez - reusa o MESMO no "estagioSolicitacao" da primeira
+// tentativa quando a pessoa responde "sim" na segunda (2 arestas de origem
+// diferente apontando pro mesmo no e' valido, o motor resolve por SOURCE, nao
+// por target). Uma reativacao "morna" mais ampla (fora deste fluxo) ficou
+// como ideia futura, nao construida ainda.
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -80,12 +88,26 @@ public class FluxoNaoCompareceuSeedInitializer implements CommandLineRunner {
         nodes.add(acao("tagRemarcou", 1860, 140, "adicionar_tag", "Adicionar tag", Map.of("tag", "Reagendamento solicitado")));
         nodes.add(acao("tagSemResposta", 1500, 320, "adicionar_tag", "Adicionar tag", Map.of("tag", "Não respondeu remarcação")));
 
+        // Reativacao inicial - segunda tentativa antes de esfriar de vez.
+        nodes.add(acao("wait2", 1860, 320, "aguardar_mensagem", "Aguardar mensagens do contato", Map.of("prazoDias", 2)));
+        nodes.add(mensagem("msg2", 2220, 320,
+                "Oi {nome}! Ainda dá tempo de remarcar sua consulta na Orthodontic 😊 Me diga um dia que funcione melhor pra você, ou responda SIM que eu já te ajudo a encontrar um horário."));
+        nodes.add(condicao("cond2", 2580, 320, List.of(
+                Map.of("id", "sim2", "operador", "contem", "valor", "sim")
+        )));
+        nodes.add(acao("tagFrio", 2940, 480, "adicionar_tag", "Adicionar tag", Map.of("tag", "Sem resposta - reativação inicial")));
+
         ligar(edges, "inicio", "msg1");
         ligar(edges, "msg1", "wait1");
         ligar(edges, "wait1", "cond1");
         ligarComHandle(edges, "cond1", "estagioSolicitacao", "sim1");
         ligar(edges, "estagioSolicitacao", "tagRemarcou");
         ligarComHandle(edges, "cond1", "tagSemResposta", HANDLE_FALLBACK);
+        ligar(edges, "tagSemResposta", "wait2");
+        ligar(edges, "wait2", "msg2");
+        ligar(edges, "msg2", "cond2");
+        ligarComHandle(edges, "cond2", "estagioSolicitacao", "sim2");
+        ligarComHandle(edges, "cond2", "tagFrio", HANDLE_FALLBACK);
 
         FluxoAutomacao fluxo = new FluxoAutomacao();
         fluxo.setNome(NOME_FLUXO);

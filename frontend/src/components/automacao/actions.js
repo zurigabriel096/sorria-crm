@@ -6,10 +6,6 @@
 // ja estao funcionando. "Condição" foi reintroduzida em 05/08/2026, junto da
 // ramificacao real no motor (ver AutomacaoEngineService.resolverProximoId).
 
-// Reexporta do theme.js real do sorria-crm - fonte unica de verdade, o mesmo
-// vocabulario usado no Select de estagio da Base de Leads.
-export { ESTAGIOS_LEAD } from "../../theme";
-
 export const CATEGORIAS = [
   {
     id: "mensagem",

@@ -14,8 +14,6 @@ export const T = {
   },
 };
 
-export const ESTAGIOS_LEAD = ["Lead", "Lead Qualificado", "Cliente"];
-
 export const AVATAR_COLORS = ["#0FA895", "#4C6FFF", "#FF6B5B", "#C8912A", "#8B5CF6", "#EC4899", "#16263B"];
 
 export const CLINICA = "Orthodontic SJC · Vilaça";
