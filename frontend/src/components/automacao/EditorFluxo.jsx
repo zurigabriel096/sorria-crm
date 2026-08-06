@@ -304,7 +304,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
           </ReactFlow>
           <AjudaZoomButton />
         </div>
-        {painelAtivo?.tipo === "entrada" && <EntradaPanel entrada={noInicio?.data.entrada} onMudar={mudarEntrada} onFechar={() => setPainelAtivo(null)} camposCustomizados={camposCustomizados} />}
+        {painelAtivo?.tipo === "entrada" && <EntradaPanel entrada={noInicio?.data.entrada} onMudar={mudarEntrada} onFechar={() => setPainelAtivo(null)} camposCustomizados={camposCustomizados} patients={patients} />}
         {painelAtivo?.tipo === "primeiroPasso" && <PrimeiroPassoPanel onEscolher={resolverPrimeiroPasso} onFechar={fecharPrimeiroPassoSemEscolher} />}
         {painelAberto && !painelAtivo && <ActionsPanel onAdd={adicionarAcaoSolta} onClose={() => setPainelAberto(false)} />}
       </div>

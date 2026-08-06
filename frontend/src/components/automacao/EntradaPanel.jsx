@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { SidePanel } from "./SidePanel";
 import { listSegmentacoes } from "../../api/segmentacoes";
 import { montarFieldMeta } from "../../data/seed";
+import { matchSeg } from "../../utils/patients";
 import { CondicaoBuilder, novoGrupo } from "./CondicaoBuilder";
 
 const cardEstilo = (selecionado) => ({
@@ -20,7 +21,7 @@ const cardEstilo = (selecionado) => ({
 // Removido o falso escolha (confundia mais do que ajudava, reportado pelo
 // Samuel 05/08/2026) - grava sozinho o unico comportamento que de fato
 // existe, sem perguntar nada que nao faz diferenca.
-export function EntradaPanel({ entrada, onMudar, onFechar, camposCustomizados }) {
+export function EntradaPanel({ entrada, onMudar, onFechar, camposCustomizados, patients }) {
   const e = entrada || { modoEntrada: null, tipoCondicao: null, segmentacao: null, automacaoMarketing: null };
   const [segmentacoes, setSegmentacoes] = useState([]);
   const fieldMeta = montarFieldMeta(camposCustomizados);
@@ -53,6 +54,17 @@ export function EntradaPanel({ entrada, onMudar, onFechar, camposCustomizados })
             onChange={(groups) => onMudar({ condicao: { groups } })}
             fieldMeta={fieldMeta}
           />
+          {patients && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, padding: "10px 12px", background: "#E1F4F0", borderRadius: 10 }}>
+              <span style={{ fontSize: 12.5, color: "#0E9484", fontWeight: 600 }}>Captura agora:</span>
+              <b style={{ fontSize: 15, color: "#0E9484" }}>
+                {(() => {
+                  const n = patients.filter((p) => matchSeg(p, { groups: e.condicao?.groups || [] })).length;
+                  return n === 1 ? "1 lead" : `${n} leads`;
+                })()}
+              </b>
+            </div>
+          )}
         </div>
       )}
 
