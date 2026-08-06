@@ -8,6 +8,7 @@ import { Toast } from "./components/ui/Toast";
 import { JobsProgress } from "./components/ui/JobsProgress";
 import { PatientDetailModal } from "./components/PatientDetailModal";
 import { EasterEggJogo } from "./components/ui/EasterEggJogo";
+import { AcessoRestrito } from "./components/ui/AcessoRestrito";
 
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
@@ -511,27 +512,31 @@ export default function App() {
     );
   }
 
+  // Menu unificado (remodelacao 06/08/2026) - aba restrita aparece pra todo
+  // mundo, mas so' ADMIN/GESTOR ve o conteudo de verdade (ver AcessoRestrito).
+  const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
+
   return (
     <div style={s.root}>
       <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} angry={angry} setAngry={setAngry} usuario={usuario} />
       <div style={s.main}>
         <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
         <div style={s.content} key={view}>
-          {view === "dashboard" && <Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} />}
+          {view === "dashboard" && <AcessoRestrito liberado={souAdminOuGestor}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} /></AcessoRestrito>}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} />}
           {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
           {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} abrirContatoId={conversaParaAbrir} onAbriuContato={() => setConversaParaAbrir(null)} />}
-          {view === "segmentacoes" && <Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} colaboradores={colaboradores} onAtribuirResponsavelEmLote={atribuirResponsavelSegmentacao} usuario={usuario} onAbrirPaciente={abrirPaciente} showToast={showToast} />}
+          {view === "segmentacoes" && <AcessoRestrito liberado={souAdminOuGestor}><Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} colaboradores={colaboradores} onAtribuirResponsavelEmLote={atribuirResponsavelSegmentacao} usuario={usuario} onAbrirPaciente={abrirPaciente} showToast={showToast} /></AcessoRestrito>}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} usuario={usuario} camposCustomizados={camposCustomizados} showToast={showToast} />}
-          {view === "automacoes" && <Automacoes showToast={showToast} usuario={usuario} patients={patients} camposCustomizados={camposCustomizados} />}
+          {view === "automacoes" && <AcessoRestrito liberado={souAdminOuGestor}><Automacoes showToast={showToast} usuario={usuario} patients={patients} camposCustomizados={camposCustomizados} /></AcessoRestrito>}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} usuario={usuario} onLimparHistorico={limparTodoHistoricoDisparo} showToast={showToast} />}
-          {view === "colaboradores" && <Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} papeisCargo={papeisCargo} onCriarPapelCargo={criarPapelCargoHandler} onAtualizarPapelCargo={atualizarPapelCargoHandler} onExcluirPapelCargo={excluirPapelCargoHandler} />}
+          {view === "colaboradores" && <AcessoRestrito liberado={souAdminOuGestor}><Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} papeisCargo={papeisCargo} onCriarPapelCargo={criarPapelCargoHandler} onAtualizarPapelCargo={atualizarPapelCargoHandler} onExcluirPapelCargo={excluirPapelCargoHandler} /></AcessoRestrito>}
           {view === "plano" && <Plano showToast={showToast} usuario={usuario} />}
           {view === "suporte" && <Suporte showToast={showToast} />}
-          {view === "config" && <Config showToast={showToast} usuario={usuario} />}
+          {view === "config" && <AcessoRestrito liberado={souAdminOuGestor}><Config showToast={showToast} usuario={usuario} /></AcessoRestrito>}
           {view === "aquecimento" && <Aquecimento showToast={showToast} usuario={usuario} />}
         </div>
       </div>

@@ -49,6 +49,9 @@ export const IconInbox = (p) => <svg {...I(p)}><path d="M22 12h-6l-2 3h-4l-2-3H2
 export const IconHome = (p) => <svg {...I(p)}><path d="M3 11l9-8 9 8" /><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10" /></svg>;
 export const IconEdit = (p) => <svg {...I(p)}><path d="M17 3a2.1 2.1 0 013 3L7 19l-4 1 1-4L17 3z" /></svg>;
 export const IconShield = (p) => <svg {...I(p)}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></svg>;
+// Cadeado - sinaliza aba restrita a gestao no menu unificado (ver
+// AcessoRestrito.jsx e Sidebar.jsx, remodelacao 06/08/2026).
+export const IconLock = (p) => <svg {...I(p)}><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></svg>;
 // Silhueta solida (preenchida, nao contorno) - usada como placeholder de
 // avatar quando o lead nao tem responsavel atribuido (ver FilaTrabalho.jsx).
 // Corpo desenhado como 1 arco eliptico so (M...A...Z) de proposito - garante

@@ -25,7 +25,8 @@ function RelogioAoVivo() {
 }
 
 const TITLES = {
-  dashboard: "Painel executivo", pacientes: "Base de Leads", segmentacoes: "Segmentações",
+  dashboard: "Painel Executivo", inicio: "Meu Dia", filaTrabalho: "Minhas Tarefas", pacientes: "Base de Leads",
+  conversas: "Conversas", segmentacoes: "Segmentação",
   campanhas: "Campanhas", templates: "Templates de WhatsApp", automacoes: "Automação", disparo: "Novo disparo",
   disparos: "Histórico de disparos", colaboradores: "Colaboradores", plano: "Meu plano",
   suporte: "Suporte", config: "Configurações",
