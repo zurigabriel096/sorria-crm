@@ -27,6 +27,17 @@ const nodeTypes = { start: StartNode, action: FlowNode, mensagem: MensagemNode, 
 // criar dependencia cruzada por um mapa tao pequeno.
 const OPERADOR_ROTULO = { contem: "contém", nao_contem: "não contém", igual: "é igual a", diferente: "é diferente de" };
 
+// Altura/padding/borda comuns a TODOS os controles da barra escura do editor
+// (select de número, ☰, Salvar, contato de teste, Resetar teste, Ativar) -
+// antes cada um tinha sua propria altura implicita (padding vertical
+// diferente, <select> com altura nativa do navegador), o que deixava a barra
+// com alturas desalinhadas entre si (reportado pelo Samuel, 05/08/2026).
+const estiloBotaoHeader = {
+  height: 36, display: "flex", alignItems: "center", boxSizing: "border-box",
+  background: "rgba(255,255,255,.1)", color: "#fff", fontSize: 12.5, fontWeight: 600,
+  padding: "0 12px", borderRadius: 9, border: "none", whiteSpace: "nowrap",
+};
+
 function noInicioPadrao() {
   return { id: "inicio", type: "start", position: { x: 60, y: 220 }, data: { entrada: null } };
 }
@@ -240,7 +251,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
             title="Qual número de WhatsApp esse fluxo usa pra mandar mensagem - deixe em branco pra usar o número principal. Recomendado: só números de baixo volume (nunca os de disparo em massa)."
             value={whatsappNumeroId ? String(whatsappNumeroId) : ""}
             onChange={(e) => mudarWhatsappNumero(e.target.value)}
-            style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontSize: 12.5, fontWeight: 600, padding: "7px 10px", borderRadius: 9, border: "none" }}
+            style={{ ...estiloBotaoHeader, fontWeight: 600, padding: "0 10px" }}
           >
             <option value="" style={{ color: T.ink }}>Número principal</option>
             {numeros.filter((n) => n.finalidade !== "AQUECIMENTO").map((n) => (
@@ -248,8 +259,8 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
             ))}
           </select>
         )}
-        <button onClick={() => setPainelAberto((o) => !o)} title="Ações disponíveis" style={{ width: 32, height: 32, borderRadius: 9, background: painelAberto ? T.primary : "rgba(255,255,255,.08)", color: "#fff", display: "grid", placeItems: "center" }}>☰</button>
-        <button onClick={() => persistir(true)} disabled={salvando} style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 13, padding: "8px 14px", borderRadius: 9 }}>{salvando ? "Salvando..." : "Salvar"}</button>
+        <button onClick={() => setPainelAberto((o) => !o)} title="Ações disponíveis" style={{ ...estiloBotaoHeader, width: 36, padding: 0, justifyContent: "center", background: painelAberto ? T.primary : "rgba(255,255,255,.08)" }}>☰</button>
+        <button onClick={() => persistir(true)} disabled={salvando} style={{ ...estiloBotaoHeader, fontWeight: 700, fontSize: 13, padding: "0 14px" }}>{salvando ? "Salvando..." : "Salvar"}</button>
         {souAdmin && (
           <SeletorContatoTeste contatoTesteId={contatoTesteId} patients={patients || []} onEscolher={escolherContatoTeste} />
         )}
@@ -257,13 +268,13 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
           <button
             onClick={resetarTesteDoContato}
             title="Apaga o progresso que o contato de teste já teve nesse fluxo, pra ele poder entrar de novo do início"
-            style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 12.5, padding: "8px 12px", borderRadius: 9, whiteSpace: "nowrap" }}
+            style={estiloBotaoHeader}
           >
             🔄 Resetar teste
           </button>
         )}
         {souAdmin && (
-          <button onClick={alternarAtivo} style={{ background: ativo ? T.coral : T.primary, color: "#fff", fontWeight: 700, fontSize: 13, padding: "8px 16px", borderRadius: 9 }}>
+          <button onClick={alternarAtivo} style={{ ...estiloBotaoHeader, fontWeight: 700, fontSize: 13, padding: "0 16px", background: ativo ? T.coral : T.primary }}>
             {ativo ? "Desativar" : "Ativar fluxo"}
           </button>
         )}
@@ -338,8 +349,9 @@ function SeletorContatoTeste({ contatoTesteId, patients, onEscolher }) {
         onClick={() => setAberto((o) => !o)}
         title="Contato de teste - enquanto configurado, o fluxo só roda pra esse contato"
         style={{
+          ...estiloBotaoHeader,
           background: contato ? T.gold : "rgba(255,255,255,.1)", color: contato ? T.ink : "#fff",
-          fontWeight: 700, fontSize: 12.5, padding: "8px 12px", borderRadius: 9, whiteSpace: "nowrap",
+          fontWeight: 700,
         }}
       >
         🧪 {contato ? contato.nome : "Definir contato de teste"}
