@@ -48,12 +48,12 @@ function corpoConfiguravel(id, data, etapas) {
     const minutos = Number(data.prazoMinutos) || 0;
     const temPrazo = dias > 0 || horas > 0 || minutos > 0;
     const campoPrazo = (rotulo, chave, valor, max) => (
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 3, minWidth: 0 }}>
         <input
-          className="nodrag" type="number" min={0} max={max} style={{ ...inputEstilo, width: 48 }}
+          className="nodrag" type="number" min={0} max={max} style={{ ...inputEstilo, width: 40, padding: "0 6px", flexShrink: 0 }}
           value={valor} onChange={(e) => mudar({ [chave]: Math.max(0, Math.min(max, Number(e.target.value) || 0)) })}
         />
-        <span style={{ fontSize: 11.5, color: "#5C6E7E" }}>{rotulo}</span>
+        <span style={{ fontSize: 11.5, color: "#5C6E7E", flexShrink: 0 }}>{rotulo}</span>
       </div>
     );
     return (
@@ -62,9 +62,9 @@ function corpoConfiguravel(id, data, etapas) {
           Pausa o fluxo até o lead responder qualquer mensagem no WhatsApp.
         </div>
         <div style={{ fontSize: 11.5, color: "#5C6E7E", marginBottom: 4 }}>Prazo (0 em tudo = espera pra sempre):</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          {campoPrazo("dias", "prazoDias", dias, 365)}
-          {campoPrazo("horas", "prazoHoras", horas, 23)}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 10px" }}>
+          {campoPrazo("d", "prazoDias", dias, 365)}
+          {campoPrazo("h", "prazoHoras", horas, 23)}
           {campoPrazo("min", "prazoMinutos", minutos, 59)}
         </div>
         <div style={{ fontSize: 11, color: "#8A9AA6", marginTop: 6 }}>
