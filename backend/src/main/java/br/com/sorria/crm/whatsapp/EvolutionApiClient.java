@@ -88,27 +88,42 @@ public class EvolutionApiClient {
             return statusAleatorio();
         }
 
-        try {
-            // Evolution GO (evolution-foundation/evolution-go): POST /send/text, autenticado
-            // pelo header "apikey" com o TOKEN DA INSTANCIA (nao o GLOBAL_API_KEY) - o token
-            // de instancia e obtido em GET /instance/all com o GLOBAL_API_KEY.
-            String url = urlServidor + "/send/text";
+        // Evolution GO (evolution-foundation/evolution-go): POST /send/text, autenticado
+        // pelo header "apikey" com o TOKEN DA INSTANCIA (nao o GLOBAL_API_KEY) - o token
+        // de instancia e obtido em GET /instance/all com o GLOBAL_API_KEY.
+        String url = urlServidor + "/send/text";
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("apikey", tokenInstancia != null && !tokenInstancia.isBlank() ? tokenInstancia : apiKey);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apikey", tokenInstancia != null && !tokenInstancia.isBlank() ? tokenInstancia : apiKey);
 
-            Map<String, Object> body = Map.of(
-                    "number", telefone,
-                    "text", mensagem
-            );
+        Map<String, Object> body = Map.of(
+                "number", telefone,
+                "text", mensagem
+        );
 
-            restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
-            return "Entregue";
-        } catch (RestClientException ex) {
-            log.warn("Falha ao enviar mensagem via Evolution API para {}: {}", telefone, ex.getMessage());
-            return "Falhou";
+        // Ate 2 tentativas (06/08/2026) - logs em producao mostraram a Evolution GO
+        // (Fly.io) falhando com "Read timed out" de forma INTERMITENTE (as vezes
+        // passa, as vezes trava 15s e falha) - nao e' bug nosso, mas uma segunda
+        // tentativa depois de uma pausa curta cobre boa parte desses timeouts
+        // pontuais sem precisar de reset manual.
+        for (int tentativa = 1; tentativa <= 2; tentativa++) {
+            try {
+                restTemplate.postForEntity(url, new HttpEntity<>(body, headers), String.class);
+                return "Entregue";
+            } catch (RestClientException ex) {
+                log.warn("Falha ao enviar mensagem via Evolution API para {} (tentativa {}/2): {}", telefone, tentativa, ex.getMessage());
+                if (tentativa == 1) {
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return "Falhou";
+                    }
+                }
+            }
         }
+        return "Falhou";
     }
 
     /**
