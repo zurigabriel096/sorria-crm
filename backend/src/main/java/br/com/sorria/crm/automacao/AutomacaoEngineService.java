@@ -134,6 +134,10 @@ public class AutomacaoEngineService {
             processarEntradaPorMensagemRecebida(fluxo, entrada);
             return;
         }
+        if ("condicao".equals(tipoCondicao)) {
+            processarEntradaPorCondicaoDireta(fluxo, entrada);
+            return;
+        }
         if (!"segmentacao".equals(tipoCondicao)) return; // automacaoMarketing: sem gatilho real ainda
 
         Map<String, Object> segmentacaoRef = comoMapa(entrada.get("segmentacao"));
@@ -145,6 +149,24 @@ public class AutomacaoEngineService {
 
         for (Contato contato : contatoRepository.findAll()) {
             if (!segmentacaoMatcher.bate(contato, segmentacao)) continue;
+            criarExecucaoSeNaoExiste(fluxo, contato.getId());
+        }
+    }
+
+    // Gatilho "Condição direta" (CondicaoBuilder dentro do EntradaPanel,
+    // 05/08/2026): mesma avaliacao de uma Segmentacao, mas o groups fica
+    // dentro do proprio no de inicio (entrada.condicao.groups) - pedido do
+    // Samuel: autonomia pra montar a condicao direto na Automacao, sem
+    // precisar salvar uma Segmentacao separada primeiro. Reaproveita
+    // SegmentacaoMatcher.bateGroupsJson (mesmo motor, mesma semantica de
+    // campo/operador, sem duplicar a avaliacao em dois lugares).
+    private void processarEntradaPorCondicaoDireta(FluxoAutomacao fluxo, Map<String, Object> entrada) throws JsonProcessingException {
+        Map<String, Object> condicao = comoMapa(entrada.get("condicao"));
+        Object groups = condicao.get("groups");
+        if (groups == null) return;
+        String groupsJson = objectMapper.writeValueAsString(groups);
+        for (Contato contato : contatoRepository.findAll()) {
+            if (!segmentacaoMatcher.bateGroupsJson(contato, groupsJson)) continue;
             criarExecucaoSeNaoExiste(fluxo, contato.getId());
         }
     }

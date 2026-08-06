@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { SidePanel } from "./SidePanel";
 import { listSegmentacoes } from "../../api/segmentacoes";
+import { montarFieldMeta } from "../../data/seed";
+import { CondicaoBuilder, novoGrupo } from "./CondicaoBuilder";
 
 const cardEstilo = (selecionado) => ({
   display: "block", width: "100%", textAlign: "left", padding: "13px 14px", borderRadius: 12,
@@ -18,9 +20,10 @@ const cardEstilo = (selecionado) => ({
 // Removido o falso escolha (confundia mais do que ajudava, reportado pelo
 // Samuel 05/08/2026) - grava sozinho o unico comportamento que de fato
 // existe, sem perguntar nada que nao faz diferenca.
-export function EntradaPanel({ entrada, onMudar, onFechar }) {
+export function EntradaPanel({ entrada, onMudar, onFechar, camposCustomizados }) {
   const e = entrada || { modoEntrada: null, tipoCondicao: null, segmentacao: null, automacaoMarketing: null };
   const [segmentacoes, setSegmentacoes] = useState([]);
+  const fieldMeta = montarFieldMeta(camposCustomizados);
 
   useEffect(() => { listSegmentacoes().then((lista) => setSegmentacoes(lista.filter((s) => !s.arquivado))); }, []);
   useEffect(() => {
@@ -37,6 +40,22 @@ export function EntradaPanel({ entrada, onMudar, onFechar }) {
       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A96A3", textTransform: "uppercase", letterSpacing: .4, margin: "0 0 10px" }}>
         Origem dos leads
       </div>
+      <button style={cardEstilo(e.tipoCondicao === "condicao")} onClick={() => onMudar({ tipoCondicao: "condicao", condicao: e.condicao || { groups: [novoGrupo()] } })}>
+        <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16263B" }}>Condição direta (campo do lead)</div>
+        <div style={{ fontSize: 12, color: "#5C6E7E", marginTop: 3 }}>
+          Monte a condição aqui mesmo — qualquer campo nativo ou Personalizado — sem precisar salvar uma Segmentação separada primeiro.
+        </div>
+      </button>
+      {e.tipoCondicao === "condicao" && (
+        <div style={{ marginBottom: 14 }}>
+          <CondicaoBuilder
+            groups={e.condicao?.groups || [novoGrupo()]}
+            onChange={(groups) => onMudar({ condicao: { groups } })}
+            fieldMeta={fieldMeta}
+          />
+        </div>
+      )}
+
       <button style={cardEstilo(e.tipoCondicao === "segmentacao")} onClick={() => onMudar({ tipoCondicao: "segmentacao" })}>
         <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16263B" }}>Entraram na lista de segmentação</div>
         <div style={{ fontSize: 12, color: "#5C6E7E", marginTop: 3 }}>Lista de Leads criadas em Segmentação.</div>

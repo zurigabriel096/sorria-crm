@@ -31,11 +31,20 @@ public class SegmentacaoMatcher {
     // groups: grupos de condicoes combinadas por E; os grupos entre si sao
     // combinados por OU. Ex.: [[A,B],[C]] = (A E B) OU (C).
     public boolean bate(Contato contato, Segmentacao segmentacao) {
+        return bateGroupsJson(contato, segmentacao.getGroupsJson());
+    }
+
+    // Mesma avaliacao de "bate", mas recebendo o groups JSON direto (sem
+    // precisar de uma Segmentacao salva no banco) - base do gatilho "Condicao
+    // direta" da Automacao (EntradaPanel/CondicaoBuilder no frontend, pedido
+    // do Samuel 05/08/2026: montar a condicao dentro do proprio fluxo, sem
+    // passar por uma Segmentacao separada). Ver AutomacaoEngineService.
+    public boolean bateGroupsJson(Contato contato, String groupsJson) {
         List<List<Map<String, Object>>> grupos;
         try {
-            grupos = objectMapper.readValue(segmentacao.getGroupsJson(), new TypeReference<List<List<Map<String, Object>>>>() {});
+            grupos = objectMapper.readValue(groupsJson, new TypeReference<List<List<Map<String, Object>>>>() {});
         } catch (JsonProcessingException e) {
-            log.warn("groupsJson invalido na segmentacao {}: {}", segmentacao.getId(), e.getMessage());
+            log.warn("groupsJson invalido: {}", e.getMessage());
             return false;
         }
         return grupos.stream().anyMatch(grupo -> !grupo.isEmpty() && grupo.stream().allMatch(c -> avaliarCondicao(contato, c)));
