@@ -1,6 +1,9 @@
 package br.com.sorria.crm.automacao;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +31,11 @@ public interface ExecucaoFluxoRepository extends JpaRepository<ExecucaoFluxo, Lo
     // (existsByFluxoIdAndContatoId) e' permanente de proposito pro publico real,
     // mas trava re-teste do MESMO fluxo+contato pra sempre (mesmo com o fluxo
     // reconfigurado) - isso apaga a(s) execucao(oes) antiga(s) pra abrir espaco
-    // pra uma nova entrada no proximo tick.
-    void deleteByFluxoIdAndContatoId(Long fluxoId, Long contatoId);
+    // pra uma nova entrada no proximo tick. Query bulk explicita (nao o
+    // deleteBy... derivado, que tentou dar remove() sem transacao de verdade em
+    // producao - "No EntityManager with actual transaction available" - ver
+    // FluxoAutomacaoService.resetarTeste, agora @Transactional).
+    @Modifying
+    @Query("DELETE FROM ExecucaoFluxo e WHERE e.fluxoId = :fluxoId AND e.contatoId = :contatoId")
+    void deletarExecucoesDoTeste(@Param("fluxoId") Long fluxoId, @Param("contatoId") Long contatoId);
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -65,12 +66,13 @@ public class FluxoAutomacaoService {
     // nao rodou de novo - a execucao antiga do teste anterior ainda existia).
     // Apaga so a(s) execucao(oes) do contato de teste configurado, nunca de um
     // contato arbitrario.
+    @Transactional
     public void resetarTeste(Long id) {
         FluxoAutomacao fluxo = buscarEntidade(id);
         if (fluxo.getContatoTesteId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Este fluxo não tem contato de teste configurado.");
         }
-        execucaoFluxoRepository.deleteByFluxoIdAndContatoId(fluxo.getId(), fluxo.getContatoTesteId());
+        execucaoFluxoRepository.deletarExecucoesDoTeste(fluxo.getId(), fluxo.getContatoTesteId());
     }
 
     public FluxoAutomacaoDTO arquivar(Long id, boolean arquivado) {
