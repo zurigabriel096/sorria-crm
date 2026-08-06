@@ -16,7 +16,7 @@ import { PrimeiroPassoPanel } from "./PrimeiroPassoPanel";
 import { MensagemPanel } from "./MensagemPanel";
 import ActionsPanel from "./ActionsPanel";
 import { AjudaZoomButton } from "./AjudaZoomModal";
-import { getFluxo, updateFluxo, ativarFluxo } from "../../api/automacoes";
+import { getFluxo, updateFluxo, ativarFluxo, resetarTeste } from "../../api/automacoes";
 import { listNumeros } from "../../api/whatsappNumeros";
 import { gerarId } from "../../utils/automacao/ids";
 
@@ -199,6 +199,19 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     }
   };
 
+  // A entrada (segmentacao ou "mensagem recebida") so cria UMA execucao por
+  // par fluxo+contato pra sempre - reconfigurar o gatilho ou a segmentacao nao
+  // faz o mesmo contato de teste entrar de novo se ele ja rodou antes. Isso
+  // limpa a execucao antiga pra dar pra retestar sem precisar mexer no banco.
+  const resetarTesteDoContato = async () => {
+    try {
+      await resetarTeste(fluxo.id);
+      showToast("Progresso de teste zerado — o contato de teste pode entrar no fluxo de novo no próximo ciclo (até 10s)", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao resetar teste", "warn");
+    }
+  };
+
   // Autosave leve (4min) - agora persiste de verdade no backend, nao so localStorage.
   useEffect(() => {
     const t = setInterval(() => persistir(false), 4 * 60 * 1000);
@@ -239,6 +252,15 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
         <button onClick={() => persistir(true)} disabled={salvando} style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 13, padding: "8px 14px", borderRadius: 9 }}>{salvando ? "Salvando..." : "Salvar"}</button>
         {souAdmin && (
           <SeletorContatoTeste contatoTesteId={contatoTesteId} patients={patients || []} onEscolher={escolherContatoTeste} />
+        )}
+        {souAdmin && contatoTesteId && (
+          <button
+            onClick={resetarTesteDoContato}
+            title="Apaga o progresso que o contato de teste já teve nesse fluxo, pra ele poder entrar de novo do início"
+            style={{ background: "rgba(255,255,255,.1)", color: "#fff", fontWeight: 700, fontSize: 12.5, padding: "8px 12px", borderRadius: 9, whiteSpace: "nowrap" }}
+          >
+            🔄 Resetar teste
+          </button>
         )}
         {souAdmin && (
           <button onClick={alternarAtivo} style={{ background: ativo ? T.coral : T.primary, color: "#fff", fontWeight: 700, fontSize: 13, padding: "8px 16px", borderRadius: 9 }}>

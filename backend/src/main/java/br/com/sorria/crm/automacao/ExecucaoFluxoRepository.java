@@ -23,4 +23,11 @@ public interface ExecucaoFluxoRepository extends JpaRepository<ExecucaoFluxo, Lo
     // Fase 4: quando o contato manda uma mensagem de verdade, MensagemService
     // usa isso pra achar execucoes paradas no no "aguardar_mensagem" e retomar.
     List<ExecucaoFluxo> findByContatoIdAndStatus(Long contatoId, String status);
+
+    // "Resetar teste" (FluxoAutomacaoService.resetarTeste): a dedup acima
+    // (existsByFluxoIdAndContatoId) e' permanente de proposito pro publico real,
+    // mas trava re-teste do MESMO fluxo+contato pra sempre (mesmo com o fluxo
+    // reconfigurado) - isso apaga a(s) execucao(oes) antiga(s) pra abrir espaco
+    // pra uma nova entrada no proximo tick.
+    void deleteByFluxoIdAndContatoId(Long fluxoId, Long contatoId);
 }

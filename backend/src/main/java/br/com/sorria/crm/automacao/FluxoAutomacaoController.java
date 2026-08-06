@@ -61,4 +61,12 @@ public class FluxoAutomacaoController {
     public FluxoAutomacaoDTO arquivar(@PathVariable Long id, @RequestBody ArquivarRequest req) {
         return service.arquivar(id, req.arquivado());
     }
+
+    // Limpa a execucao antiga do contato de teste pra dar pra retestar o mesmo
+    // fluxo sem precisar mexer no banco - ver FluxoAutomacaoService.resetarTeste.
+    @PostMapping("/{id}/resetar-teste")
+    public ResponseEntity<Void> resetarTeste(@PathVariable Long id) {
+        service.resetarTeste(id);
+        return ResponseEntity.noContent().build();
+    }
 }

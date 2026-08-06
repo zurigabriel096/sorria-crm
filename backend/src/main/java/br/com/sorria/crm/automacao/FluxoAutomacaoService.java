@@ -16,6 +16,7 @@ import java.util.NoSuchElementException;
 public class FluxoAutomacaoService {
 
     private final FluxoAutomacaoRepository repository;
+    private final ExecucaoFluxoRepository execucaoFluxoRepository;
     private final ObjectMapper objectMapper;
 
     public List<FluxoAutomacaoDTO> listar() {
@@ -54,6 +55,22 @@ public class FluxoAutomacaoService {
         FluxoAutomacao fluxo = buscarEntidade(id);
         fluxo.setAtivo(ativo);
         return toDTO(repository.save(fluxo));
+    }
+
+    // "Resetar teste": a dedup de entrada por segmentacao (ExecucaoFluxoRepository.
+    // existsByFluxoIdAndContatoId) e' permanente de proposito pro publico real -
+    // mas isso trava re-teste do MESMO fluxo+contato pra sempre, mesmo depois de
+    // reconfigurar gatilho/segmentacao (reportado pelo Samuel, 05/08/2026: mudou
+    // o gatilho, criou segmentacao nova so com o proprio numero, e mesmo assim
+    // nao rodou de novo - a execucao antiga do teste anterior ainda existia).
+    // Apaga so a(s) execucao(oes) do contato de teste configurado, nunca de um
+    // contato arbitrario.
+    public void resetarTeste(Long id) {
+        FluxoAutomacao fluxo = buscarEntidade(id);
+        if (fluxo.getContatoTesteId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Este fluxo não tem contato de teste configurado.");
+        }
+        execucaoFluxoRepository.deleteByFluxoIdAndContatoId(fluxo.getId(), fluxo.getContatoTesteId());
     }
 
     public FluxoAutomacaoDTO arquivar(Long id, boolean arquivado) {

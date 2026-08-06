@@ -9,3 +9,4 @@ export const updateFluxo = (id, fluxo) => api.put(`/api/automacoes/${id}`, fluxo
 export const deleteFluxo = (id) => api.del(`/api/automacoes/${id}`);
 export const ativarFluxo = (id, ativo) => api.patch(`/api/automacoes/${id}/ativar`, { ativo });
 export const arquivarFluxo = (id, arquivado) => api.patch(`/api/automacoes/${id}/arquivar`, { arquivado });
+export const resetarTeste = (id) => api.post(`/api/automacoes/${id}/resetar-teste`);
