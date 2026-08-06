@@ -124,6 +124,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     if (n.type === "mensagem") return { ...n, data: { ...n.data, onAbrir: abrirMensagem, onExcluir: excluirNo } };
     if (n.type === "action") return { ...n, data: { ...n.data, onExcluir: excluirNo, onMudarConfig: mudarConfigAcao } };
     if (n.type === "condicao") return { ...n, data: { ...n.data, onExcluir: excluirNo, onMudarConfig: mudarConfigAcao } };
+    if (n.type === "placeholder") return { ...n, data: { ...n.data, onExcluir: excluirNo } };
     return n;
   });
 
