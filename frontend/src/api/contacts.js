@@ -30,7 +30,11 @@ function fromApi(c) {
     // Somente leitura - quem grava e' o backend a cada mensagem trocada.
     ultimaMensagemEm: c.ultimaMensagemEm || null,
     ultimaMensagemDirecao: c.ultimaMensagemDirecao || null,
+    ultimaMensagemTexto: c.ultimaMensagemTexto || "",
     proximaAcaoEm: c.proximaAcaoEm || null,
+    // Somente leitura - preenchido so no cadastro (null pra leads criados antes
+    // deste campo existir) - usado em Segmentacoes ("cadastrado em"/"entre").
+    criadoEm: c.criadoEm || null,
   };
 }
 

@@ -14,14 +14,17 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { ImportBox } from "../components/ui/ImportBox";
 import { IconSearch, IconDownload, IconFilter } from "../components/icons";
 
-// "Estagio" nao entra no FIELD_META compartilhado com Segmentacoes (data/seed.js)
-// de proposito - so o filtro avancado daqui embaixo usa, com os valores reais
-// das etapas do Kanban (carregadas via listEtapas). Ver caso "estagio" novo em
-// utils/patients.js evalCond.
+// "Estagio" tambem existe no FIELD_META compartilhado com Segmentacoes
+// (data/seed.js, 05/08/2026) - mas la e' texto livre (nomes de etapa variam
+// por clinica, sem fetch nenhum). Aqui embaixo, com acesso direto a
+// listEtapas(), vale a pena sobrescrever com um dropdown de verdade das
+// etapas reais do Kanban - por isso o spread vem ANTES (senao a versao
+// generica ganhava por ultimo). Mesmo campo, mesmo caso em
+// utils/patients.js evalCond, so a LISTA DE OPCOES na UI e' diferente.
 function montarFiltroFieldMeta(camposCustomizados, etapas) {
   return {
-    estagio: { label: "Estágio", ops: ["é", "não é"], values: etapas.map((e) => e.nome) },
     ...montarFieldMeta(camposCustomizados),
+    estagio: { label: "Estágio", ops: ["é", "não é"], values: etapas.map((e) => e.nome) },
   };
 }
 

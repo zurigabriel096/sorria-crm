@@ -271,7 +271,7 @@ export function Segmentacoes({
                                   )}
                                 </span>
                               )
-                              : <>{fieldMeta[c.field]?.label || c.field} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{String(c.value)}</b></>}
+                              : <>{fieldMeta[c.field]?.label || c.field} {OP_LABEL[c.op]} <b style={{ color: T.ink }}>{c.op === "entre" ? `${c.value} e ${c.value2}` : String(c.value)}</b></>}
                           </span>
                         ))}
                       </span>
@@ -602,7 +602,9 @@ function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, on
                       const eraFaltam = c.op === "faltam";
                       const viraFaltam = novoOp === "faltam";
                       const value = viraFaltam && !eraFaltam ? 1 : (!viraFaltam && eraFaltam ? "" : c.value);
-                      setCond(gi, ci, { op: novoOp, value });
+                      const patch = { op: novoOp, value };
+                      if (novoOp === "entre" && c.value2 == null) patch.value2 = value;
+                      setCond(gi, ci, patch);
                     }} style={s.condSelect}>
                       {m.ops.map((o) => <option key={o} value={o}>{OP_LABEL[o]}</option>)}
                     </select>
@@ -610,6 +612,22 @@ function SegBuilder({ builder, setBuilder, tags, fieldMeta, patients, onSave, on
                       <span style={{ ...s.condSelect, display: "flex", alignItems: "center", color: T.inkSoft, background: "transparent", border: "none" }}>sem valor</span>
                     ) : c.op === "faltam" ? (
                       <input type="number" min={0} value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
+                    ) : c.op === "entre" ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input
+                          type={m.value === "date" ? "date" : "number"}
+                          value={c.value}
+                          onChange={(e) => setCond(gi, ci, { value: e.target.value })}
+                          style={{ ...s.condSelect, width: m.value === "date" ? 140 : 76 }}
+                        />
+                        <span style={{ fontSize: 12, color: T.inkSoft }}>e</span>
+                        <input
+                          type={m.value === "date" ? "date" : "number"}
+                          value={c.value2 ?? ""}
+                          onChange={(e) => setCond(gi, ci, { value2: e.target.value })}
+                          style={{ ...s.condSelect, width: m.value === "date" ? 140 : 76 }}
+                        />
+                      </span>
                     ) : m.value === "number" ? (
                       <input type="number" value={c.value} onChange={(e) => setCond(gi, ci, { value: e.target.value })} style={{ ...s.condSelect, width: 84 }} />
                     ) : m.value === "date" ? (

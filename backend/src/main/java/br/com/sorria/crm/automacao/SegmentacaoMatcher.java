@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,7 @@ public class SegmentacaoMatcher {
         String op = String.valueOf(condicao.get("op"));
         Object value = condicao.get("value");
 
-        if (field.startsWith("custom:")) return avaliarCondicaoCustomizada(contato, field, op, value);
+        if (field.startsWith("custom:")) return avaliarCondicaoCustomizada(contato, field, op, value, condicao.get("value2"));
 
         return switch (field) {
             case "financ" -> {
@@ -60,13 +61,20 @@ public class SegmentacaoMatcher {
                 if ("não está preenchido".equals(op)) yield contato.getInadimplenteDesde() == null;
                 if (contato.getInadimplenteDesde() == null) yield false;
                 long dias = ChronoUnit.DAYS.between(contato.getInadimplenteDesde(), LocalDate.now());
+                if ("entre".equals(op)) yield entreNumero(dias, value, condicao.get("value2"));
                 double comparado = paraNumero(value);
                 yield "maior".equals(op) ? dias > comparado : dias < comparado;
             }
+            // Data BRUTA de quando ficou inadimplente (distinto de "diasInadimplente"
+            // acima, que e' a contagem derivada) - pedido do Samuel (05/08/2026):
+            // expor TODO campo nativo do cadastro em Segmentacoes, nao so os
+            // Campos Personalizados.
+            case "inadimplenteDesde" -> avaliarData(contato.getInadimplenteDesde(), op, value, condicao.get("value2"));
             case "recencia" -> {
                 if ("está preenchido".equals(op)) yield contato.getRecencia() != null;
                 if ("não está preenchido".equals(op)) yield contato.getRecencia() == null;
                 int recencia = contato.getRecencia() != null ? contato.getRecencia() : 0;
+                if ("entre".equals(op)) yield entreNumero(recencia, value, condicao.get("value2"));
                 double comparado = paraNumero(value);
                 yield "maior".equals(op) ? recencia > comparado : recencia < comparado;
             }
@@ -78,6 +86,30 @@ public class SegmentacaoMatcher {
                 boolean contem = contato.getTags() != null && contato.getTags().contains(String.valueOf(value));
                 yield "contém".equals(op) ? contem : !contem;
             }
+            case "nome" -> avaliarTexto(contato.getNome(), op, value);
+            case "telefone" -> avaliarTexto(contato.getTelefone(), op, value);
+            case "email" -> avaliarTexto(contato.getEmail(), op, value);
+            case "cod" -> avaliarTexto(contato.getCod(), op, value);
+            case "dentista" -> avaliarTexto(contato.getDentista(), op, value);
+            case "origem" -> avaliarTexto(contato.getOrigem(), op, value);
+            case "ultimaMensagemTexto" -> avaliarTexto(contato.getUltimaMensagemTexto(), op, value);
+            // Nomes de estagio sao livres (colunas do Kanban) - "e"/"nao e" bate
+            // exato, contem/nao contem tolera digitacao diferente.
+            case "estagio" -> {
+                if ("está preenchido".equals(op)) yield !vazio(contato.getEstagio());
+                if ("não está preenchido".equals(op)) yield vazio(contato.getEstagio());
+                if ("é".equals(op)) yield igual(contato.getEstagio(), value);
+                if ("não é".equals(op)) yield !igual(contato.getEstagio(), value);
+                yield avaliarTexto(contato.getEstagio(), op, value);
+            }
+            case "ultimaMensagemDirecao" -> {
+                if ("está preenchido".equals(op)) yield !vazio(contato.getUltimaMensagemDirecao());
+                if ("não está preenchido".equals(op)) yield vazio(contato.getUltimaMensagemDirecao());
+                yield "é".equals(op) ? igual(contato.getUltimaMensagemDirecao(), value) : !igual(contato.getUltimaMensagemDirecao(), value);
+            }
+            case "ultimaMensagemEm" -> avaliarDataHora(contato.getUltimaMensagemEm(), op, value, condicao.get("value2"));
+            case "proximaAcaoEm" -> avaliarDataHora(contato.getProximaAcaoEm(), op, value, condicao.get("value2"));
+            case "criadoEm" -> avaliarDataHora(contato.getCriadoEm(), op, value, condicao.get("value2"));
             // Lista fixa de ids (ex.: "Selecionar numero pra disparo" em
             // Segmentacoes) - value e' uma lista de ids, nao um valor unico.
             case "id" -> value instanceof List<?> ids && ids.stream().anyMatch(v -> paraNumero(v) == contato.getId());
@@ -89,7 +121,7 @@ public class SegmentacaoMatcher {
     // (ver frontend/src/data/seed.js montarFieldMeta) - o nome do campo pode
     // conter ":", por isso o split com limite 3 (o resto sobra inteiro na
     // 3a posicao, igual ao `resto.join(":")` do lado JS).
-    private boolean avaliarCondicaoCustomizada(Contato contato, String field, String op, Object value) {
+    private boolean avaliarCondicaoCustomizada(Contato contato, String field, String op, Object value, Object value2) {
         String[] partes = field.split(":", 3);
         if (partes.length < 3) return false;
         String tipo = partes[1];
@@ -102,6 +134,7 @@ public class SegmentacaoMatcher {
         return switch (tipo) {
             case "NUMERO", "MOEDA" -> {
                 double atual = paraNumero(valor);
+                if ("entre".equals(op)) yield entreNumero(atual, value, value2);
                 double comparado = paraNumero(value);
                 yield "maior".equals(op) ? atual > comparado : atual < comparado;
             }
@@ -116,7 +149,13 @@ public class SegmentacaoMatcher {
                     long diasRestantes = ChronoUnit.DAYS.between(LocalDate.now(), atual);
                     yield diasRestantes == (long) paraNumero(value);
                 }
-                LocalDate comparado = paraData(value != null ? String.valueOf(value) : null);
+                if ("entre".equals(op)) {
+                    LocalDate a = paraData(textoOuNull(value)), b = paraData(textoOuNull(value2));
+                    if (a == null || b == null) yield false;
+                    LocalDate ini = a.isBefore(b) ? a : b, fim = a.isBefore(b) ? b : a;
+                    yield !atual.isBefore(ini) && !atual.isAfter(fim);
+                }
+                LocalDate comparado = paraData(textoOuNull(value));
                 if (comparado == null) yield false;
                 yield "maior".equals(op) ? atual.isAfter(comparado) : atual.isBefore(comparado);
             }
@@ -126,6 +165,54 @@ public class SegmentacaoMatcher {
                 yield "contém".equals(op) ? contem : !contem;
             }
         };
+    }
+
+    // Campo TEXTO nativo (nome/telefone/email/etc.) - mesma semantica de
+    // tag/custom TEXTO (contem/nao contem cobrem vazio, preenchido fica
+    // disponivel mesmo assim pra quem preferir ser explicito).
+    private boolean avaliarTexto(String valor, String op, Object value) {
+        if ("está preenchido".equals(op)) return !vazio(valor);
+        if ("não está preenchido".equals(op)) return vazio(valor);
+        boolean contem = valor != null && valor.toLowerCase().contains(String.valueOf(value).toLowerCase());
+        return "contém".equals(op) ? contem : !contem;
+    }
+
+    // Campo DATA/DATA-HORA nativo (ultimaMensagemEm/proximaAcaoEm/criadoEm/
+    // inadimplenteDesde) - "entre" e "faltam" com a mesma semantica do campo
+    // customizado DATA (avaliarCondicaoCustomizada), so lendo direto do campo
+    // tipado do Contato em vez de camposCustomizados.
+    private boolean avaliarDataHora(LocalDateTime valor, String op, Object value, Object value2) {
+        if ("está preenchido".equals(op)) return valor != null;
+        if ("não está preenchido".equals(op)) return valor == null;
+        if (valor == null) return false;
+        LocalDate atual = valor.toLocalDate();
+        if ("faltam".equals(op)) {
+            long diasRestantes = ChronoUnit.DAYS.between(LocalDate.now(), atual);
+            return diasRestantes == (long) paraNumero(value);
+        }
+        LocalDate comparado = paraData(textoOuNull(value));
+        if (comparado == null) return false;
+        if ("entre".equals(op)) {
+            LocalDate comparado2 = paraData(textoOuNull(value2));
+            if (comparado2 == null) return false;
+            LocalDate ini = comparado.isBefore(comparado2) ? comparado : comparado2;
+            LocalDate fim = comparado.isBefore(comparado2) ? comparado2 : comparado;
+            return !atual.isBefore(ini) && !atual.isAfter(fim);
+        }
+        return "maior".equals(op) ? atual.isAfter(comparado) : atual.isBefore(comparado);
+    }
+
+    private boolean avaliarData(LocalDate valor, String op, Object value, Object value2) {
+        return avaliarDataHora(valor != null ? valor.atStartOfDay() : null, op, value, value2);
+    }
+
+    private static boolean entreNumero(double atual, Object value, Object value2) {
+        double a = paraNumero(value), b = paraNumero(value2);
+        return atual >= Math.min(a, b) && atual <= Math.max(a, b);
+    }
+
+    private static String textoOuNull(Object valor) {
+        return valor != null ? String.valueOf(valor) : null;
     }
 
     private static boolean igual(String atual, Object esperado) {

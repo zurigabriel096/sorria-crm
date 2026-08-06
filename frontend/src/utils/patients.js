@@ -10,19 +10,68 @@ import { HOJE } from "../theme";
 // resolvem isso via contem/nao contem).
 const vazio = (valor) => valor === undefined || valor === null || String(valor).trim() === "";
 
+// Compara "atual" com o intervalo [c.value, c.value2] (operador "entre",
+// 05/08/2026) - aceita os dois valores em qualquer ordem (nao exige que o
+// usuario digite o menor primeiro).
+const entreNumero = (atual, c) => atual >= Math.min(+c.value, +c.value2) && atual <= Math.max(+c.value, +c.value2);
+
+// Texto livre (nome/telefone/email/etc.) - mesmo padrao de tag/custom TEXTO:
+// contém/não contém cobrem o caso vazio, mas "está preenchido"/"não está
+// preenchido" tambem ficam disponiveis pra quem quiser ser explicito.
+function evalCondTexto(valor, c) {
+  if (c.op === "está preenchido") return !vazio(valor);
+  if (c.op === "não está preenchido") return vazio(valor);
+  const contem = String(valor || "").toLowerCase().includes(String(c.value || "").toLowerCase());
+  return c.op === "contém" ? contem : !contem;
+}
+
+// Campo de DATA nativo (ultimaMensagemEm/proximaAcaoEm/inadimplenteDesde/
+// criadoEm) - mesma semantica de custom DATA (evalCondCustomizado), so que
+// lendo direto do campo tipado em vez de camposCustomizados.
+function evalCondData(valorBruto, c) {
+  if (c.op === "está preenchido") return !vazio(valorBruto);
+  if (c.op === "não está preenchido") return vazio(valorBruto);
+  if (c.op === "faltam") {
+    if (vazio(valorBruto)) return false;
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const dataCampo = new Date(valorBruto); dataCampo.setHours(0, 0, 0, 0);
+    const diasRestantes = Math.round((dataCampo.getTime() - hoje.getTime()) / 864e5);
+    return diasRestantes === +c.value;
+  }
+  if (vazio(valorBruto)) return false;
+  const atual = new Date(valorBruto);
+  if (c.op === "entre") {
+    const a = new Date(c.value), b = new Date(c.value2);
+    const [ini, fim] = a <= b ? [a, b] : [b, a];
+    return atual >= ini && atual <= fim;
+  }
+  return c.op === "maior" ? atual > new Date(c.value) : atual < new Date(c.value);
+}
+
 function evalCondCustomizado(p, c) {
   const [, tipo, ...resto] = c.field.split(":");
   const nome = resto.join(":");
   const valor = p.camposCustomizados?.[nome];
   if (c.op === "está preenchido") return !vazio(valor);
   if (c.op === "não está preenchido") return vazio(valor);
-  if (tipo === "NUMERO" || tipo === "MOEDA") return c.op === "maior" ? (Number(valor) || 0) > +c.value : (Number(valor) || 0) < +c.value;
+  if (tipo === "NUMERO" || tipo === "MOEDA") {
+    const atual = Number(valor) || 0;
+    if (c.op === "entre") return entreNumero(atual, c);
+    return c.op === "maior" ? atual > +c.value : atual < +c.value;
+  }
   if (tipo === "DATA" && c.op === "faltam") {
     if (vazio(valor)) return false;
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const dataCampo = new Date(`${valor}T00:00:00`);
     const diasRestantes = Math.round((dataCampo.getTime() - hoje.getTime()) / 864e5);
     return diasRestantes === +c.value;
+  }
+  if (tipo === "DATA" && c.op === "entre") {
+    if (vazio(valor)) return false;
+    const atual = new Date(valor);
+    const a = new Date(c.value), b = new Date(c.value2);
+    const [ini, fim] = a <= b ? [a, b] : [b, a];
+    return atual >= ini && atual <= fim;
   }
   if (tipo === "DATA") return c.op === "maior" ? new Date(valor || 0) > new Date(c.value) : new Date(valor || 0) < new Date(c.value);
   if (tipo === "LISTA") return c.op === "é" ? valor === c.value : valor !== c.value;
@@ -42,18 +91,41 @@ export function evalCond(p, c) {
       if (c.op === "não está preenchido") return !p.inadimplenteDesde;
       if (!p.inadimplenteDesde) return false;
       const dias = Math.floor((Date.now() - new Date(p.inadimplenteDesde).getTime()) / 864e5);
+      if (c.op === "entre") return entreNumero(dias, c);
       return c.op === "maior" ? dias > +c.value : dias < +c.value;
     }
-    case "recencia":
+    case "inadimplenteDesde": return evalCondData(p.inadimplenteDesde, c);
+    case "recencia": {
+      const recencia = p.recencia || 0;
       if (c.op === "está preenchido") return p.recencia != null;
       if (c.op === "não está preenchido") return p.recencia == null;
-      return c.op === "maior" ? (p.recencia || 0) > +c.value : (p.recencia || 0) < +c.value;
+      if (c.op === "entre") return entreNumero(recencia, c);
+      return c.op === "maior" ? recencia > +c.value : recencia < +c.value;
+    }
     case "elegivel": { const y = c.value === "Sim"; return c.op === "é" ? p.elegivel === y : p.elegivel !== y; }
     case "tag": return c.op === "contém" ? (p.tags || []).includes(c.value) : !(p.tags || []).includes(c.value);
-    // Nao entra no fieldMeta compartilhado de Segmentacoes (data/seed.js) de
-    // proposito - so o filtro avancado da Base de Leads usa (ver Pacientes.jsx),
-    // que monta o proprio meta local com "estagio" incluido.
-    case "estagio": return c.op === "é" ? p.estagio === c.value : p.estagio !== c.value;
+    case "nome": return evalCondTexto(p.nome, c);
+    case "telefone": return evalCondTexto(p.tel, c);
+    case "email": return evalCondTexto(p.email, c);
+    case "cod": return evalCondTexto(p.cod, c);
+    case "dentista": return evalCondTexto(p.dentista, c);
+    case "origem": return evalCondTexto(p.origem, c);
+    case "ultimaMensagemTexto": return evalCondTexto(p.ultimaMensagemTexto, c);
+    // Nomes de estagio sao livres (colunas do Kanban) - aceita "é"/"não é"
+    // (bate exato) alem de contém/não contém (tolera digitação diferente).
+    case "estagio":
+      if (c.op === "está preenchido") return !vazio(p.estagio);
+      if (c.op === "não está preenchido") return vazio(p.estagio);
+      if (c.op === "é") return p.estagio === c.value;
+      if (c.op === "não é") return p.estagio !== c.value;
+      return evalCondTexto(p.estagio, c);
+    case "ultimaMensagemDirecao":
+      if (c.op === "está preenchido") return !vazio(p.ultimaMensagemDirecao);
+      if (c.op === "não está preenchido") return vazio(p.ultimaMensagemDirecao);
+      return c.op === "é" ? p.ultimaMensagemDirecao === c.value : p.ultimaMensagemDirecao !== c.value;
+    case "ultimaMensagemEm": return evalCondData(p.ultimaMensagemEm, c);
+    case "proximaAcaoEm": return evalCondData(p.proximaAcaoEm, c);
+    case "criadoEm": return evalCondData(p.criadoEm, c);
     // Lista fixa de ids (ex.: "Selecionar numero pra disparo" em Segmentacoes)
     // - value e' um array de ids, nao um valor unico igual as outras condicoes.
     case "id": return (c.value || []).includes(p.id);
