@@ -12,11 +12,17 @@ import java.util.Optional;
 public interface MensagemRepository extends JpaRepository<Mensagem, Long> {
     List<Mensagem> findByContatoIdOrderByCriadoEmAsc(Long contatoId);
 
+    // Dedup de webhook reentregue (ver MensagemService.registrarEntrada) - a
+    // Evolution pode reenviar o mesmo evento durante oscilacao/reconexao da
+    // instancia.
+    boolean existsByMensagemExternaId(String mensagemExternaId);
+
     // Base do no "condicao" (AutomacaoEngineService.resolverHandleCondicao): avalia
     // as condicoes contra o TEXTO da ultima mensagem que o lead mandou de verdade.
     Optional<Mensagem> findFirstByContatoIdAndDirecaoOrderByCriadoEmDesc(Long contatoId, String direcao);
 
-    // Base do Agente Virtual (AgenteVirtualService.processarPendentes): pega
+    // Base do gatilho "Mensagem recebida" da Automacao (ver
+    // AutomacaoEngineService.processarEntradaPorMensagemRecebida): pega
     // todas as mensagens de hoje pra agrupar por contato em memoria e achar
     // quem mandou a primeira mensagem do dia e ainda nao teve nenhuma SAIDA
     // depois dela.

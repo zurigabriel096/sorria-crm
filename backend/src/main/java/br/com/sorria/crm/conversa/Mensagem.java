@@ -50,6 +50,12 @@ public class Mensagem {
     @Column(length = 4000)
     private String payloadBrutoMidia;
 
+    // ID da mensagem no provedor (Info.ID do payload da Evolution), quando o
+    // webhook trouxe um - usado pra detectar reentrega duplicada do mesmo
+    // evento (ver MensagemService.registrarEntrada). Null pra SAIDA e pra
+    // ENTRADA cujo payload nao trouxe um id reconhecido.
+    private String mensagemExternaId;
+
     private LocalDateTime criadoEm;
 
     @PrePersist

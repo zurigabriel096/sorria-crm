@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,16 @@ public class MensagemService {
     // PERGUNTA_NOME, nao como uma mensagem qualquer (ver registrarEntrada).
     private static final String LEAD_SEM_NOME = "Novo contato (WhatsApp)";
     private static final String PERGUNTA_NOME = "Oi! 🙂 Antes de continuar, qual é o seu nome?";
+    // Aplicada sempre que o nome vem da captacao automatica (sem confirmacao
+    // humana) - permite campanha pontual depois pra confirmar/completar o
+    // cadastro de verdade (pedido do Samuel, 05/08/2026).
+    private static final String TAG_CADASTRO_INCOMPLETO = "Cadastro incompleto (nome via WhatsApp)";
+    // Janela de tolerancia pra tratar um ENTRADA como reentrega duplicada do
+    // mesmo webhook (mesmo contato + mesmo texto ha pouco tempo) - rede de
+    // seguranca pro caso do payload nao trazer id de mensagem reconhecido
+    // (ver idDoPayload). Instancia oscilando/reconectando e' o cenario tipico
+    // de reentrega (05/08/2026 - "ola" duplicado virou nome do contato).
+    private static final Duration JANELA_DEDUP_WEBHOOK = Duration.ofSeconds(90);
 
     private final MensagemRepository mensagemRepository;
     private final ContatoRepository contatoRepository;
@@ -163,6 +174,15 @@ public class MensagemService {
             return;
         }
 
+        // Dedup por id de mensagem do provedor - reentrega exata do MESMO evento
+        // (mesmo id) e' descartada aqui, antes de qualquer efeito (criar contato,
+        // capturar nome, etc.).
+        String mensagemExternaId = idDoPayload(info);
+        if (!mensagemExternaId.isBlank() && mensagemRepository.existsByMensagemExternaId(mensagemExternaId)) {
+            log.info("Webhook Evolution ignorado (reentrega duplicada, id={})", mensagemExternaId);
+            return;
+        }
+
         String telefone = sender.split("[:@]")[0].replaceAll("\\D", "");
         List<Contato> encontrados = contatoRepository.findByTelefone(telefone);
         Contato contato;
@@ -171,8 +191,8 @@ public class MensagemService {
             contatoRecemCriado = true;
             // Numero desconhecido manda mensagem espontanea - cria lead novo em vez
             // de descartar (antes a mensagem nem era gravada, so um log). Nome fica
-            // generico ate o Agente Virtual (ou um humano) perguntar e preencher de
-            // verdade. Volume real de mensagem espontanea e' baixo (poucas por dia,
+            // generico ate a proxima resposta ser capturada como nome (ou um humano
+            // preencher direto). Volume real de mensagem espontanea e' baixo (poucas por dia,
             // transacional) - risco de "spam virar lead" e' aceitavel nesse volume
             // (decisao explicita do Samuel, 04/08/2026).
             ResultadoImportacaoLinha resultado = contatoService.importarLinha(new ContatoDTO(
@@ -194,6 +214,24 @@ public class MensagemService {
             contato = encontrados.get(0);
         }
 
+        // Rede de seguranca pro caso o payload nao trazer id de mensagem
+        // reconhecido (idDoPayload vazio): se o MESMO texto ja chegou como
+        // ENTRADA pra esse contato ha pouco tempo, e' quase certo reentrega do
+        // mesmo webhook (nao uma segunda mensagem de verdade) - ignora antes de
+        // interpretar como resposta ao nome.
+        if (!contatoRecemCriado) {
+            boolean duplicadoRecente = mensagemRepository
+                    .findFirstByContatoIdAndDirecaoOrderByCriadoEmDesc(contato.getId(), ENTRADA)
+                    .filter(m -> texto.equals(m.getTexto()))
+                    .filter(m -> m.getCriadoEm().isAfter(LocalDateTime.now().minus(JANELA_DEDUP_WEBHOOK)))
+                    .isPresent();
+            if (duplicadoRecente) {
+                log.info("Webhook Evolution ignorado (mesmo texto \"{}\" recebido ha menos de {}s pro contato {} - provavel reentrega)",
+                        texto, JANELA_DEDUP_WEBHOOK.toSeconds(), contato.getId());
+                return;
+            }
+        }
+
         // Captacao de nome (sem IA, so estado): a ENTRADA que CRIA o contato
         // nunca vira nome (ainda nao perguntamos nada) - so a proxima ENTRADA de
         // um contato que segue com LEAD_SEM_NOME e' tratada como resposta a
@@ -212,12 +250,14 @@ public class MensagemService {
         mensagem.setDirecao(ENTRADA);
         mensagem.setTexto(texto);
         mensagem.setPayloadBrutoMidia(payloadBrutoMidia);
+        mensagem.setMensagemExternaId(mensagemExternaId.isBlank() ? null : mensagemExternaId);
         Mensagem salva = mensagemRepository.save(mensagem);
         atualizarUltimaMensagem(contato, salva);
         retomarExecucoesAguardandoResposta(contato.getId());
 
         if (nomeCapturadoAgora) {
             log.info("Webhook Evolution: nome capturado via resposta espontanea pro contato {}: \"{}\"", contato.getId(), contato.getNome());
+            contatoService.adicionarTag(contato.getId(), TAG_CADASTRO_INCOMPLETO);
             enviarMensagemDeSistema(contato, "Prazer, " + primeiroNome(contato.getNome()) + "! 😊");
         } else if (eraLeadSemNome) {
             // Ainda sem nome (resposta rejeitada pela guarda de tamanho, ou essa
@@ -257,10 +297,22 @@ public class MensagemService {
         return nomeCompleto.trim().split("\\s+")[0];
     }
 
+    // Tenta achar o id da mensagem dentro de "Info" (nome exato do campo nao
+    // confirmado - variantes conhecidas do formato whatsmeow/Evolution Go
+    // testadas em ordem). Retorna "" quando nenhuma bate - a dedup por
+    // conteudo (JANELA_DEDUP_WEBHOOK) cobre esse caso.
+    private static String idDoPayload(Map<String, Object> info) {
+        for (String chave : new String[]{"ID", "Id", "id"}) {
+            Object valor = info.get(chave);
+            if (valor != null && !String.valueOf(valor).isBlank()) return String.valueOf(valor);
+        }
+        return "";
+    }
+
     // Fase 4 do motor de automacao: uma resposta de verdade do lead retoma
     // qualquer ExecucaoFluxo parada no no "aguardar_mensagem" - so muda o
     // status/proximaExecucaoEm aqui, quem realmente avanca o no e' o proximo
-    // tick do AutomacaoEngineService.executar() (@Scheduled a cada 30s).
+    // tick do AutomacaoEngineService.executar() (@Scheduled a cada 10s).
     private void retomarExecucoesAguardandoResposta(Long contatoId) {
         List<ExecucaoFluxo> paradas = execucaoFluxoRepository.findByContatoIdAndStatus(contatoId, "aguardando_resposta");
         if (paradas.isEmpty()) return;
