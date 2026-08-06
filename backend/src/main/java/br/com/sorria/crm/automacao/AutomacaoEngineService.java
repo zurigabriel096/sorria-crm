@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -38,12 +39,12 @@ import java.util.stream.Collectors;
 // rodar assim que o Render sobe essa versao. Fase 5 (corte de seguranca): FluxoAutomacao.contatoTesteId,
 // quando preenchido, restringe o fluxo a rodar so pra esse contato - ver processarEntradaDeUmFluxo.
 //
-// Desenho: um "tick" a cada 30s (nao @Transactional na classe de proposito - o pacing entre envios
-// de mensagem usa Thread.sleep, igual ao CampanhaService.disparar, e uma transacao segurando
-// conexao de banco durante o sleep e' exatamente o problema que aquele comentario evita) avanca no
-// MAXIMO um no do grafo por execucao por tick. Isso da uma cadencia natural (~30s entre passos de
-// um mesmo contato) sem precisar de fila/thread pool proprio - simples o bastante pra uma primeira
-// versao, mais lento que um motor "de verdade" mas seguro por padrao.
+// Desenho: um "tick" a cada 10s avanca no MAXIMO um no do grafo por execucao por tick. O pacing
+// entre envios de mensagem (Thread.sleep, igual ao CampanhaService.disparar) NAO roda mais nessa
+// thread - vai pra envioWhatsAppExecutor (SchedulingConfig), uma fila de 1 thread separada, pra um
+// tick com varias mensagens pendentes nao ficar preso minutos esperando o pacing de cada uma antes
+// de conseguir decidir o resto (causa do atraso de ~6min visto no teste do fluxo "teste", 05/08/2026).
+// O pacing em si continua serializado (nao manda rajada pro mesmo numero), so mudou de thread.
 //
 // Simplificacoes conscientes (documentadas, nao esquecidas):
 // - "entrada.modoEntrada" ("futuros" vs "futurosEExistentes") nao e' diferenciado - Contato nao tem
@@ -89,8 +90,9 @@ public class AutomacaoEngineService {
     private final MensagemRepository mensagemRepository;
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final ObjectMapper objectMapper;
+    private final ExecutorService envioWhatsAppExecutor;
 
-    @Scheduled(fixedDelay = 30_000)
+    @Scheduled(fixedDelay = 10_000)
     public void executar() {
         processarEntradas();
         processarAvancos();
@@ -150,9 +152,9 @@ public class AutomacaoEngineService {
     // Gatilho por EVENTO (mensagem recebida) em vez de atributo (segmentacao) -
     // pedido do Samuel (05/08/2026) pra migrar a logica do Agente Virtual ("1a
     // mensagem do dia sem resposta") pra dentro da Automacao, com acesso a
-    // Condicao/tags/estagio de verdade dali pra frente. Espelha
-    // AgenteVirtualService.processarPendentes, so que cria ExecucaoFluxo em vez
-    // de mandar a resposta direto. Filtro de Segmentacao opcional (ex.: so quem
+    // Condicao/tags/estagio de verdade dali pra frente (Agente Virtual foi
+    // removido depois que essa migracao ficou pronta - 05/08/2026). Cria
+    // ExecucaoFluxo em vez de mandar a resposta direto. Filtro de Segmentacao opcional (ex.: so quem
     // tem um Campo Personalizado com determinado valor) - cobre o pedido de
     // "condicionamento de campo personalizado" sem precisar de UI nova, reusa
     // a Segmentacao que ja existe.
@@ -313,7 +315,18 @@ public class AutomacaoEngineService {
         Object textoBruto = data.get("texto");
         String texto = textoBruto != null ? String.valueOf(textoBruto) : null;
         if (texto != null && !texto.isBlank()) {
-            enviarMensagemComPacing(fluxo, contato, SubstituicaoVariaveis.aplicar(texto, contato));
+            // Envio + pacing rodam na fila separada (envioWhatsAppExecutor) - o
+            // proximo passo do grafo (proximaExecucaoEm, calculado abaixo a partir
+            // do "atraso" configurado) nao depende do envio ja ter terminado.
+            String textoFinal = SubstituicaoVariaveis.aplicar(texto, contato);
+            envioWhatsAppExecutor.submit(() -> {
+                try {
+                    enviarMensagemComPacing(fluxo, contato, textoFinal);
+                } catch (Exception e) {
+                    log.error("Falha ao enviar mensagem da automacao (fluxo {}, contato {}): {}",
+                            fluxo.getId(), contato.getId(), e.getMessage(), e);
+                }
+            });
         }
         Map<String, Object> atraso = comoMapa(data.get("atraso"));
         long segundosAtraso = comoInteiro(atraso.get("dias"), 0) * 86400L
