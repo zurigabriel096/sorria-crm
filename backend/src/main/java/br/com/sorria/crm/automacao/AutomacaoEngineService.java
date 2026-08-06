@@ -70,12 +70,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AutomacaoEngineService {
 
-    // Mesmo PISO do CampanhaService.disparar (elevado de 3s pra 50s em 04/08/2026, apos a
-    // automacao virar canal principal e reduzir volume/velocidade de disparo em massa) -
-    // sem campo de "intervaloSegundos" configuravel por fluxo ainda (diferente de Campanha),
-    // entao fica fixo no piso, com jitter de ate 40% entre cada mensagem de WhatsApp
-    // enviada no mesmo tick, pra nao mandar uma rajada de mensagens identicas em sequencia.
-    private static final int INTERVALO_PACING_SEGUNDOS = 50;
+    // Piso elevado de 50s pra 60s (06/08/2026, pedido do Samuel pra disparo de 115
+    // pessoas de uma vez: "espacado em 1 minuto e dinamico") - "dinamico" e' o jitter
+    // de ate 40% que já existia (varia 60-84s entre mensagens, nunca um intervalo
+    // robotico fixo). Sem campo de "intervaloSegundos" configuravel por fluxo ainda
+    // (diferente de Campanha), entao fica fixo no piso pra TODO fluxo de Automacao -
+    // pra 115 pessoas nesse ritmo, o disparo completo leva ~2h (115 x ~70s medio).
+    private static final int INTERVALO_PACING_SEGUNDOS = 60;
 
     private final FluxoAutomacaoRepository fluxoAutomacaoRepository;
     private final ExecucaoFluxoRepository execucaoFluxoRepository;
