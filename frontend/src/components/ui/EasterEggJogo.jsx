@@ -29,7 +29,7 @@ const JOGO_HTML = `
 <div id="ortho-wrap">
   <div id="ortho-stage">
     <canvas id="ortho-canvas" width="600" height="150"></canvas>
-    <div id="ortho-badge">Sorr.ia · dados salvos no servidor</div>
+    <div id="ortho-badge">Sorria · dados salvos no servidor</div>
   </div>
 </div>
 
@@ -71,7 +71,7 @@ const JOGO_HTML = `
 
   function triggerEasterEgg(){
     eggActive = true;
-    badge.textContent = 'conectando ao Sorr.ia CRM...';
+    badge.textContent = 'conectando ao Sorria CRM...';
     confetti = [];
     for(var i=0;i<60;i++){
       confetti.push({
@@ -91,7 +91,7 @@ const JOGO_HTML = `
         'width='+pw+',height='+ph+',left='+left+',top='+top+',noopener'
       );
       eggActive = false;
-      badge.textContent = 'Sorr.ia · dados salvos no servidor';
+      badge.textContent = 'Sorria · dados salvos no servidor';
       confetti = [];
     }, 1500);
   }

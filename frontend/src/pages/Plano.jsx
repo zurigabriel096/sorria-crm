@@ -66,7 +66,7 @@ export function Plano({ showToast, usuario }) {
       <div style={s.planHero}>
         <div>
           <div style={{ fontSize: 13, opacity: .85 }}>Plano contratado</div>
-          <div style={{ fontSize: 22, fontWeight: 800 }}>Sorr.ia · {brl(PRECOS.mensalidade)}/mês</div>
+          <div style={{ fontSize: 22, fontWeight: 800 }}>Sorria · {brl(PRECOS.mensalidade)}/mês</div>
           <div style={{ fontSize: 13, opacity: .9, marginTop: 2 }}>Cobrança mensal recorrente · sem fidelidade</div>
         </div>
         <button style={s.planUpgrade} onClick={() => showToast("Abrindo planos...", "ok")}>Ver planos →</button>

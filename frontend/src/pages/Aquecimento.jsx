@@ -6,7 +6,7 @@ import { Field } from "../components/ui/Field";
 import { dataHora } from "../utils/format";
 import { getAquecimentoConfig, setAquecimentoConfig, getAquecimentoStatus } from "../api/aquecimento";
 
-// "Sorr.ia Protect" - troca mensagem de verdade entre numeros dedicados a
+// "Sorria Protect" - troca mensagem de verdade entre numeros dedicados a
 // aquecimento (WhatsAppNumero.finalidade="AQUECIMENTO", cadastrados em
 // Config > Outros numeros), numa curva de volume crescente + intervalo
 // "ritmo humano" entre envios. NUNCA promete "sem bloqueio" - so reduz risco.
@@ -52,7 +52,7 @@ export function Aquecimento({ showToast, usuario }) {
   if (!souAdmin) {
     return (
       <div style={{ display: "grid", gap: 18, maxWidth: 820 }}>
-        <Card title="Sorr.ia Protect">
+        <Card title="Sorria Protect">
           <div style={{ fontSize: 14, color: T.inkSoft }}>
             Essa área é restrita ao administrador da conta.
           </div>
@@ -61,7 +61,7 @@ export function Aquecimento({ showToast, usuario }) {
     );
   }
 
-  if (!config || !status) return <div style={{ color: T.inkSoft, fontSize: 14, padding: "20px 0" }}>Carregando Sorr.ia Protect...</div>;
+  if (!config || !status) return <div style={{ color: T.inkSoft, fontSize: 14, padding: "20px 0" }}>Carregando Sorria Protect...</div>;
 
   return (
     <div style={{ display: "grid", gap: 18, maxWidth: 820 }}>
@@ -78,7 +78,7 @@ export function Aquecimento({ showToast, usuario }) {
             disabled={salvando}
             style={{ ...s.btnPrimarySm, background: config.ativo ? T.coral : T.primary }}
           >
-            {config.ativo ? "Desligar" : "Ligar"} o Sorr.ia Protect
+            {config.ativo ? "Desligar" : "Ligar"} o Sorria Protect
           </button>
           <span style={{ ...s.tagOk, ...(config.ativo ? {} : { color: T.inkSoft, background: T.lineSoft }) }}>
             {config.ativo ? "● Ativo — trocando mensagem de verdade" : "● Inativo"}

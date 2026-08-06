@@ -16,7 +16,7 @@ export function NomeFluxoModal({ aberto, nomeAtual, onFechar, onConfirmar }) {
       aberto={aberto}
       onFechar={onFechar}
       titulo="Editar nome do fluxo"
-      subtitulo="Utilize um nome de fácil memorização. Ele será utilizado para sua identificação dentro do Sorr.ia CRM."
+      subtitulo="Utilize um nome de fácil memorização. Ele será utilizado para sua identificação dentro do Sorria CRM."
       rodape={
         <>
           <button

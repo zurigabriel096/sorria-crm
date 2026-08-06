@@ -367,7 +367,7 @@ function OutrosNumerosCard({ showToast, souAdmin }) {
             <Field label="Finalidade">
               <select style={{ ...s.select, width: "100%" }} value={finalidade} onChange={(e) => setFinalidade(e.target.value)}>
                 <option value="DISPARO">Disparo (campanhas normais)</option>
-                <option value="AQUECIMENTO">Aquecimento (Sorr.ia Protect — nunca dispara campanha)</option>
+                <option value="AQUECIMENTO">Aquecimento (Sorria Protect — nunca dispara campanha)</option>
               </select>
             </Field>
             <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: T.inkSoft }}>

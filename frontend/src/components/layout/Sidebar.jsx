@@ -37,7 +37,7 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
   // ADMIN/GESTOR - ver App.jsx viewInicialPara. Antes so dava pra voltar
   // pra la deslogando e logando de novo, sem nenhuma entrada de menu.
   const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
-  // "Sorr.ia Protect" mexe em infraestrutura de WhatsApp em nome da clinica -
+  // "Sorria Protect" mexe em infraestrutura de WhatsApp em nome da clinica -
   // visivel pra todo colaborador (pedido explicito), mas so ADMIN consegue de
   // fato ver a configuracao e editar dentro da tela (Aquecimento.jsx bloqueia
   // pra quem nao e' ADMIN). "true" no fim do item = destaque visual (grifado).
@@ -45,7 +45,7 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
   // pra dentro da Automacao (gatilho "Mensagem recebida").
   const itemsComProtect = [
     ...ITEMS_BASE.slice(0, -1),
-    ["aquecimento", "Sorr.ia Protect", IconShield, true],
+    ["aquecimento", "Sorria Protect", IconShield, true],
     ITEMS_BASE[ITEMS_BASE.length - 1],
   ];
   const ITEMS = souAdminOuGestor ? itemsComProtect : [["inicio", "Início", IconHome], ...itemsComProtect];

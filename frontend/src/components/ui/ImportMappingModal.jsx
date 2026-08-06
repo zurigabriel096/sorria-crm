@@ -133,7 +133,7 @@ export function ImportMappingModal({ file, onClose, onConfirmar, showToast, camp
       ) : (
         <>
           <p style={{ fontSize: 13, color: T.inkSoft, marginBottom: 16 }}>
-            Pra cada informação do Sorr.ia, escolha qual coluna da sua planilha corresponde a ela.
+            Pra cada informação do Sorria, escolha qual coluna da sua planilha corresponde a ela.
             O que não existir na planilha, deixe em "Ignorar".
           </p>
           <div style={{ display: "grid", gap: 2, maxHeight: 320, overflowY: "auto", paddingRight: 4 }}>

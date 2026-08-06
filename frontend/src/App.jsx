@@ -551,7 +551,7 @@ export default function App() {
         />
       )}
       {jogoAberto && <EasterEggJogo onClose={() => setJogoAberto(false)} />}
-      <span style={{ ...s.protoTag, cursor: "pointer" }} onClick={cliqueSeloProto}>Sorr.ia · dados salvos no servidor</span>
+      <span style={{ ...s.protoTag, cursor: "pointer" }} onClick={cliqueSeloProto}>Sorria · dados salvos no servidor</span>
     </div>
   );
 }
