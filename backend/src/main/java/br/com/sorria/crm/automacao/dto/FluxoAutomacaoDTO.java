@@ -18,6 +18,10 @@ public record FluxoAutomacaoDTO(
         // Corte de seguranca (Fase 5) - ver FluxoAutomacao.contatoTesteId.
         Long contatoTesteId,
         // null = numero principal - ver FluxoAutomacao.whatsappNumeroId.
-        Long whatsappNumeroId
+        Long whatsappNumeroId,
+        // So refletido aqui pra leitura - so muda de verdade via PATCH .../arquivar
+        // (ver FluxoAutomacaoService.arquivar). Nao e' tocado por criar/atualizar
+        // de proposito, senao um simples salvar do editor desarquivava o fluxo.
+        Boolean arquivado
 ) {
 }

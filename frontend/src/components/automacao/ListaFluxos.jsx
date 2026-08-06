@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { T } from "../../theme";
 import { s } from "../../styles/s";
 import { Card } from "../ui/Card";
+import { DotMenu } from "../ui/DotMenu";
 import { IconZap } from "../icons";
 import { NomeFluxoModal } from "./NomeFluxoModal";
-import { listFluxos, createFluxo, deleteFluxo, ativarFluxo } from "../../api/automacoes";
+import { listFluxos, createFluxo, deleteFluxo, ativarFluxo, arquivarFluxo } from "../../api/automacoes";
 
 function noInicioPadrao() {
   return { id: "inicio", type: "start", position: { x: 60, y: 220 }, data: { entrada: null } };
@@ -14,6 +15,7 @@ export function ListaFluxos({ souAdmin, onAbrir, showToast, patients }) {
   const [fluxos, setFluxos] = useState(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [criando, setCriando] = useState(false);
+  const [verArquivados, setVerArquivados] = useState(false);
 
   const carregar = () => listFluxos().then(setFluxos).catch(() => setFluxos([]));
   useEffect(() => { carregar(); }, []);
@@ -31,13 +33,40 @@ export function ListaFluxos({ souAdmin, onAbrir, showToast, patients }) {
     }
   };
 
+  const duplicar = async (f) => {
+    try {
+      const novo = await createFluxo({
+        nome: `${f.nome} (cópia)`, ativo: false, nodes: f.nodes, edges: f.edges,
+        contatoTesteId: f.contatoTesteId || null, whatsappNumeroId: f.whatsappNumeroId || null,
+      });
+      setFluxos((lista) => [...lista, novo]);
+      showToast("Fluxo duplicado", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao duplicar fluxo", "warn");
+    }
+  };
+
+  // Pedido do Samuel (05/08/2026): excluir e' irreversivel (sem Ctrl+Z) e o
+  // clique acidental ja aconteceu de verdade - sempre confirma antes.
   const excluir = async (f) => {
+    if (!window.confirm(`Excluir o fluxo "${f.nome}"? Essa ação não pode ser desfeita.`)) return;
     try {
       await deleteFluxo(f.id);
       setFluxos((lista) => lista.filter((x) => x.id !== f.id));
       showToast("Fluxo excluído", "ok");
     } catch (e) {
       showToast(e.message || "Erro ao excluir fluxo", "warn");
+    }
+  };
+
+  const arquivar = async (f) => {
+    const vaiArquivar = !f.arquivado;
+    try {
+      const atualizado = await arquivarFluxo(f.id, vaiArquivar);
+      setFluxos((lista) => lista.map((x) => (x.id === f.id ? atualizado : x)));
+      showToast(vaiArquivar ? "Fluxo arquivado" : "Fluxo reativado", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao arquivar fluxo", "warn");
     }
   };
 
@@ -67,31 +96,49 @@ export function ListaFluxos({ souAdmin, onAbrir, showToast, patients }) {
     return <Card><div style={{ textAlign: "center", padding: 30, color: T.inkSoft }}>Carregando fluxos...</div></Card>;
   }
 
+  const listaFiltrada = fluxos.filter((f) => !!f.arquivado === verArquivados);
+
   return (
     <div style={{ display: "grid", gap: 14 }}>
-      <div style={{ ...s.toolbar, justifyContent: "flex-end" }}>
+      <div style={s.toolbar}>
+        <div style={s.toggle}>
+          <button style={{ ...s.toggleBtn, ...(!verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(false)}>Ativos</button>
+          <button style={{ ...s.toggleBtn, ...(verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(true)}>Arquivados</button>
+        </div>
+        <div style={{ flex: 1 }} />
         <button style={s.btnPrimarySm} onClick={() => setModalAberto(true)}>+ Novo fluxo</button>
       </div>
-      {!fluxos.length && (
+      {!listaFiltrada.length && (
         <Card>
-          <div style={{ display: "grid", placeItems: "center", padding: "50px 20px", textAlign: "center", gap: 14 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: T.primarySoft, display: "grid", placeItems: "center" }}>
-              <IconZap color={T.primary} />
+          {verArquivados ? (
+            <div style={{ textAlign: "center", padding: 20, color: T.inkSoft }}>Nenhum fluxo arquivado.</div>
+          ) : (
+            <div style={{ display: "grid", placeItems: "center", padding: "50px 20px", textAlign: "center", gap: 14 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 16, background: T.primarySoft, display: "grid", placeItems: "center" }}>
+                <IconZap color={T.primary} />
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: T.ink }}>Nenhum fluxo criado ainda</div>
+              <div style={{ fontSize: 13.5, color: T.inkSoft, maxWidth: 420, lineHeight: 1.5 }}>
+                Construtor visual de automações — triggers, mensagens, atrasos e ações conectados por linhas, pra montar jornadas de reativação sem depender de um modelo engessado.
+              </div>
+              <button style={s.btnPrimarySm} onClick={() => setModalAberto(true)}>+ Criar meu primeiro fluxo</button>
             </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: T.ink }}>Nenhum fluxo criado ainda</div>
-            <div style={{ fontSize: 13.5, color: T.inkSoft, maxWidth: 420, lineHeight: 1.5 }}>
-              Construtor visual de automações — triggers, mensagens, atrasos e ações conectados por linhas, pra montar jornadas de reativação sem depender de um modelo engessado.
-            </div>
-            <button style={s.btnPrimarySm} onClick={() => setModalAberto(true)}>+ Criar meu primeiro fluxo</button>
-          </div>
+          )}
         </Card>
       )}
       <div style={s.cardGrid}>
-        {fluxos.map((f) => (
+        {listaFiltrada.map((f) => (
           <div key={f.id} style={{ ...s.campCard, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ ...s.tagOk, ...(f.ativo ? {} : { color: T.inkSoft, background: T.lineSoft }) }}>{f.ativo ? "● Ativo" : "○ Inativo"}</span>
-              <button onClick={() => excluir(f)} style={{ fontSize: 12, color: T.coral, fontWeight: 600 }}>Excluir</button>
+              <DotMenu
+                items={[
+                  { label: "Editar", onClick: () => onAbrir(f.id) },
+                  { label: "Duplicar", onClick: () => duplicar(f) },
+                  { label: f.arquivado ? "Reativar" : "Arquivar", onClick: () => arquivar(f) },
+                  { label: "Excluir", danger: true, onClick: () => excluir(f) },
+                ]}
+              />
             </div>
             <div style={{ fontWeight: 700, fontSize: 16, color: T.ink, margin: "12px 0 4px" }}>{f.nome}</div>
             {f.contatoTesteId && (

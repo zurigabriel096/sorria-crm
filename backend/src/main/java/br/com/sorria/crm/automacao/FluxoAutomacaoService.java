@@ -56,6 +56,15 @@ public class FluxoAutomacaoService {
         return toDTO(repository.save(fluxo));
     }
 
+    public FluxoAutomacaoDTO arquivar(Long id, boolean arquivado) {
+        FluxoAutomacao fluxo = buscarEntidade(id);
+        fluxo.setArquivado(arquivado);
+        // Seguranca: um fluxo arquivado nunca deve continuar rodando escondido
+        // da lista principal.
+        if (arquivado) fluxo.setAtivo(false);
+        return toDTO(repository.save(fluxo));
+    }
+
     private void aplicar(FluxoAutomacaoDTO dto, FluxoAutomacao fluxo) {
         fluxo.setNome(dto.nome());
         fluxo.setAtivo(dto.ativo() != null && dto.ativo());
@@ -74,7 +83,8 @@ public class FluxoAutomacaoService {
             Object nodes = objectMapper.readValue(fluxo.getNodesJson(), Object.class);
             Object edges = objectMapper.readValue(fluxo.getEdgesJson(), Object.class);
             return new FluxoAutomacaoDTO(fluxo.getId(), fluxo.getNome(), Boolean.TRUE.equals(fluxo.getAtivo()),
-                    nodes, edges, fluxo.getAtualizadoEm(), fluxo.getContatoTesteId(), fluxo.getWhatsappNumeroId());
+                    nodes, edges, fluxo.getAtualizadoEm(), fluxo.getContatoTesteId(), fluxo.getWhatsappNumeroId(),
+                    Boolean.TRUE.equals(fluxo.getArquivado()));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("nodesJson/edgesJson corrompido pro fluxo " + fluxo.getId(), e);
         }

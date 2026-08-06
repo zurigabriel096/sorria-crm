@@ -28,6 +28,11 @@ public class FluxoAutomacao {
     // So roda de verdade (motor de execucao) quando ativo=true - ver AutomacaoEngineService.
     private Boolean ativo = false;
 
+    // Arquivado so tira da lista principal (menu de "..." > Arquivar, pedido do
+    // Samuel 05/08/2026) - arquivar forca ativo=false tambem (ver
+    // FluxoAutomacaoService.arquivar), pra nunca ficar rodando escondido.
+    private Boolean arquivado = false;
+
     @Column(columnDefinition = "TEXT", nullable = false)
     private String nodesJson;
 

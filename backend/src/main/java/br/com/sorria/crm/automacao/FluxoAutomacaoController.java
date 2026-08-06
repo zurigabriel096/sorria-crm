@@ -1,5 +1,6 @@
 package br.com.sorria.crm.automacao;
 
+import br.com.sorria.crm.automacao.dto.ArquivarRequest;
 import br.com.sorria.crm.automacao.dto.AtivarRequest;
 import br.com.sorria.crm.automacao.dto.FluxoAutomacaoDTO;
 import jakarta.validation.Valid;
@@ -52,5 +53,12 @@ public class FluxoAutomacaoController {
     @PreAuthorize("hasRole('ADMIN')")
     public FluxoAutomacaoDTO ativar(@PathVariable Long id, @RequestBody AtivarRequest req) {
         return service.ativar(id, req.ativo());
+    }
+
+    // Arquivar so tira da lista principal (nao manda mensagem nenhuma) - sem a
+    // mesma restricao de ADMIN do ativar.
+    @PatchMapping("/{id}/arquivar")
+    public FluxoAutomacaoDTO arquivar(@PathVariable Long id, @RequestBody ArquivarRequest req) {
+        return service.arquivar(id, req.arquivado());
     }
 }
