@@ -312,7 +312,7 @@ public class MensagemService {
     // Fase 4 do motor de automacao: uma resposta de verdade do lead retoma
     // qualquer ExecucaoFluxo parada no no "aguardar_mensagem" - so muda o
     // status/proximaExecucaoEm aqui, quem realmente avanca o no e' o proximo
-    // tick do AutomacaoEngineService.executar() (@Scheduled a cada 10s).
+    // tick do AutomacaoEngineService.executar() (@Scheduled a cada 30s).
     private void retomarExecucoesAguardandoResposta(Long contatoId) {
         List<ExecucaoFluxo> paradas = execucaoFluxoRepository.findByContatoIdAndStatus(contatoId, "aguardando_resposta");
         if (paradas.isEmpty()) return;

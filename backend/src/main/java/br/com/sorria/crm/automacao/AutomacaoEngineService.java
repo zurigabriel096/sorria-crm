@@ -39,12 +39,16 @@ import java.util.stream.Collectors;
 // rodar assim que o Render sobe essa versao. Fase 5 (corte de seguranca): FluxoAutomacao.contatoTesteId,
 // quando preenchido, restringe o fluxo a rodar so pra esse contato - ver processarEntradaDeUmFluxo.
 //
-// Desenho: um "tick" a cada 10s avanca no MAXIMO um no do grafo por execucao por tick. O pacing
+// Desenho: um "tick" a cada 30s avanca no MAXIMO um no do grafo por execucao por tick. O pacing
 // entre envios de mensagem (Thread.sleep, igual ao CampanhaService.disparar) NAO roda mais nessa
-// thread - vai pra envioWhatsAppExecutor (SchedulingConfig), uma fila de 1 thread separada, pra um
-// tick com varias mensagens pendentes nao ficar preso minutos esperando o pacing de cada uma antes
-// de conseguir decidir o resto (causa do atraso de ~6min visto no teste do fluxo "teste", 05/08/2026).
-// O pacing em si continua serializado (nao manda rajada pro mesmo numero), so mudou de thread.
+// thread - vai pra envioWhatsAppExecutor (SchedulingConfig, fila LIMITADA), pra um tick com varias
+// mensagens pendentes nao ficar preso minutos esperando o pacing de cada uma antes de conseguir
+// decidir o resto (causa do atraso de ~6min visto no teste do fluxo "teste", 05/08/2026). O pacing
+// em si continua serializado (nao manda rajada pro mesmo numero), so mudou de thread.
+// Tick voltou de 10s pra 30s (06/08/2026) - cada tick com fluxo de entrada por segmentacao/condicao
+// faz um contatoRepository.findAll() (carrega TODOS os contatos na memoria pra avaliar condicao um
+// por um), e 10s triplicava essa carga sem necessidade real (o atraso de resposta ja tinha sido
+// resolvido pelo pacing sair da thread, acima) - contribuiu pro "Ran out of memory" em producao.
 //
 // Simplificacoes conscientes (documentadas, nao esquecidas):
 // - "entrada.modoEntrada" ("futuros" vs "futurosEExistentes") nao e' diferenciado - Contato nao tem
@@ -92,7 +96,7 @@ public class AutomacaoEngineService {
     private final ObjectMapper objectMapper;
     private final ExecutorService envioWhatsAppExecutor;
 
-    @Scheduled(fixedDelay = 10_000)
+    @Scheduled(fixedDelay = 30_000)
     public void executar() {
         processarEntradas();
         processarAvancos();
