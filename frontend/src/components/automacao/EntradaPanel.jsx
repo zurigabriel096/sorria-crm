@@ -54,7 +54,7 @@ export function EntradaPanel({ entrada, onMudar, onFechar }) {
       <button style={cardEstilo(e.tipoCondicao === "mensagemRecebida")} onClick={() => onMudar({ tipoCondicao: "mensagemRecebida" })}>
         <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16263B" }}>Mensagem recebida (1ª do dia, sem resposta)</div>
         <div style={{ fontSize: 12, color: "#5C6E7E", marginTop: 3 }}>
-          Dispara quando a primeira mensagem do dia de um lead fica um tempo sem nenhuma resposta (de humano ou de outra automação) - mesmo gatilho do Agente Virtual, agora dentro da Automação.
+          Dispara quando a primeira mensagem do dia de um lead fica um tempo sem nenhuma resposta (de humano ou de outra automação).
         </div>
       </button>
       {e.tipoCondicao === "mensagemRecebida" && (

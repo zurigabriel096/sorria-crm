@@ -18,7 +18,7 @@ const POLL_MENSAGENS_MS = 4000;
 // Mesmo texto usado em MensagemService.registrarEntrada (backend) quando um
 // numero desconhecido manda mensagem e vira lead automatico, sem nome de
 // verdade ainda - o card mostra o telefone + previa da mensagem em vez do
-// nome, ate alguem (humano ou Agente Virtual) preencher de verdade.
+// nome, ate alguem (humano ou a captacao automatica) preencher de verdade.
 const LEAD_SEM_NOME = "Novo contato (WhatsApp)";
 const EMOJIS = ["😀", "😂", "😍", "🙏", "👍", "👋", "❤️", "😢", "😮", "🎉", "✅", "❌", "🔥", "💬", "📅", "😅", "🤔", "👏"];
 

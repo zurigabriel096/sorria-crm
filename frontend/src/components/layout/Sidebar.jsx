@@ -37,15 +37,15 @@ export function Sidebar({ view, setView, collapsed, setCollapsed, angry, setAngr
   // ADMIN/GESTOR - ver App.jsx viewInicialPara. Antes so dava pra voltar
   // pra la deslogando e logando de novo, sem nenhuma entrada de menu.
   const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
-  // "Sorr.ia Protect" e "Agente Virtual" mexem em infraestrutura de WhatsApp/
-  // resposta automatica em nome da clinica - visiveis pra todo colaborador
-  // (pedido explicito), mas so ADMIN consegue de fato ver a configuracao e
-  // editar dentro da tela (Aquecimento.jsx/AgenteVirtual.jsx bloqueiam pra
-  // quem nao e' ADMIN). "true" no fim de cada item = destaque visual (grifado).
+  // "Sorr.ia Protect" mexe em infraestrutura de WhatsApp em nome da clinica -
+  // visivel pra todo colaborador (pedido explicito), mas so ADMIN consegue de
+  // fato ver a configuracao e editar dentro da tela (Aquecimento.jsx bloqueia
+  // pra quem nao e' ADMIN). "true" no fim do item = destaque visual (grifado).
+  // Agente Virtual foi removido (05/08/2026) - capacidade equivalente migrou
+  // pra dentro da Automacao (gatilho "Mensagem recebida").
   const itemsComProtect = [
     ...ITEMS_BASE.slice(0, -1),
     ["aquecimento", "Sorr.ia Protect", IconShield, true],
-    ["agenteVirtual", "Agente Virtual", IconChat, true],
     ITEMS_BASE[ITEMS_BASE.length - 1],
   ];
   const ITEMS = souAdminOuGestor ? itemsComProtect : [["inicio", "Início", IconHome], ...itemsComProtect];
