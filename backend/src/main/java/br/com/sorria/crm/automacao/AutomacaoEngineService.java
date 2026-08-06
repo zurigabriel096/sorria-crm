@@ -76,12 +76,6 @@ public class AutomacaoEngineService {
     // entao fica fixo no piso, com jitter de ate 40% entre cada mensagem de WhatsApp
     // enviada no mesmo tick, pra nao mandar uma rajada de mensagens identicas em sequencia.
     private static final int INTERVALO_PACING_SEGUNDOS = 50;
-    // "Digitando" antes de cada mensagem - mesma faixa (1.5-3.5s) do CampanhaService/
-    // Sorr.ia Protect. Aqui soma ao intervalo (nao "come" o final da pausa como no
-    // CampanhaService) - a estrutura em tick nao conhece o proximo contato com antecedencia,
-    // entao e' mais simples digitar pro MESMO contato antes de mandar pra ele.
-    private static final int DIGITANDO_MIN_MS = 1500;
-    private static final int DIGITANDO_VARIACAO_MS = 2000;
 
     private final FluxoAutomacaoRepository fluxoAutomacaoRepository;
     private final ExecucaoFluxoRepository execucaoFluxoRepository;
@@ -467,11 +461,6 @@ public class AutomacaoEngineService {
                         fluxo.getId(), fluxo.getWhatsappNumeroId());
             }
         }
-
-        // "Digitando" pro mesmo contato antes de mandar (mesmo padrao do
-        // AquecimentoService).
-        int digitandoMs = DIGITANDO_MIN_MS + ThreadLocalRandom.current().nextInt(DIGITANDO_VARIACAO_MS);
-        evolutionApiClient.simularDigitando(token, contato.getTelefone(), digitandoMs, servidorUrl);
 
         String status = evolutionApiClient.enviarMensagem(contato.getTelefone(), texto, token, servidorUrl);
         // Sem isso, mensagem de fluxo nao aparecia no Kanban (Conversas.jsx) nem
