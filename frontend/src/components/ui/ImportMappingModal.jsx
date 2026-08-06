@@ -206,7 +206,7 @@ export function ImportMappingModal({ file, onClose, onConfirmar, showToast, camp
                 </select>
                 {n.destino === "__novo__" && (
                   <>
-                    <input style={s.input} placeholder="Nome do campo novo" value={n.nome} onChange={(e) => atualizarNovoCampo(i, { nome: e.target.value })} />
+                    <input autoFocus style={s.input} placeholder="Nome do campo novo" value={n.nome} onChange={(e) => atualizarNovoCampo(i, { nome: e.target.value })} />
                     <select style={s.select} value={n.tipo} onChange={(e) => atualizarNovoCampo(i, { tipo: e.target.value })}>
                       {TIPOS_CAMPO_IMPORT.map((t) => <option key={t.valor} value={t.valor}>{t.rotulo}</option>)}
                     </select>
