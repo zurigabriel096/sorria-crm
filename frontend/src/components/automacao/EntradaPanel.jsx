@@ -10,27 +10,31 @@ const cardEstilo = (selecionado) => ({
 
 // entrada: { modoEntrada, tipoCondicao, segmentacao, automacaoMarketing } | null
 // onMudar(novaEntradaParcial) faz merge no data.entrada do no de inicio.
+//
+// "modoEntrada" NAO tem efeito real no motor (AutomacaoEngineService varre
+// TODOS os contatos a cada tick, sempre - ver comentario "Simplificacoes
+// conscientes" la) - as duas opcoes que existiam aqui ("vao atender" vs "ja
+// atendem") sempre se comportavam como a segunda, escolhendo qualquer uma.
+// Removido o falso escolha (confundia mais do que ajudava, reportado pelo
+// Samuel 05/08/2026) - grava sozinho o unico comportamento que de fato
+// existe, sem perguntar nada que nao faz diferenca.
 export function EntradaPanel({ entrada, onMudar, onFechar }) {
   const e = entrada || { modoEntrada: null, tipoCondicao: null, segmentacao: null, automacaoMarketing: null };
   const [segmentacoes, setSegmentacoes] = useState([]);
 
   useEffect(() => { listSegmentacoes().then((lista) => setSegmentacoes(lista.filter((s) => !s.arquivado))); }, []);
+  useEffect(() => {
+    if (!e.modoEntrada) onMudar({ modoEntrada: "futurosEExistentes" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <SidePanel lado="direita" largura={320} titulo="Selecionar os leads" onFechar={onFechar}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A96A3", textTransform: "uppercase", letterSpacing: .4, marginBottom: 10 }}>
-        Quando entram no fluxo
+      <div style={{ fontSize: 12.5, color: "#5C6E7E", background: "#F7F9F9", border: "1px solid #E6EDEC", borderRadius: 12, padding: "10px 12px", marginBottom: 16, lineHeight: 1.5 }}>
+        Ao ativar, entram os leads que já atendem aos critérios de entrada abaixo <b>e</b> os que passarem a atender depois — sempre os dois juntos.
       </div>
-      <button style={cardEstilo(e.modoEntrada === "futuros")} onClick={() => onMudar({ modoEntrada: "futuros" })}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16263B" }}>Leads que vão atender aos critérios</div>
-        <div style={{ fontSize: 12, color: "#5C6E7E", marginTop: 3 }}>Ao ativar o fluxo, entrarão leads que vão atender às condições após a ativação.</div>
-      </button>
-      <button style={cardEstilo(e.modoEntrada === "futurosEExistentes")} onClick={() => onMudar({ modoEntrada: "futurosEExistentes" })}>
-        <div style={{ fontWeight: 700, fontSize: 13.5, color: "#16263B" }}>Leads que já atendem aos critérios</div>
-        <div style={{ fontSize: 12, color: "#5C6E7E", marginTop: 3 }}>Ao ativar o fluxo, entrarão leads que já atendem às condições de entrada e aqueles que vão atender futuramente.</div>
-      </button>
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A96A3", textTransform: "uppercase", letterSpacing: .4, margin: "18px 0 10px" }}>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A96A3", textTransform: "uppercase", letterSpacing: .4, margin: "0 0 10px" }}>
         Origem dos leads
       </div>
       <button style={cardEstilo(e.tipoCondicao === "segmentacao")} onClick={() => onMudar({ tipoCondicao: "segmentacao" })}>
