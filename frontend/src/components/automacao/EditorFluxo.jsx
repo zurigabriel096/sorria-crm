@@ -11,6 +11,7 @@ import FlowNode from "./FlowNode";
 import MensagemNode from "./MensagemNode";
 import PlaceholderNode from "./PlaceholderNode";
 import CondicaoNode from "./CondicaoNode";
+import { ExcluivelEdge } from "./ExcluivelEdge";
 import { EntradaPanel } from "./EntradaPanel";
 import { PrimeiroPassoPanel } from "./PrimeiroPassoPanel";
 import { MensagemPanel } from "./MensagemPanel";
@@ -21,6 +22,7 @@ import { listNumeros } from "../../api/whatsappNumeros";
 import { gerarId } from "../../utils/automacao/ids";
 
 const nodeTypes = { start: StartNode, action: FlowNode, mensagem: MensagemNode, placeholder: PlaceholderNode, condicao: CondicaoNode };
+const edgeTypes = { excluivel: ExcluivelEdge };
 
 // Mesmo vocabulario de OPERADORES em CondicaoNode.jsx - usado so pra montar
 // o rotulo da aresta (ver edgesComRotulo), nao reexportado de la pra nao
@@ -123,6 +125,13 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     setPainelAtivo((p) => (p?.nodeId === nodeId ? null : p));
   }, [setNodes, setEdges]);
 
+  // Desconecta so a SETA (mantem os dois nos) - antes so dava pra desfazer
+  // uma conexao excluindo o no de origem/destino inteiro e refazendo tudo
+  // (reportado pelo Samuel, 05/08/2026). Botao "x" vem da ExcluivelEdge.
+  const excluirAresta = useCallback((edgeId) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+  }, [setEdges]);
+
   const adicionarAcaoSolta = (item) => {
     const { type, data } = criarNoDeItem(item);
     const id = gerarId("no");
@@ -146,15 +155,16 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
   // recalculado a cada render a partir da condicao de verdade, entao nunca
   // fica desatualizado se o texto da condicao mudar.
   const edgesComRotulo = edges.map((e) => {
+    const base = { ...e, data: { onExcluir: excluirAresta } };
     const origem = nodes.find((n) => n.id === e.source);
-    if (origem?.type !== "condicao") return e;
+    if (origem?.type !== "condicao") return base;
     const condicoes = origem.data?.condicoes || [];
     const condicao = condicoes.find((c) => c.id === e.sourceHandle);
     const rotulo = condicao
       ? `${OPERADOR_ROTULO[condicao.operador] || condicao.operador} "${condicao.valor}"`
       : e.sourceHandle === "__fallback__" ? "nenhuma bateu" : null;
-    if (!rotulo) return e;
-    return { ...e, label: rotulo, labelBgStyle: { fill: "#fff", fillOpacity: .92 }, labelStyle: { fontSize: 10.5, fill: "#5C6E7E", fontWeight: 700 } };
+    if (!rotulo) return base;
+    return { ...base, label: rotulo, labelBgStyle: { fill: "#fff", fillOpacity: .92 }, labelStyle: { fontSize: 10.5, fill: "#5C6E7E", fontWeight: 700 } };
   });
 
   const mudarWhatsappNumero = async (valor) => {
@@ -286,7 +296,8 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
         <div style={{ flex: 1, position: "relative" }}>
           <ReactFlow
             nodes={nodesComCallback} edges={edgesComRotulo} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-            onConnect={onConnect} onConnectStart={onConnectStart} onConnectEnd={onConnectEnd} nodeTypes={nodeTypes} fitView
+            onConnect={onConnect} onConnectStart={onConnectStart} onConnectEnd={onConnectEnd} nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes} defaultEdgeOptions={{ type: "excluivel" }} fitView
           >
             <Background gap={18} color="#D7DEE3" />
             <Controls position="bottom-left" />
