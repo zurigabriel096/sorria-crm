@@ -89,6 +89,7 @@ public class FluxoAutomacaoService {
         fluxo.setAtivo(dto.ativo() != null && dto.ativo());
         fluxo.setContatoTesteId(dto.contatoTesteId());
         fluxo.setWhatsappNumeroId(dto.whatsappNumeroId());
+        fluxo.setPrioritario(dto.prioritario() != null && dto.prioritario());
         try {
             fluxo.setNodesJson(objectMapper.writeValueAsString(dto.nodes()));
             fluxo.setEdgesJson(objectMapper.writeValueAsString(dto.edges()));
@@ -103,7 +104,7 @@ public class FluxoAutomacaoService {
             Object edges = objectMapper.readValue(fluxo.getEdgesJson(), Object.class);
             return new FluxoAutomacaoDTO(fluxo.getId(), fluxo.getNome(), Boolean.TRUE.equals(fluxo.getAtivo()),
                     nodes, edges, fluxo.getAtualizadoEm(), fluxo.getContatoTesteId(), fluxo.getWhatsappNumeroId(),
-                    Boolean.TRUE.equals(fluxo.getArquivado()));
+                    Boolean.TRUE.equals(fluxo.getArquivado()), Boolean.TRUE.equals(fluxo.getPrioritario()));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("nodesJson/edgesJson corrompido pro fluxo " + fluxo.getId(), e);
         }

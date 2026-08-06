@@ -22,6 +22,10 @@ public record FluxoAutomacaoDTO(
         // So refletido aqui pra leitura - so muda de verdade via PATCH .../arquivar
         // (ver FluxoAutomacaoService.arquivar). Nao e' tocado por criar/atualizar
         // de proposito, senao um simples salvar do editor desarquivava o fluxo.
-        Boolean arquivado
+        Boolean arquivado,
+        // "Fura fila" de envio - ver FluxoAutomacao.prioritario. Esse SIM pode ser
+        // tocado por criar/atualizar normal (nao precisa de PATCH dedicado, e' so
+        // configuracao do fluxo, nao acao sensivel como ativar).
+        Boolean prioritario
 ) {
 }

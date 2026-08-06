@@ -46,6 +46,14 @@ public class FluxoAutomacao {
     // realmente bate com a segmentacao. Ver AutomacaoEngineService.processarEntradaDeUmFluxo.
     private Long contatoTesteId;
 
+    // "Fura fila" (06/08/2026, pedido do Samuel pra disparo de 115 pessoas): TODO
+    // envio da Automacao passa por UMA fila unica pra respeitar o espacamento
+    // minimo entre mensagens (evitar bloqueio do WhatsApp) - fluxo marcado como
+    // prioritario tem seu envio checado ANTES da fila normal, mas continua
+    // respeitando o mesmo espacamento (nao pula o intervalo, so a ORDEM). Ver
+    // FilaEnvioWhatsApp/AutomacaoEngineService.executarNoMensagem.
+    private Boolean prioritario = false;
+
     // Qual numero de WhatsApp esse fluxo usa pra mandar mensagem - null = numero
     // principal (comportamento antigo, retrocompativel). Pedido do Samuel
     // (05/08/2026): restringir automacao de baixo volume (cobranca, confirmacao

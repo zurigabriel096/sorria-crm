@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
@@ -41,10 +40,12 @@ import java.util.stream.Collectors;
 //
 // Desenho: um "tick" a cada 30s avanca no MAXIMO um no do grafo por execucao por tick. O pacing
 // entre envios de mensagem (Thread.sleep, igual ao CampanhaService.disparar) NAO roda mais nessa
-// thread - vai pra envioWhatsAppExecutor (SchedulingConfig, fila LIMITADA), pra um tick com varias
-// mensagens pendentes nao ficar preso minutos esperando o pacing de cada uma antes de conseguir
-// decidir o resto (causa do atraso de ~6min visto no teste do fluxo "teste", 05/08/2026). O pacing
-// em si continua serializado (nao manda rajada pro mesmo numero), so mudou de thread.
+// thread - vai pra FilaEnvioWhatsApp, uma fila limitada e separada, pra um tick com varias mensagens
+// pendentes nao ficar preso minutos esperando o pacing de cada uma antes de conseguir decidir o
+// resto (causa do atraso de ~6min visto no teste do fluxo "teste", 05/08/2026). O pacing em si
+// continua serializado (nao manda rajada pro mesmo numero), so mudou de thread. FluxoAutomacao.
+// prioritario ("fura fila", 06/08/2026) faz o envio ser checado antes de qualquer envio normal
+// pendente, sem pular o espacamento minimo - ver FilaEnvioWhatsApp.
 // Tick voltou de 10s pra 30s (06/08/2026) - cada tick com fluxo de entrada por segmentacao/condicao
 // faz um contatoRepository.findAll() (carrega TODOS os contatos na memoria pra avaliar condicao um
 // por um), e 10s triplicava essa carga sem necessidade real (o atraso de resposta ja tinha sido
@@ -89,7 +90,7 @@ public class AutomacaoEngineService {
     private final MensagemRepository mensagemRepository;
     private final WhatsAppNumeroRepository whatsAppNumeroRepository;
     private final ObjectMapper objectMapper;
-    private final ExecutorService envioWhatsAppExecutor;
+    private final FilaEnvioWhatsApp filaEnvioWhatsApp;
 
     @Scheduled(fixedDelay = 30_000)
     public void executar() {
@@ -336,18 +337,21 @@ public class AutomacaoEngineService {
         Object textoBruto = data.get("texto");
         String texto = textoBruto != null ? String.valueOf(textoBruto) : null;
         if (texto != null && !texto.isBlank()) {
-            // Envio + pacing rodam na fila separada (envioWhatsAppExecutor) - o
+            // Envio + pacing rodam na fila separada (FilaEnvioWhatsApp) - o
             // proximo passo do grafo (proximaExecucaoEm, calculado abaixo a partir
             // do "atraso" configurado) nao depende do envio ja ter terminado.
+            // "prioritario": fura fila (checado antes de qualquer envio normal
+            // pendente), sem pular o espacamento minimo entre envios.
             String textoFinal = SubstituicaoVariaveis.aplicar(texto, contato);
-            envioWhatsAppExecutor.submit(() -> {
+            boolean prioritario = Boolean.TRUE.equals(fluxo.getPrioritario());
+            filaEnvioWhatsApp.enviar(() -> {
                 try {
                     enviarMensagemComPacing(fluxo, contato, textoFinal);
                 } catch (Exception e) {
                     log.error("Falha ao enviar mensagem da automacao (fluxo {}, contato {}): {}",
                             fluxo.getId(), contato.getId(), e.getMessage(), e);
                 }
-            });
+            }, prioritario);
         }
         Map<String, Object> atraso = comoMapa(data.get("atraso"));
         long segundosAtraso = comoInteiro(atraso.get("dias"), 0) * 86400L

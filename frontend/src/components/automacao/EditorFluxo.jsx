@@ -68,6 +68,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
   const [ativo, setAtivo] = useState(!!fluxo.ativo);
   const [contatoTesteId, setContatoTesteId] = useState(fluxo.contatoTesteId || null);
   const [whatsappNumeroId, setWhatsappNumeroId] = useState(fluxo.whatsappNumeroId || null);
+  const [prioritario, setPrioritario] = useState(!!fluxo.prioritario);
   const [numeros, setNumeros] = useState([]);
   useEffect(() => { listNumeros().then(setNumeros).catch(() => setNumeros([])); }, []);
   const [painelAberto, setPainelAberto] = useState(true);
@@ -171,17 +172,33 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
     const id = valor ? Number(valor) : null;
     setWhatsappNumeroId(id);
     try {
-      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId, whatsappNumeroId: id });
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId, whatsappNumeroId: id, prioritario });
       showToast(id ? "Número de disparo definido" : "Voltou a usar o número principal", "ok");
     } catch (e) {
       showToast(e.message || "Erro ao salvar número de disparo", "warn");
     }
   };
 
+  // "Fura fila" (06/08/2026, pedido do Samuel pra disparo de 115 pessoas de uma
+  // vez): o envio desse fluxo e' checado antes de qualquer envio normal
+  // pendente na fila unica de WhatsApp da Automacao - nao pula o espacamento
+  // minimo entre mensagens, so a ORDEM (ver FilaEnvioWhatsApp no backend).
+  const mudarPrioritario = async () => {
+    const novo = !prioritario;
+    setPrioritario(novo);
+    try {
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId, whatsappNumeroId, prioritario: novo });
+      showToast(novo ? "Fluxo marcado como prioritário - fura a fila de envio" : "Fluxo voltou a ser normal na fila", "ok");
+    } catch (e) {
+      setPrioritario(!novo);
+      showToast(e.message || "Erro ao salvar prioridade", "warn");
+    }
+  };
+
   const persistir = async (mostrarToast) => {
     setSalvando(true);
     try {
-      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId, whatsappNumeroId });
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId, whatsappNumeroId, prioritario });
       setUltimoSalvamentoEm(Date.now());
       if (mostrarToast) showToast("Fluxo salvo", "ok");
     } catch (e) {
@@ -213,7 +230,7 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
   const escolherContatoTeste = async (id) => {
     setContatoTesteId(id);
     try {
-      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId: id, whatsappNumeroId });
+      await updateFluxo(fluxo.id, { nome: fluxo.nome, ativo, nodes, edges, contatoTesteId: id, whatsappNumeroId, prioritario });
       showToast(id ? "Contato de teste definido — o fluxo só roda pra ele" : "Contato de teste removido", "ok");
     } catch (e) {
       showToast(e.message || "Erro ao salvar contato de teste", "warn");
@@ -268,6 +285,15 @@ function Editor({ fluxo, souAdmin, onVoltar, showToast, patients, camposCustomiz
               <option key={n.id} value={n.id} style={{ color: T.ink }}>{n.nome}</option>
             ))}
           </select>
+        )}
+        {souAdmin && (
+          <button
+            onClick={mudarPrioritario}
+            title="Fura a fila de envio da Automação - o envio desse fluxo é checado antes de qualquer envio normal pendente (sem pular o espaçamento mínimo entre mensagens)."
+            style={{ ...estiloBotaoHeader, background: prioritario ? T.gold : "rgba(255,255,255,.1)", color: prioritario ? T.ink : "#fff" }}
+          >
+            ⚡ {prioritario ? "Fura fila" : "Furar fila"}
+          </button>
         )}
         <button onClick={() => setPainelAberto((o) => !o)} title="Ações disponíveis" style={{ ...estiloBotaoHeader, width: 36, padding: 0, justifyContent: "center", background: painelAberto ? T.primary : "rgba(255,255,255,.08)" }}>☰</button>
         <button onClick={() => persistir(true)} disabled={salvando} style={{ ...estiloBotaoHeader, fontWeight: 700, fontSize: 13, padding: "0 14px" }}>{salvando ? "Salvando..." : "Salvar"}</button>
