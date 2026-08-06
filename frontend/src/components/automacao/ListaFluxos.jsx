@@ -11,11 +11,20 @@ function noInicioPadrao() {
   return { id: "inicio", type: "start", position: { x: 60, y: 220 }, data: { entrada: null } };
 }
 
+const maisRecentePrimeiro = (a, b) => new Date(b.atualizadoEm || 0) - new Date(a.atualizadoEm || 0);
+
+const ORDENACOES = {
+  ativos: (a, b) => (!!a.ativo === !!b.ativo ? maisRecentePrimeiro(a, b) : a.ativo ? -1 : 1),
+  recentes: maisRecentePrimeiro,
+  nome: (a, b) => (a.nome || "").localeCompare(b.nome || "", "pt-BR"),
+};
+
 export function ListaFluxos({ souAdmin, onAbrir, showToast, patients }) {
   const [fluxos, setFluxos] = useState(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [criando, setCriando] = useState(false);
   const [verArquivados, setVerArquivados] = useState(false);
+  const [ordenacao, setOrdenacao] = useState("ativos");
 
   const carregar = () => listFluxos().then(setFluxos).catch(() => setFluxos([]));
   useEffect(() => { carregar(); }, []);
@@ -96,7 +105,7 @@ export function ListaFluxos({ souAdmin, onAbrir, showToast, patients }) {
     return <Card><div style={{ textAlign: "center", padding: 30, color: T.inkSoft }}>Carregando fluxos...</div></Card>;
   }
 
-  const listaFiltrada = fluxos.filter((f) => !!f.arquivado === verArquivados);
+  const listaFiltrada = fluxos.filter((f) => !!f.arquivado === verArquivados).sort(ORDENACOES[ordenacao]);
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -105,6 +114,11 @@ export function ListaFluxos({ souAdmin, onAbrir, showToast, patients }) {
           <button style={{ ...s.toggleBtn, ...(!verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(false)}>Ativos</button>
           <button style={{ ...s.toggleBtn, ...(verArquivados ? { background: "#fff", color: T.ink } : {}) }} onClick={() => setVerArquivados(true)}>Arquivados</button>
         </div>
+        <select style={s.select} value={ordenacao} onChange={(e) => setOrdenacao(e.target.value)}>
+          <option value="ativos">Ativos primeiro</option>
+          <option value="recentes">Edição mais recente</option>
+          <option value="nome">Nome (A-Z)</option>
+        </select>
         <div style={{ flex: 1 }} />
         <button style={s.btnPrimarySm} onClick={() => setModalAberto(true)}>+ Novo fluxo</button>
       </div>
