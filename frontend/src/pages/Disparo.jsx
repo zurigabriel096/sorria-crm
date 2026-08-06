@@ -156,13 +156,14 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, historic
         </Card>
       )}
       {step === "resumo" && resultado && (
-        <Card title="Campanha concluída">
+        <Card title="Campanha agendada">
           <div style={s.summaryRow}>
-            <Metric label="Enviados" value={num(resultado.total)} />
-            <Metric label="Entregues" value={num(resultado.entregues)} accent={T.wa} />
-            <Metric label="Taxa" value={pct((resultado.entregues / (resultado.total || 1)) * 100)} />
-            <Metric label="Falhas" value={num(resultado.falhas)} accent={resultado.falhas ? T.coral : undefined} />
+            <Metric label="Leads na fila" value={num(resultado.total)} />
           </div>
+          <p style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 10 }}>
+            O envio roda em segundo plano no servidor, com pausa entre uma mensagem e outra
+            (evita bloqueio do WhatsApp) — acompanhe quem já foi entregue no Histórico de Disparos.
+          </p>
           <button style={{ ...s.btnPrimary, width: "100%", marginTop: 16 }} onClick={onFinish}>Ver histórico</button>
         </Card>
       )}
@@ -322,13 +323,14 @@ function DisparoProspectsFlow({ camp, templates, onFinish, onCancel, showToast }
         </Card>
       )}
       {step === "resumo" && resultado && (
-        <Card title="Disparo pra prospects concluído">
+        <Card title="Disparo pra prospects agendado">
           <div style={s.summaryRow}>
-            <Metric label="Enviados" value={num(resultado.total)} />
-            <Metric label="Entregues" value={num(resultado.entregues)} accent={T.wa} />
-            <Metric label="Taxa" value={pct((resultado.entregues / (resultado.total || 1)) * 100)} />
-            <Metric label="Falhas" value={num(resultado.falhas)} accent={resultado.falhas ? T.coral : undefined} />
+            <Metric label="Prospects na fila" value={num(resultado.total)} />
           </div>
+          <p style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 10 }}>
+            O envio roda em segundo plano no servidor, com pausa entre uma mensagem e outra —
+            acompanhe quem já foi entregue no Histórico de Disparos.
+          </p>
           <button style={{ ...s.btnPrimary, width: "100%", marginTop: 16 }} onClick={onFinish}>Ver histórico</button>
         </Card>
       )}

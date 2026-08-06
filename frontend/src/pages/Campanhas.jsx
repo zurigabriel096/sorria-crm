@@ -106,7 +106,6 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
     const letras = "ABC".slice(0, nV).split("").join("/");
     setAbModal(null); // fecha o modal já - com escalonamento isso pode levar horas, não faz sentido travar a tela
     try {
-      let totalEntregues = 0;
       let totalGeral = 0;
       for (let ni = 0; ni < gruposPorNumero.length; ni++) {
         if (ni > 0 && minutosEscalonamento > 0) {
@@ -114,13 +113,15 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
           await esperar(minutosEscalonamento * 60 * 1000);
         }
         const { numeroId, chamadasDesseNumero } = gruposPorNumero[ni];
+        // O envio de verdade roda em segundo plano no servidor (fila com pausa
+        // entre mensagens) - esta resposta só confirma quantos ENTRARAM na fila,
+        // não quantos já foram entregues (acompanhar no Histórico de Disparos).
         const resultados = await Promise.all(
           chamadasDesseNumero.map((c) => dispatchCampaign(c.campanhaId, null, c.ids, numeroId || null))
         );
-        totalEntregues += resultados.reduce((acc, r) => acc + (r.entregues || 0), 0);
         totalGeral += resultados.reduce((acc, r) => acc + (r.total || 0), 0);
       }
-      showToast(`Disparo ${letras} concluído — ${totalEntregues}/${totalGeral} entregues, em ${nN} número(s)`, "ok");
+      showToast(`Disparo ${letras} agendado — ${totalGeral} lead(s) na fila, em ${nN} número(s). Acompanhe no Histórico de Disparos.`, "ok");
     } catch (e) {
       showToast(e.message || "Erro no disparo A/B", "warn");
     }

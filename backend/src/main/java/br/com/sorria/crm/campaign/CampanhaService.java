@@ -1,5 +1,6 @@
 package br.com.sorria.crm.campaign;
 
+import br.com.sorria.crm.automacao.FilaEnvioWhatsApp;
 import br.com.sorria.crm.campaign.dto.CampanhaDTO;
 import br.com.sorria.crm.campaign.dto.CampanhaPerformanceDTO;
 import br.com.sorria.crm.campaign.dto.DispatchResultDTO;
@@ -53,6 +54,7 @@ public class CampanhaService {
     private final DisparoProspectHistoricoRepository disparoProspectHistoricoRepository;
     private final MensagemService mensagemService;
     private final MensagemRepository mensagemRepository;
+    private final FilaEnvioWhatsApp filaEnvioWhatsApp;
 
     public List<CampanhaDTO> listar() {
         return campanhaRepository.findAll().stream().map(this::toDTO).toList();
@@ -114,9 +116,6 @@ public class CampanhaService {
         return new CampanhaPerformanceDTO(enviados, entregues, respondidos, taxaEntrega, taxaResposta);
     }
 
-    // Sem @Transactional de proposito: com a pausa entre mensagens (as vezes minutos
-    // pra campanhas grandes), uma transacao unica ficaria com a conexao do banco presa
-    // o tempo todo. Cada envio ja persiste (contato + historico) de forma independente.
     public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos) {
         return disparar(id, templateIdEscolhido, contatoIdsEscolhidos, null);
     }
@@ -125,6 +124,18 @@ public class CampanhaService {
     // de numero (ver Campanhas.jsx) pra mandar ESSE disparo especifico por um
     // numero diferente do configurado na campanha, sem alterar o cadastro dela -
     // null continua usando o numero salvo na campanha (resolverNumero).
+    //
+    // O envio de verdade (loop com pausa de 50-300s por mensagem) NAO roda mais
+    // nesta chamada - vai pra FilaEnvioWhatsApp (mesmo componente que a Automacao
+    // usa), rodando numa thread separada em segundo plano. Antes disso, campanhas
+    // com mais de ~1 contato SEMPRE estouravam o timeout da requisicao HTTP (Render
+    // corta a conexao muito antes de terminar) - a thread do servlet recebia
+    // InterruptedException bem no Thread.sleep do 2o contato e desistia (break),
+    // entao so o 1o contato de cada campanha era enviado de verdade (bug real,
+    // achado 06/08/2026 num Disparo A/B/C: so 1 lead por variante saiu de ~38).
+    // Por isso devolve so o total ELEGIVEL agora (nao entregues/falhas de verdade -
+    // isso so se sabe conforme cada envio realmente acontece, acompanhar em
+    // Historico de Disparos).
     public DispatchResultDTO disparar(Long id, Long templateIdEscolhido, List<Long> contatoIdsEscolhidos, Long whatsappNumeroIdOverride) {
         Campanha campanha = buscarEntidade(id);
         if (templateIdEscolhido != null && !templateIdEscolhido.equals(campanha.getTemplateId())) {
@@ -141,20 +152,39 @@ public class CampanhaService {
             elegiveis = elegiveis.stream().filter(c -> contatoIdsEscolhidos.contains(c.getId())).toList();
         }
 
+        if (elegiveis.isEmpty()) {
+            campanha.setStatus("Concluída");
+            campanhaRepository.save(campanha);
+            return new DispatchResultDTO(0, 0, 0);
+        }
+
         boolean email = CANAL_EMAIL.equalsIgnoreCase(campanha.getCanal());
         Template template = (!email && campanha.getTemplateId() != null)
                 ? templateRepository.findById(campanha.getTemplateId()).orElse(null)
                 : null;
         String corpoTemplate = resolverCorpoMensagem(campanha, template, email);
-
-        int entregues = 0;
-        int falhas = 0;
         int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
                 ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
         WhatsAppNumero numeroResolvido = resolverNumero(whatsappNumeroIdOverride != null ? whatsappNumeroIdOverride : campanha.getWhatsappNumeroId());
         String tokenInstancia = numeroResolvido != null ? numeroResolvido.getToken() : null;
         String servidorUrl = numeroResolvido != null ? numeroResolvido.getServidorUrl() : null;
 
+        List<Contato> elegiveisFinal = elegiveis;
+        filaEnvioWhatsApp.enviar(() -> {
+            try {
+                executarEnvioCampanha(campanha, elegiveisFinal, email, corpoTemplate, intervaloBaseMs, tokenInstancia, servidorUrl);
+            } catch (Exception e) {
+                log.error("Falha ao executar disparo em segundo plano da campanha {}: {}", campanha.getId(), e.getMessage(), e);
+            }
+        }, false);
+
+        return new DispatchResultDTO(elegiveis.size(), 0, 0);
+    }
+
+    // Corpo antigo do loop de disparar() - agora roda dentro de um Runnable na
+    // FilaEnvioWhatsApp, nao mais na thread da requisicao HTTP (ver disparar()).
+    private void executarEnvioCampanha(Campanha campanha, List<Contato> elegiveis, boolean email, String corpoTemplate,
+                                        int intervaloBaseMs, String tokenInstancia, String servidorUrl) {
         for (int i = 0; i < elegiveis.size(); i++) {
             Contato contato = elegiveis.get(i);
 
@@ -188,18 +218,13 @@ public class CampanhaService {
             disparoRepository.save(historico);
 
             if ("Entregue".equals(status)) {
-                entregues++;
                 // So WhatsApp vira Mensagem/aparece no Kanban - email nao tem chat aqui.
                 if (!email) mensagemService.registrarSaidaExterna(contato.getId(), campanha.getWhatsappNumeroId(), mensagem);
-            } else if ("Falhou".equals(status)) {
-                falhas++;
             }
         }
 
         campanha.setStatus("Concluída");
         campanhaRepository.save(campanha);
-
-        return new DispatchResultDTO(elegiveis.size(), entregues, falhas);
     }
 
     // Disparo pra prospects (fora do CRM) - a lista vem inteira na hora (upload de
@@ -221,14 +246,38 @@ public class CampanhaService {
                 .filter(p -> normalizarTelefoneProspect(p.telefone()) != null)
                 .toList();
 
-        int entregues = 0;
-        int falhas = 0;
+        if (validos.isEmpty()) {
+            return new DispatchResultDTO(0, 0, 0);
+        }
+
         int intervaloBaseMs = 1000 * (campanha.getIntervaloSegundos() != null && campanha.getIntervaloSegundos() > 0
                 ? campanha.getIntervaloSegundos() : INTERVALO_PADRAO_SEGUNDOS);
         WhatsAppNumero numeroResolvido = resolverNumero(campanha.getWhatsappNumeroId());
         String tokenInstancia = numeroResolvido != null ? numeroResolvido.getToken() : null;
         String servidorUrl = numeroResolvido != null ? numeroResolvido.getServidorUrl() : null;
+        String templateNome = template != null ? template.getNome() : null;
 
+        // Mesmo motivo de disparar(): o loop com pausa nao pode rodar na thread
+        // da requisicao HTTP (timeout garantido pra mais de ~1 prospect) - vai
+        // pra FilaEnvioWhatsApp, igual ao disparo normal.
+        filaEnvioWhatsApp.enviar(() -> {
+            try {
+                executarEnvioProspects(campanha, validos, corpoTemplate, intervaloBaseMs, tokenInstancia, servidorUrl,
+                        templateId, templateNome);
+            } catch (Exception e) {
+                log.error("Falha ao executar disparo pra prospects em segundo plano da campanha {}: {}", campanha.getId(), e.getMessage(), e);
+            }
+        }, false);
+
+        return new DispatchResultDTO(validos.size(), 0, 0);
+    }
+
+    // Corpo antigo do loop de dispararProspects() - ver executarEnvioCampanha (mesmo motivo).
+    private void executarEnvioProspects(Campanha campanha, List<ProspectDTO> validos, String corpoTemplate,
+                                         int intervaloBaseMs, String tokenInstancia, String servidorUrl,
+                                         Long templateId, String templateNome) {
+        int entregues = 0;
+        int falhas = 0;
         for (int i = 0; i < validos.size(); i++) {
             ProspectDTO prospect = validos.get(i);
             String telefone = normalizarTelefoneProspect(prospect.telefone());
@@ -254,13 +303,11 @@ public class CampanhaService {
         historico.setCampanhaId(campanha.getId());
         historico.setCampanhaNome(campanha.getNome());
         historico.setTemplateId(templateId);
-        historico.setTemplateNome(template != null ? template.getNome() : null);
+        historico.setTemplateNome(templateNome);
         historico.setTotalProspects(validos.size());
         historico.setQuantidadeEntregue(entregues);
         historico.setQuantidadeFalhou(falhas);
         disparoProspectHistoricoRepository.save(historico);
-
-        return new DispatchResultDTO(validos.size(), entregues, falhas);
     }
 
     // Mesma convencao de normalizarTelefone do ContatoService (55+DDD+numero, so
