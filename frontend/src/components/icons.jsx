@@ -38,7 +38,7 @@ export const IconSearch = (p) => <svg {...I(p)}><circle cx="11" cy="11" r="7" />
 export const IconWa = (p) => <svg {...I(p)}><path d="M3 21l1.6-5A8 8 0 1112 20a8 8 0 01-4.4-1.3L3 21z" /></svg>;
 export const IconMail = (p) => <svg {...I(p)}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>;
 export const IconLogout = (p) => <svg {...I(p)}><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>;
-export const IconUpload = (p) => <svg {...I(p)} width="26" height="26"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>;
+export const IconUpload = (p) => <svg {...I(p)} width={p.width || 26} height={p.height || 26}><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>;
 export const IconDownload = (p) => <svg {...I(p)} width="15" height="15"><path d="M12 4v12M6 10l6 6 6-6M4 20h16" /></svg>;
 export const IconPlus = (p) => <svg {...I(p)} width="13" height="13"><path d="M12 5v14M5 12h14" /></svg>;
 const CHEVRON_DEG = { left: 0, right: 180, down: -90, up: 90 };

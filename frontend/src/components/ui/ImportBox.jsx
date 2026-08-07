@@ -21,7 +21,7 @@ export function ImportBox({ onImport, showToast, compact, variant = "box", campo
   return (
     <>
       {variant === "button" ? (
-        <button style={s.btnGhostSm} onClick={() => inp.current.click()}>Importar Leads</button>
+        <button style={s.btnGhostSm} onClick={() => inp.current.click()}><IconUpload color={T.ink} width={15} height={15} /> Importar Leads</button>
       ) : (
         <div
           style={{ ...s.importBox, ...(compact ? { padding: 14 } : {}) }}

@@ -71,11 +71,13 @@ public class PainelCardService {
     private void aplicar(PainelCardDTO dto, PainelCard card) {
         card.setCampoNome(dto.campoNome());
         card.setRotulo(dto.rotulo());
+        card.setTipoVisualizacao(dto.tipoVisualizacao());
     }
 
     private PainelCardDTO toDTO(PainelCard c) {
         List<ValorContagemDTO> valores = contarPorValor(c.getCampoNome());
-        return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getRotulo(), c.getOrdem(), valores);
+        String tipo = c.getTipoVisualizacao() != null ? c.getTipoVisualizacao() : "lista";
+        return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getRotulo(), tipo, c.getOrdem(), valores);
     }
 
     // Balde "(vazio)" fica de fora do resultado de proposito (pedido do

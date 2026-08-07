@@ -8,6 +8,7 @@ public record PainelCardDTO(
         Long id,
         @NotBlank String campoNome,
         String rotulo,
+        String tipoVisualizacao,
         Integer ordem,
         // Somente leitura - calculado na hora de listar, ignorado se vier num POST/PUT.
         List<ValorContagemDTO> valores

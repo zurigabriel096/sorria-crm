@@ -33,4 +33,11 @@ public class PainelCard {
 
     @Column(nullable = false)
     private Integer ordem;
+
+    // "lista" (barras horizontais, default) | "pizza" | "barra" - como o
+    // Dashboard.jsx desenha a quebra por valor. Nullable de proposito (coluna
+    // nova numa tabela que ja tem linha) - PainelCardService.toDTO trata null
+    // como "lista" na leitura, ddl-auto=update nao aceita NOT NULL sem default
+    // aqui.
+    private String tipoVisualizacao;
 }

@@ -12,7 +12,7 @@ import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { ImportBox } from "../components/ui/ImportBox";
-import { IconSearch, IconDownload, IconFilter } from "../components/icons";
+import { IconSearch, IconDownload, IconUpload, IconFilter, IconX } from "../components/icons";
 import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
 // "Estagio" tambem existe no FIELD_META compartilhado com Segmentacoes
@@ -437,13 +437,30 @@ export function Pacientes({
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: T.ink, marginBottom: 8 }}>Colunas visíveis</div>
             {souGestorOuAdmin ? (
-              <div style={{ display: "grid", gap: 4 }}>
-                {todasColunas.map((col) => (
-                  <label key={col.chave} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.ink }}>
-                    <input type="checkbox" checked={(colunasVisiveis || []).includes(col.chave)} onChange={() => alternarColuna(col.chave)} />
-                    {col.rotulo}
-                  </label>
-                ))}
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {todasColunas.filter((col) => (colunasVisiveis || []).includes(col.chave)).map((col) => (
+                    <span key={col.chave} style={{ ...s.tagMuted, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      {col.rotulo}
+                      <button onClick={() => alternarColuna(col.chave)} title="Remover coluna" style={{ display: "flex", padding: 0 }}>
+                        <IconX color={T.inkSoft} width={10} height={10} />
+                      </button>
+                    </span>
+                  ))}
+                  {!(colunasVisiveis || []).length && <span style={{ fontSize: 12.5, color: T.inkSoft }}>Nenhuma coluna visível ainda.</span>}
+                </div>
+                {todasColunas.some((col) => !(colunasVisiveis || []).includes(col.chave)) && (
+                  <select
+                    value=""
+                    style={{ ...s.select, fontSize: 12.5 }}
+                    onChange={(e) => { if (e.target.value) alternarColuna(e.target.value); }}
+                  >
+                    <option value="">+ Adicionar coluna</option>
+                    {todasColunas.filter((col) => !(colunasVisiveis || []).includes(col.chave)).map((col) => (
+                      <option key={col.chave} value={col.chave}>{col.rotulo}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             ) : (
               <div style={{ fontSize: 12.5, color: T.inkSoft }}>Só ADMIN/GESTOR pode escolher as colunas.</div>

@@ -28,6 +28,70 @@ const METRICAS = [
   { chave: "taxaEntrega", rotulo: "Taxa de entrega", montar: (kpis, ctx) => <KpiCard label="Taxa de entrega" value={`${num(kpis.taxaEntregaPct)}%`} icon={<IconCheck color={T.primary} />} onClick={() => ctx.setView("disparos")} /> },
 ];
 
+const CORES_GRAFICO = [T.primary, T.coral, T.gold, T.primaryDark, "#4C6FFF", "#8B5CF6", "#EC4899"];
+
+// Donut em CSS puro (conic-gradient) - sem dependencia de lib de grafico,
+// mesmo espirito de "so o que ja existe no projeto" do resto do app.
+function GraficoPizza({ valores, onClickValor }) {
+  const total = valores.reduce((acc, v) => acc + v.contagem, 0) || 1;
+  let acumulado = 0;
+  const paradas = valores.map((v, i) => {
+    const inicio = acumulado;
+    acumulado += (v.contagem / total) * 100;
+    return `${CORES_GRAFICO[i % CORES_GRAFICO.length]} ${inicio}% ${acumulado}%`;
+  }).join(", ");
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+      <div style={{ width: 92, height: 92, borderRadius: "50%", background: `conic-gradient(${paradas})`, flexShrink: 0, position: "relative" }}>
+        <div style={{ position: "absolute", inset: 13, borderRadius: "50%", background: "#fff", display: "grid", placeItems: "center", fontSize: 13, fontWeight: 800, color: T.ink }}>
+          {total}
+        </div>
+      </div>
+      <div style={{ display: "grid", gap: 5, flex: 1, minWidth: 0 }}>
+        {valores.map((v, i) => (
+          <div
+            key={v.valor}
+            onClick={() => onClickValor?.(v.valor)}
+            style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: T.inkSoft, cursor: onClickValor ? "pointer" : "default" }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: CORES_GRAFICO[i % CORES_GRAFICO.length], flexShrink: 0 }} />
+            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.valor}</span>
+            <b style={{ color: T.ink }}>{v.contagem}</b>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GraficoBarras({ valores, onClickValor }) {
+  const maxima = Math.max(1, ...valores.map((v) => v.contagem));
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 130, paddingTop: 10 }}>
+      {valores.map((v, i) => (
+        <div
+          key={v.valor}
+          onClick={() => onClickValor?.(v.valor)}
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flex: 1, minWidth: 0, cursor: onClickValor ? "pointer" : "default" }}
+        >
+          <div style={{ fontSize: 11.5, fontWeight: 800, color: T.ink }}>{v.contagem}</div>
+          <div style={{
+            width: "100%", maxWidth: 38, borderRadius: "6px 6px 2px 2px",
+            background: CORES_GRAFICO[i % CORES_GRAFICO.length], height: `${Math.max(6, (v.contagem / maxima) * 88)}px`,
+          }} />
+          <div style={{ fontSize: 10.5, color: T.inkSoft, textAlign: "center", lineHeight: 1.25, overflow: "hidden", textOverflow: "ellipsis" }}>{v.valor}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const TIPOS_VISUALIZACAO = [
+  { valor: "lista", rotulo: "Lista com barra" },
+  { valor: "pizza", rotulo: "Gráfico de pizza" },
+  { valor: "barra", rotulo: "Gráfico de barras" },
+];
+
 // Icone do card personalizado por campo - Financeiro vira moeda, qualquer
 // campo chamado "Situação" (fixo ou personalizado) vira martelo de juiz;
 // os demais caem no icone generico (grade).
@@ -126,27 +190,39 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
       </div>
       {metricasVisiveis.includes("baseEstagio") && !!cards.length && (
         <Card>
-          <div style={{ display: "grid", gap: 20 }}>
-            {cards.map((c) => (
-              <div key={c.id}>
-                <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink, marginBottom: 8 }}>{c.rotulo || rotuloCampo(c.campoNome)}</div>
-                <div style={{ display: "grid", gap: 6 }}>
-                  {(c.valores || []).map((v) => (
-                    <div
-                      key={v.valor}
-                      style={{ ...s.segRow, cursor: "pointer" }}
-                      onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
-                    >
-                      <span style={{ ...s.segBadge, color: T.ink, background: T.lineSoft }}>{v.valor}</span>
-                      <div style={s.segBarTrack}>
-                        <div style={{ ...s.segBarFill, width: `${(v.contagem / (kpis.totalContatos || 1)) * 100}%`, background: T.primary }} />
-                      </div>
-                      <b style={{ fontSize: 13, color: T.ink, width: 34, textAlign: "right" }}>{v.contagem}</b>
+          <div style={{ display: "grid", gap: 24 }}>
+            {cards.map((c) => {
+              const valores = c.valores || [];
+              const tipo = c.tipoVisualizacao || "lista";
+              return (
+                <div key={c.id}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink, marginBottom: 10 }}>{c.rotulo || rotuloCampo(c.campoNome)}</div>
+                  {tipo === "pizza" && (
+                    <GraficoPizza valores={valores} onClickValor={(valor) => irParaPacientes({ campo: c.campoNome, valor })} />
+                  )}
+                  {tipo === "barra" && (
+                    <GraficoBarras valores={valores} onClickValor={(valor) => irParaPacientes({ campo: c.campoNome, valor })} />
+                  )}
+                  {tipo === "lista" && (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {valores.map((v) => (
+                        <div
+                          key={v.valor}
+                          style={{ ...s.segRow, cursor: "pointer" }}
+                          onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
+                        >
+                          <span style={{ ...s.segBadge, color: T.ink, background: T.lineSoft }}>{v.valor}</span>
+                          <div style={s.segBarTrack}>
+                            <div style={{ ...s.segBarFill, width: `${(v.contagem / (kpis.totalContatos || 1)) * 100}%`, background: T.primary }} />
+                          </div>
+                          <b style={{ fontSize: 13, color: T.ink, width: 34, textAlign: "right" }}>{v.contagem}</b>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
         </Card>
@@ -201,7 +277,7 @@ async function listAtualizado(acao) {
 
 function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, camposCustomizados, onCriarCard, onAtualizarCard, onExcluirCard, showToast, onClose }) {
   const [selecao, setSelecao] = useState(metricasVisiveis);
-  const [novoCard, setNovoCard] = useState(null); // null | {campoNome, rotulo}
+  const [novoCard, setNovoCard] = useState(null); // null | {campoNome, rotulo, tipoVisualizacao}
 
   const alternarMetrica = (chave) => setSelecao((sel) => (sel.includes(chave) ? sel.filter((x) => x !== chave) : [...sel, chave]));
 
@@ -214,13 +290,13 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
     }
   };
 
-  const abrirNovoCard = () => setNovoCard({ id: null, campoNome: camposCustomizados[0]?.nome || CAMPOS_FIXOS[0].chave, rotulo: "" });
-  const abrirEdicaoCard = (card) => setNovoCard({ id: card.id, campoNome: card.campoNome, rotulo: card.rotulo || "" });
+  const abrirNovoCard = () => setNovoCard({ id: null, campoNome: camposCustomizados[0]?.nome || CAMPOS_FIXOS[0].chave, rotulo: "", tipoVisualizacao: "lista" });
+  const abrirEdicaoCard = (card) => setNovoCard({ id: card.id, campoNome: card.campoNome, rotulo: card.rotulo || "", tipoVisualizacao: card.tipoVisualizacao || "lista" });
 
   const salvarCard = async () => {
     if (!novoCard.campoNome) return showToast("Escolha o campo", "warn");
     try {
-      const dto = { campoNome: novoCard.campoNome, rotulo: novoCard.rotulo };
+      const dto = { campoNome: novoCard.campoNome, rotulo: novoCard.rotulo, tipoVisualizacao: novoCard.tipoVisualizacao };
       if (novoCard.id) await onAtualizarCard(novoCard.id, dto);
       else await onCriarCard(dto);
       setNovoCard(null);
@@ -296,6 +372,15 @@ function PersonalizarPainelModal({ metricasVisiveis, onSalvarMetricas, cards, ca
           <p style={{ fontSize: 11.5, color: T.inkSoft, margin: 0 }}>
             O card mostra sozinho a contagem de cada valor diferente encontrado nesse campo - não precisa cadastrar valor por valor.
           </p>
+          <Field label="Visualização">
+            <Select
+              block
+              value={novoCard.tipoVisualizacao}
+              onChange={(v) => setNovoCard({ ...novoCard, tipoVisualizacao: v })}
+              options={TIPOS_VISUALIZACAO.map((t) => t.valor)}
+              labels={Object.fromEntries(TIPOS_VISUALIZACAO.map((t) => [t.valor, t.rotulo]))}
+            />
+          </Field>
           <Field label="Rótulo do card (opcional)">
             <input style={s.input} value={novoCard.rotulo} onChange={(e) => setNovoCard({ ...novoCard, rotulo: e.target.value })} placeholder="Ex: Situação financeira" />
           </Field>
