@@ -5,9 +5,9 @@
 // Compartilhado entre Dashboard.jsx (monta os cards) e Pacientes.jsx (clique
 // num valor do card leva pra Base de Leads ja filtrada pro mesmo grupo).
 export const CAMPOS_FIXOS = [
-  { chave: "fixo:financ", rotulo: "Financeiro", opcoes: ["Adimplente", "Inadimplente", "—"] },
+  { chave: "fixo:financ", rotulo: "Situação Financeira", opcoes: ["Adimplente", "Inadimplente", "—"] },
   { chave: "fixo:estagio", rotulo: "Estágio" },
-  { chave: "fixo:elegivel", rotulo: "Elegível", opcoes: ["Sim", "Não"] },
+  { chave: "fixo:elegivel", rotulo: "Pode Receber Mensagem?", opcoes: ["Sim", "Não"] },
   { chave: "fixo:dentista", rotulo: "Dentista" },
 ];
 

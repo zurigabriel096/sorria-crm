@@ -40,16 +40,16 @@ export const OPS_SEM_VALOR = ["está preenchido", "não está preenchido"];
 // resposta"), "responsavelId" (precisaria de um seletor de colaboradores a
 // parte - dá pra adicionar depois se fizer falta).
 export const FIELD_META = {
-  financ: { label: "Financeiro", ops: ["é", "não é", ...OPS_SEM_VALOR], values: ["Adimplente", "Inadimplente"] },
+  financ: { label: "Situação Financeira", ops: ["é", "não é", ...OPS_SEM_VALOR], values: ["Adimplente", "Inadimplente"] },
   diasInadimplente: { label: "Inadimplente há (dias)", ops: ["maior", "menor", "entre", ...OPS_SEM_VALOR], value: "number" },
   inadimplenteDesde: { label: "Ficou inadimplente em", ops: ["maior", "menor", "entre", ...OPS_SEM_VALOR], value: "date" },
   recencia: { label: "Tempo sem atendimento (dias)", ops: ["maior", "menor", "entre", ...OPS_SEM_VALOR], value: "number" },
-  elegivel: { label: "Elegível", ops: ["é", "não é"], values: ["Sim", "Não"] },
+  elegivel: { label: "Pode Receber Mensagem?", ops: ["é", "não é"], values: ["Sim", "Não"] },
   tag: { label: "Tag", ops: ["contém", "não contém"], value: "text" },
   nome: { label: "Nome", ops: ["contém", "não contém", ...OPS_SEM_VALOR], value: "text" },
   telefone: { label: "Telefone", ops: ["contém", "não contém", ...OPS_SEM_VALOR], value: "text" },
   email: { label: "Email", ops: ["contém", "não contém", ...OPS_SEM_VALOR], value: "text" },
-  cod: { label: "Código", ops: ["contém", "não contém", ...OPS_SEM_VALOR], value: "text" },
+  cod: { label: "Cód. de Importação", ops: ["contém", "não contém", ...OPS_SEM_VALOR], value: "text" },
   dentista: { label: "Dentista", ops: ["contém", "não contém", ...OPS_SEM_VALOR], value: "text" },
   origem: { label: "Origem do lead", ops: ["contém", "não contém", ...OPS_SEM_VALOR], value: "text" },
   // Nomes de estagio sao livres (colunas do Kanban, mudam por clinica) - sem

@@ -47,12 +47,12 @@ function colunasFixas() {
       const col = T.estagio[p.estagio] || T.estagio.Lead;
       return <span style={{ ...s.segBadge, color: col.fg, background: col.bg }}>{p.estagio || "Lead"}</span>;
     } },
-    { chave: "financ", rotulo: "Financeiro", valor: (p) => (p.financ || "").toLowerCase(), render: (p) => (
+    { chave: "financ", rotulo: "Situação Financeira", valor: (p) => (p.financ || "").toLowerCase(), render: (p) => (
       <span style={{ fontSize: 12.5, color: p.financ === "Inadimplente" ? T.coral : T.inkSoft, fontWeight: 600 }}>{p.financ}</span>
     ) },
     { chave: "dentista", rotulo: "Dentista", valor: (p) => (p.dentista || "").toLowerCase(), render: (p) => p.dentista || "—", numerica: true },
     { chave: "recencia", rotulo: "Data do último atendimento", valor: (p) => parseData(p.ultAtend)?.getTime() ?? -Infinity, render: (p) => p.ultAtend || "—", numerica: true },
-    { chave: "elegivel", rotulo: "Elegível", valor: (p) => (p.elegivel ? 1 : 0), render: (p) => (p.elegivel ? <span style={s.tagOk}>● Sim</span> : <span style={s.tagBad}>▲ Não</span>) },
+    { chave: "elegivel", rotulo: "Pode Receber Mensagem?", valor: (p) => (p.elegivel ? 1 : 0), render: (p) => (p.elegivel ? <span style={s.tagOk}>● Sim</span> : <span style={s.tagBad}>▲ Não</span>) },
   ];
 }
 
@@ -65,20 +65,19 @@ function colunasFixas() {
 // ordem que vierem do backend - sort() e' estavel, nao quebra nada.
 const ORDEM_PRIORIDADE_CHAVES = [
   "financ",
-  "custom:Atrasadas",
-  "custom:Total de atraso",
-  "custom:Situação",
-  "custom:Próx. Atend.",
-  "custom:Hora Próx. Atend.",
-  "custom:Status Últ Agendam.",
-  "custom:Valor do procedimento",
+  "custom:Parcelas em Atraso",
+  "custom:Valor em Atraso (R$)",
+  "custom:Situação de Cobrança",
+  "custom:Próxima Consulta",
+  "custom:Horário da Próxima Consulta",
+  "custom:Compareceu na Última Consulta?",
+  "custom:Valor do Orçamento (R$)",
   "custom:Procedimento",
   "estagio",
   "elegivel",
-  "custom:Data do fechamento do orto",
+  "custom:Previsão de Término do Tratamento",
   "recencia",
   "dentista",
-  "custom:Especialidade",
 ];
 
 function ordenarPorPrioridade(colunas) {

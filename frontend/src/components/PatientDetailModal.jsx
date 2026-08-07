@@ -12,8 +12,8 @@ import { getOrdemCamposLead, setOrdemCamposLead } from "../api/configCamposLead"
 
 const ORDEM_PADRAO = ["nome", "cod", "tel", "email", "estagio", "responsavelId", "financ", "dentista", "elegivel"];
 const ROTULOS_CAMPOS = {
-  nome: "Nome", cod: "Código", tel: "Telefone", email: "Email", estagio: "Estágio",
-  responsavelId: "Responsável pelo Lead", financ: "Financeiro", dentista: "Dentista", elegivel: "Elegível p/ disparo",
+  nome: "Nome", cod: "Cód. de Importação", tel: "Telefone", email: "Email", estagio: "Estágio",
+  responsavelId: "Responsável pelo Lead", financ: "Situação Financeira", dentista: "Dentista", elegivel: "Pode Receber Mensagem?",
 };
 
 // Modal de detalhe do paciente, com duas abas: Dados (cadastro) e Histórico do cliente
@@ -88,7 +88,7 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
     }
     switch (chave) {
       case "nome": return <Field key={chave} label="Nome"><input style={s.input} value={p.nome} onChange={(e) => set("nome", e.target.value)} /></Field>;
-      case "cod": return <Field key={chave} label="Código"><input style={s.input} value={p.cod} onChange={(e) => set("cod", e.target.value)} /></Field>;
+      case "cod": return <Field key={chave} label="Cód. de Importação"><input style={s.input} value={p.cod} onChange={(e) => set("cod", e.target.value)} /></Field>;
       case "tel": return <Field key={chave} label="Telefone"><input style={s.input} value={p.tel} onChange={(e) => set("tel", e.target.value)} /></Field>;
       case "email": return <Field key={chave} label="Email"><input style={s.input} value={p.email} onChange={(e) => set("email", e.target.value)} placeholder="email@paciente.com" /></Field>;
       case "estagio": return <Field key={chave} label="Estágio"><Select block value={p.estagio || "Lead"} onChange={(v) => set("estagio", v)} options={etapas} /></Field>;
@@ -103,9 +103,9 @@ export function PatientDetailModal({ paciente, tags, tagObjetos, camposCustomiza
           />
         </Field>
       );
-      case "financ": return <Field key={chave} label="Financeiro"><Select block value={p.financ} onChange={(v) => set("financ", v)} options={["Adimplente", "Inadimplente", "—"]} /></Field>;
+      case "financ": return <Field key={chave} label="Situação Financeira"><Select block value={p.financ} onChange={(v) => set("financ", v)} options={["Adimplente", "Inadimplente", "—"]} /></Field>;
       case "dentista": return <Field key={chave} label="Dentista"><input style={s.input} value={p.dentista} onChange={(e) => set("dentista", e.target.value)} /></Field>;
-      case "elegivel": return <Field key={chave} label="Elegível p/ disparo"><Select block value={p.elegivel ? "Sim" : "Não"} onChange={(v) => set("elegivel", v === "Sim")} options={["Sim", "Não"]} /></Field>;
+      case "elegivel": return <Field key={chave} label="Pode Receber Mensagem?"><Select block value={p.elegivel ? "Sim" : "Não"} onChange={(v) => set("elegivel", v === "Sim")} options={["Sim", "Não"]} /></Field>;
       default: return null;
     }
   };

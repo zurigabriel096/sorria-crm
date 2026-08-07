@@ -163,7 +163,7 @@ export const CAMPOS_IMPORTACAO = [
   { chave: "estagio", rotulo: "Estágio" },
   { chave: "financ", rotulo: "Situação financeira" },
   { chave: "dentista", rotulo: "Dentista" },
-  { chave: "cod", rotulo: "Código" },
+  { chave: "cod", rotulo: "Cód. de Importação" },
   { chave: "ultAtend", rotulo: "Último atendimento" },
 ];
 
