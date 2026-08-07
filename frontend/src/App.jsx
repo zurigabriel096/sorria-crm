@@ -60,6 +60,7 @@ export default function App() {
   const [sistemaAtivo, setSistemaAtivo] = useState(true);
   const [usuario, setUsuario] = useState(null);
   const [filtroPacientesInicial, setFiltroPacientesInicial] = useState(null);
+  const [filtroFilaInicial, setFiltroFilaInicial] = useState(null);
   const [cliquesEasterEgg, setCliquesEasterEgg] = useState(0);
   const [jogoAberto, setJogoAberto] = useState(false);
 
@@ -489,6 +490,13 @@ export default function App() {
     setView("pacientes");
   };
 
+  // Deep link do "Meu Dia" pros big numbers - cada card abre a Fila de
+  // Trabalho ja no filtro certo (mesmo padrao do irParaPacientes acima).
+  const abrirFila = (chave) => {
+    setFiltroFilaInicial(chave);
+    setView("filaTrabalho");
+  };
+
   // Deep link da Fila de Trabalho pra conversa de um lead especifico -
   // Conversas.jsx observa conversaParaAbrir e abre o ChatModal sozinho.
   const abrirConversa = (contatoId) => {
@@ -531,8 +539,8 @@ export default function App() {
         <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} modoNoturno={modoNoturno} onToggleModoNoturno={() => setModoNoturno((v) => !v)} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <AcessoRestrito liberado={souAdminOuGestor}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} /></AcessoRestrito>}
-          {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} />}
-          {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} />}
+          {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} onAbrirFila={abrirFila} />}
+          {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} usuario={usuario} filtroInicial={filtroFilaInicial} onAplicouFiltro={() => setFiltroFilaInicial(null)} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
           {view === "conversas" && <ConversasPreview />}
           {view === "segmentacoes" && <AcessoRestrito liberado={souAdminOuGestor}><Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} colaboradores={colaboradores} onAtribuirResponsavelEmLote={atribuirResponsavelSegmentacao} usuario={usuario} onAbrirPaciente={abrirPaciente} showToast={showToast} /></AcessoRestrito>}

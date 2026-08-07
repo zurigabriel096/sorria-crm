@@ -6,7 +6,7 @@ import { Card } from "../components/ui/Card";
 // Kanban (que vira ilegivel em escala), mostra so o resumo do que precisa
 // de atencao e manda pra Fila de Trabalho. ADMIN/GESTOR continuam caindo
 // no Painel Executivo (ver App.jsx viewInicialPara).
-export function InicioColaborador({ usuario, patients, setView }) {
+export function InicioColaborador({ usuario, patients, setView, onAbrirFila }) {
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
   const primeiroNome = String(usuario?.nome || "").trim().split(/\s+/)[0] || "";
@@ -29,19 +29,19 @@ export function InicioColaborador({ usuario, patients, setView }) {
         <div style={{ fontSize: 14, color: T.inkSoft, marginTop: 4 }}>Aqui está o que precisa da sua atenção hoje.</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
-        <Card>
+        <Card onClick={() => onAbrirFila?.("sem_resposta")}>
           <div style={{ fontSize: 32, fontWeight: 800, color: semResposta > 0 ? T.coral : T.primary }}>{semResposta}</div>
           <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 4 }}>{semResposta === 1 ? "mensagem sem resposta" : "mensagens sem resposta"}</div>
         </Card>
-        <Card>
+        <Card onClick={() => onAbrirFila?.("vencidos")}>
           <div style={{ fontSize: 32, fontWeight: 800, color: vencidos > 0 ? T.coral : T.primary }}>{vencidos}</div>
           <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 4 }}>{vencidos === 1 ? "follow-up vencido" : "follow-ups vencidos"}</div>
         </Card>
-        <Card>
+        <Card onClick={() => onAbrirFila?.("hoje")}>
           <div style={{ fontSize: 32, fontWeight: 800, color: T.primary }}>{hoje}</div>
           <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 4 }}>{hoje === 1 ? "follow-up agendado pra hoje" : "follow-ups agendados pra hoje"}</div>
         </Card>
-        <Card>
+        <Card onClick={() => onAbrirFila?.("meus")}>
           <div style={{ fontSize: 32, fontWeight: 800, color: T.ink }}>{meusLeads}</div>
           <div style={{ fontSize: 12.5, color: T.inkSoft, marginTop: 4 }}>{meusLeads === 1 ? "lead sob sua responsabilidade" : "leads sob sua responsabilidade"}</div>
         </Card>

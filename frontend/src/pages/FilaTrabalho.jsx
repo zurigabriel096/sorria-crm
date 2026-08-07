@@ -6,7 +6,6 @@ import { iniciais } from "../utils/usuario";
 import { listEtapas } from "../api/etapas";
 import { Card } from "../components/ui/Card";
 import { IconUserPlaceholder } from "../components/icons";
-import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
 function pontuarPrioridade(p) {
   let score = 0;
@@ -29,8 +28,6 @@ function diasSemAtividade(p) {
 }
 
 const mesmoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-
-const ITENS_POR_PAGINA = 50;
 
 const FILTROS = [
   { chave: "todos", rotulo: "Todos" },
@@ -57,13 +54,29 @@ const FILTROS = [
   },
 ];
 
-export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
-  const arrastePaginacao = useArrastarHorizontal();
-  const [filtro, setFiltro] = useState("todos");
+export function FilaTrabalho({ patients, colaboradores, onAbrirConversa, usuario, filtroInicial, onAplicouFiltro }) {
+  const [filtro, setFiltro] = useState(filtroInicial || "todos");
   const [pagina, setPagina] = useState(1);
+  const [tamanhoPagina, setTamanhoPagina] = useState(50);
   const [mostrarTudo, setMostrarTudo] = useState(false);
   const [etapas, setEtapas] = useState([]);
   useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
+
+  // Deep link do "Meu Dia" (big numbers) - App.jsx manda o filtro certo via
+  // filtroInicial; consome uma vez e limpa, senao trava nesse filtro pra
+  // sempre que a pessoa voltar nessa tela.
+  useEffect(() => {
+    if (!filtroInicial) return;
+    setFiltro(filtroInicial);
+    setPagina(1);
+    onAplicouFiltro?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroInicial]);
+
+  const filtros = useMemo(() => [
+    ...FILTROS,
+    { chave: "meus", rotulo: "Meus leads", teste: (p) => !!usuario?.id && p.responsavelId === usuario.id },
+  ], [usuario]);
 
   // Nome da etapa -> limiar de dias sem mensagem calibrado pelo ADMIN nessa
   // coluna (EtapaKanban.limiarInatividadeDias), só existe pra etapas finais.
@@ -85,16 +98,16 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
   }, [patients, mostrarTudo, limiarPorEtapaFinal]);
 
   const filtrados = useMemo(() => {
-    const f = FILTROS.find((x) => x.chave === filtro);
+    const f = filtros.find((x) => x.chave === filtro);
     const lista = !f?.teste ? visiveis : visiveis.filter(f.teste);
     return [...lista].sort((a, b) => pontuarPrioridade(b) - pontuarPrioridade(a));
-  }, [visiveis, filtro]);
+  }, [visiveis, filtro, filtros]);
 
   const escondidos = patients.length - visiveis.length;
 
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / ITENS_POR_PAGINA));
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / tamanhoPagina));
   const paginaAtual = Math.min(pagina, totalPaginas);
-  const paginados = filtrados.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
+  const paginados = filtrados.slice((paginaAtual - 1) * tamanhoPagina, paginaAtual * tamanhoPagina);
   const trocarFiltro = (chave) => { setFiltro(chave); setPagina(1); };
 
   return (
@@ -108,7 +121,7 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
         )}
       </div>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {FILTROS.map((f) => (
+        {filtros.map((f) => (
           <button
             key={f.chave}
             onClick={() => trocarFiltro(f.chave)}
@@ -173,27 +186,25 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
           );
         })}
       </div>
-      {totalPaginas > 1 && (
-        <div
-          ref={arrastePaginacao.ref}
-          style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, ...arrastePaginacao.style }}
-          {...arrastePaginacao.props}
-        >
-          {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              onClick={() => setPagina(n)}
-              style={{
-                minWidth: 30, padding: "6px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, flexShrink: 0,
-                background: paginaAtual === n ? T.primarySoft : T.lineSoft,
-                color: paginaAtual === n ? T.primaryDark : T.inkSoft,
-              }}
-            >
-              {n}
-            </button>
-          ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", fontSize: 12.5, color: T.inkSoft }}>
+        <span>
+          Mostrando {filtrados.length ? (paginaAtual - 1) * tamanhoPagina + 1 : 0}–{Math.min(paginaAtual * tamanhoPagina, filtrados.length)} de {filtrados.length}.
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span>Por página:</span>
+          <select
+            value={tamanhoPagina} style={{ ...s.select, padding: "3px 8px", fontSize: 12.5 }}
+            onChange={(e) => { setTamanhoPagina(Number(e.target.value)); setPagina(1); }}
+          >
+            {[10, 25, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
         </div>
-      )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button style={s.btnGhostSm} disabled={paginaAtual <= 1} onClick={() => setPagina((p) => p - 1)}>‹ Anterior</button>
+          <span>Página {paginaAtual} de {totalPaginas}</span>
+          <button style={s.btnGhostSm} disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>Próxima ›</button>
+        </div>
+      </div>
     </div>
   );
 }
