@@ -4,11 +4,13 @@ import { T } from "../theme";
 import { Card } from "../components/ui/Card";
 import { Modal } from "../components/ui/Modal";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
 const FRASE_CONFIRMACAO = "LIMPAR HISTORICO";
 
 export function HistoricoDisparos({ historico, patients, onAbrirPaciente, usuario, onLimparHistorico, showToast }) {
   const souAdmin = usuario?.papel === "ADMIN";
+  const arrasteTabela = useArrastarHorizontal();
   const [confirmando, setConfirmando] = useState(null); // null | {frase}
   const [limpando, setLimpando] = useState(false);
 
@@ -44,7 +46,7 @@ export function HistoricoDisparos({ historico, patients, onAbrirPaciente, usuari
         <Card><div style={{ textAlign: "center", padding: 24, color: T.inkSoft }}>Nenhum disparo ainda.</div></Card>
       ) : (
         <Card noPad>
-          <div style={s.tableScroll}>
+          <div ref={arrasteTabela.ref} style={{ ...s.tableScroll, ...arrasteTabela.style }} {...arrasteTabela.props}>
             <table style={s.table}>
               <thead><tr><th style={s.thL}>Lead</th><th style={s.th}>Campanha</th><th style={s.th}>Status</th><th style={s.th}>Data</th></tr></thead>
               <tbody>

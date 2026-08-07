@@ -18,7 +18,7 @@ import { Campanhas } from "./pages/Campanhas";
 import { Templates } from "./pages/Templates";
 import { DisparoFlow } from "./pages/Disparo";
 import { Automacoes } from "./pages/Automacoes";
-import { Conversas } from "./pages/Conversas";
+import { ConversasPreview } from "./pages/ConversasPreview";
 import { FilaTrabalho } from "./pages/FilaTrabalho";
 import { InicioColaborador } from "./pages/InicioColaborador";
 import { HistoricoDisparos } from "./pages/HistoricoDisparos";
@@ -49,6 +49,14 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [angry, setAngry] = useState(false);
   const [avatarColor, setAvatarColor] = useState(T.primary);
+  // Modo noturno: preferencia so' de navegador (localStorage), sem campo no
+  // backend - troca so' os tokens neutros via CSS var (ver global.css/
+  // theme.js), nao precisa de re-render pra recolorir a tela toda.
+  const [modoNoturno, setModoNoturno] = useState(() => localStorage.getItem("sorria_modo_noturno") === "1");
+  useEffect(() => {
+    document.documentElement.dataset.theme = modoNoturno ? "dark" : "light";
+    localStorage.setItem("sorria_modo_noturno", modoNoturno ? "1" : "0");
+  }, [modoNoturno]);
   const [sistemaAtivo, setSistemaAtivo] = useState(true);
   const [usuario, setUsuario] = useState(null);
   const [filtroPacientesInicial, setFiltroPacientesInicial] = useState(null);
@@ -520,13 +528,13 @@ export default function App() {
     <div style={s.root}>
       <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} angry={angry} setAngry={setAngry} usuario={usuario} />
       <div style={s.main}>
-        <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} />
+        <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} modoNoturno={modoNoturno} onToggleModoNoturno={() => setModoNoturno((v) => !v)} />
         <div style={s.content} key={view}>
           {view === "dashboard" && <AcessoRestrito liberado={souAdminOuGestor}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} /></AcessoRestrito>}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} />}
           {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
-          {view === "conversas" && <Conversas patients={patients} showToast={showToast} onAbrirPaciente={abrirPaciente} onAtualizarPaciente={salvarPaciente} onCriarPaciente={criarPacienteAvulso} usuario={usuario} abrirContatoId={conversaParaAbrir} onAbriuContato={() => setConversaParaAbrir(null)} />}
+          {view === "conversas" && <ConversasPreview />}
           {view === "segmentacoes" && <AcessoRestrito liberado={souAdminOuGestor}><Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} colaboradores={colaboradores} onAtribuirResponsavelEmLote={atribuirResponsavelSegmentacao} usuario={usuario} onAbrirPaciente={abrirPaciente} showToast={showToast} /></AcessoRestrito>}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} />}
           {view === "templates" && <Templates templates={templates} setTemplates={setTemplates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} usuario={usuario} camposCustomizados={camposCustomizados} showToast={showToast} />}
@@ -534,7 +542,7 @@ export default function App() {
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} usuario={usuario} onLimparHistorico={limparTodoHistoricoDisparo} showToast={showToast} />}
           {view === "colaboradores" && <AcessoRestrito liberado={souAdminOuGestor}><Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} papeisCargo={papeisCargo} onCriarPapelCargo={criarPapelCargoHandler} onAtualizarPapelCargo={atualizarPapelCargoHandler} onExcluirPapelCargo={excluirPapelCargoHandler} /></AcessoRestrito>}
-          {view === "plano" && <Plano showToast={showToast} usuario={usuario} />}
+          {view === "plano" && <AcessoRestrito liberado={souAdminOuGestor}><Plano showToast={showToast} usuario={usuario} /></AcessoRestrito>}
           {view === "suporte" && <Suporte showToast={showToast} />}
           {view === "config" && <AcessoRestrito liberado={souAdminOuGestor}><Config showToast={showToast} usuario={usuario} /></AcessoRestrito>}
           {view === "aquecimento" && <Aquecimento showToast={showToast} usuario={usuario} />}

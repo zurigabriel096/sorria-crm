@@ -1,10 +1,17 @@
 // Tokens visuais e constantes globais da clínica/tenant.
 // Em uma versão multi-clínica, CLINICA/SUPORTE_WA viriam do backend (config do tenant logado).
 
+// ink/inkSoft/bg/line/lineSoft/cardBg apontam pra CSS vars (global.css) que
+// trocam de valor no modo noturno (data-theme="dark" na <html>, ver
+// Topbar.jsx) - funciona sem re-render porque e' resolvido pelo navegador,
+// nao pelo React. Cores de marca abaixo ficam fixas em hex de propósito:
+// varias sao concatenadas com sufixo de alpha (ex.: T.primary + "1A" em
+// Suporte.jsx/Config.jsx) - virar var quebraria essa concatenacao.
 export const T = {
-  ink: "#16263B", inkSoft: "#5C6E7E", bg: "#F3F7F6", primary: "#0FA895",
+  ink: "var(--ink)", inkSoft: "var(--inkSoft)", bg: "var(--bg)", primary: "#0FA895",
   primaryDark: "#0B8375", primarySoft: "#E3F5F1", coral: "#FF6B5B", angry: "#FF6500",
-  wa: "#25D366", line: "#E6EDEC", lineSoft: "#F0F4F3", gold: "#C8912A",
+  wa: "#25D366", line: "var(--line)", lineSoft: "var(--lineSoft)", gold: "#C8912A",
+  cardBg: "var(--cardBg)",
   // Estagio do funil de Lead - mesma paleta em progressao usada no restante do
   // app (mais neutro no inicio, mais forte/positivo perto de virar Cliente).
   estagio: {

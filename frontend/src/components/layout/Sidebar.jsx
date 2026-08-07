@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { T } from "../../theme";
 import { s } from "../../styles/s";
 import { Logo } from "../Logo";
-import { IconGrid, IconUsers, IconFilter, IconMega, IconTeam, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox, IconHome, IconLock } from "../icons";
+import { IconGrid, IconUsers, IconFilter, IconMega, IconTeam, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox, IconHome, IconLock, IconCard } from "../icons";
 
 // Remodelacao 06/08/2026 (pivo do orquestrador interdepartamental): menu
 // unificado - TODO MUNDO ve todas as abas, inclusive as restritas a
@@ -29,6 +29,7 @@ const ITEMS_BASE = [
   },
   ["conversas", "Conversas", IconKanban, false],
   ["colaboradores", "Colaboradores", IconTeam, true],
+  ["plano", "Meu Plano", IconCard, true],
   ["config", "Configurações", IconGear, true],
 ];
 

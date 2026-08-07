@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { T, AVATAR_COLORS, CLINICA } from "../../theme";
 import { s } from "../../styles/s";
-import { IconLogout, GlowDot } from "../icons";
+import { IconLogout, IconMoon, GlowDot } from "../icons";
 import { ColorPicker } from "../ui/ColorPicker";
 import { AvatarUploader } from "../ui/AvatarUploader";
 import { iniciais } from "../../utils/usuario";
@@ -32,7 +32,7 @@ const TITLES = {
   suporte: "Suporte", config: "Configurações",
 };
 
-export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout, showToast }) {
+export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout, showToast, modoNoturno, onToggleModoNoturno }) {
   const [open, setOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const ref = useRef(null);
@@ -94,6 +94,24 @@ export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarCol
               </div>
               <button style={s.linkBtn} onClick={() => { setOpen(false); setUploadOpen(true); }}>
                 {usuario?.avatarUrl ? "Trocar foto de perfil" : "Enviar foto de perfil"}
+              </button>
+              <div style={s.hr} />
+              <button
+                onClick={onToggleModoNoturno}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "6px 6px" }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: T.ink }}>
+                  <IconMoon color={T.inkSoft} width={16} height={16} /> Modo noturno
+                </span>
+                <span style={{
+                  width: 34, height: 19, borderRadius: 20, background: modoNoturno ? T.primary : T.lineSoft,
+                  position: "relative", transition: "background .15s", flexShrink: 0,
+                }}>
+                  <span style={{
+                    position: "absolute", top: 2, left: modoNoturno ? 17 : 2, width: 15, height: 15, borderRadius: "50%",
+                    background: "#fff", transition: "left .15s", boxShadow: "0 1px 3px rgba(0,0,0,.25)",
+                  }} />
+                </span>
               </button>
               <div style={{ ...s.hr, marginTop: 12 }} />
               <button style={s.logoutBtn} onClick={onLogout}><IconLogout color={T.coral} /> Sair da conta</button>

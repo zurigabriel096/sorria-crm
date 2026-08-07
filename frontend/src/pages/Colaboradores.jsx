@@ -7,6 +7,7 @@ import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { ColorPicker } from "../components/ui/ColorPicker";
+import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
 // Colaborador = usuário com login real (tabela "usuarios" no backend). O dentista não
 // entra aqui de propósito: não usa o sistema, não tem papel/acesso.
@@ -18,6 +19,7 @@ export function Colaboradores({
   const [salvando, setSalvando] = useState(false);
   const [funcaoForm, setFuncaoForm] = useState(null); // null | {id, rotulo, cor}
   const souAdmin = usuario?.papel === "ADMIN";
+  const arrasteTabela = useArrastarHorizontal();
   const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
   const rotuloDe = (chave) => papeisCargo.find((p) => p.chave === chave)?.rotulo || chave;
   const corDe = (chave) => papeisCargo.find((p) => p.chave === chave)?.cor || T.inkSoft;
@@ -84,7 +86,7 @@ export function Colaboradores({
         </div>
       )}
       <Card noPad>
-        <div style={s.tableScroll}>
+        <div ref={arrasteTabela.ref} style={{ ...s.tableScroll, ...arrasteTabela.style }} {...arrasteTabela.props}>
           <table style={s.table}>
             <thead><tr><th style={s.thL}>Nome</th><th style={s.th}>Função</th><th style={s.th}>CPF</th><th style={s.th}>Email</th><th style={s.th}></th></tr></thead>
             <tbody>

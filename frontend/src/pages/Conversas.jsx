@@ -13,6 +13,7 @@ import { listColaboradores } from "../api/colaboradores";
 import { iniciais } from "../utils/usuario";
 import { dataHora, tempoDesde, dataHoraRelativa } from "../utils/format";
 import { IconUserPlaceholder } from "../components/icons";
+import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
 const POLL_MENSAGENS_MS = 4000;
 // Mesmo texto usado em MensagemService.registrarEntrada (backend) quando um
@@ -304,6 +305,7 @@ function ChatModal({ contato, whatsappNumeroId, numeros, colaboradores, onClose,
 
 export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPaciente, onCriarPaciente, usuario, abrirContatoId, onAbriuContato }) {
   const souAdmin = usuario?.papel === "ADMIN";
+  const arrasteKanban = useArrastarHorizontal();
   const [numeros, setNumeros] = useState([]);
   const [nomePrincipal, setNomePrincipal] = useState("");
   const [selecao, setSelecao] = useState("todos"); // "todos" | "principal" | id do numero (string)
@@ -590,7 +592,11 @@ export function Conversas({ patients, showToast, onAbrirPaciente, onAtualizarPac
       {carregandoFiltro ? (
         <Card><div style={{ textAlign: "center", padding: 30, color: T.inkSoft }}>Carregando...</div></Card>
       ) : (
-        <div style={{ display: "flex", gap: 14, alignItems: "start", overflowX: "auto", paddingBottom: 8 }}>
+        <div
+          ref={arrasteKanban.ref}
+          style={{ display: "flex", gap: 14, alignItems: "start", overflowX: "auto", paddingBottom: 8, ...arrasteKanban.style }}
+          {...arrasteKanban.props}
+        >
           {etapas.map((etapa) => {
             const doEstagio = patients
               .filter((p) => (p.estagio || "Lead") === etapa.nome && passaFiltroResponsavel(p) && passaBusca(p))

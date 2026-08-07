@@ -1,17 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+  --ink: #16263B; --inkSoft: #5C6E7E; --bg: #F3F7F6; --line: #E6EDEC; --lineSoft: #F0F4F3; --cardBg: #FFFFFF;
+}
+/* Modo noturno (toggle no painel do avatar, Topbar.jsx) - foco no fundo
+   #282828 pedido pelo Samuel. So os tokens neutros (texto/fundo/linha) mudam
+   entre temas; cores de marca (primary/coral/wa/gold em theme.js) ficam
+   fixas de proposito, porque varias delas sao concatenadas com sufixo de
+   alpha em hex (ex.: T.primary + "1A") - virar CSS var quebraria essa conta. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #EDEDED; --inkSoft: #A3A3A3; --bg: #282828; --line: #3D3D3D; --lineSoft: #333333; --cardBg: #333333;
+}
 * { box-sizing: border-box; margin: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; }
-input, select, textarea { font-family: inherit; outline: none; background: #fff; color: #16263B; -webkit-text-fill-color: #16263B; }
-input::placeholder, textarea::placeholder { color: #5C6E7E; -webkit-text-fill-color: #5C6E7E; opacity: 1; }
+input, select, textarea { font-family: inherit; outline: none; background: var(--cardBg); color: var(--ink); -webkit-text-fill-color: var(--ink); }
+input::placeholder, textarea::placeholder { color: var(--inkSoft); -webkit-text-fill-color: var(--inkSoft); opacity: 1; }
 input:focus, select:focus, textarea:focus { border-color: #0FA895 !important; box-shadow: 0 0 0 3px #0FA89522; }
 
-.navItem:hover { background: #F0F4F3; }
-.collapseBtn:hover { background: #F0F4F3; }
+.navItem:hover { background: var(--lineSoft); }
+.collapseBtn:hover { background: var(--lineSoft); }
 .channelCard:hover { border-color: #0FA895 !important; transform: translateY(-1px); }
 .prow { cursor: pointer; transition: background .12s; }
-.prow:hover { background: #F0F4F3; }
+.prow:hover { background: var(--lineSoft); }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes logoShake {

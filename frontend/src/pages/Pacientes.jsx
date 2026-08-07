@@ -13,6 +13,7 @@ import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { ImportBox } from "../components/ui/ImportBox";
 import { IconSearch, IconDownload, IconFilter } from "../components/icons";
+import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
 // "Estagio" tambem existe no FIELD_META compartilhado com Segmentacoes
 // (data/seed.js, 05/08/2026) - mas la e' texto livre (nomes de etapa variam
@@ -86,6 +87,7 @@ export function Pacientes({
 }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
+  const arrasteTabela = useArrastarHorizontal();
   // Filtro avancado (icone de funil) - lista de condicoes combinadas por E,
   // reaproveita o mesmo motor de Segmentacoes (evalCond). Substituiu os 3
   // <select> separados de Estagio/Elegibilidade/Tag que existiam antes.
@@ -341,7 +343,7 @@ export function Pacientes({
         )}
       </div>
       <Card noPad>
-        <div style={s.tableScroll}>
+        <div ref={arrasteTabela.ref} style={{ ...s.tableScroll, ...arrasteTabela.style }} {...arrasteTabela.props}>
           <table style={s.table}>
             <thead>
               <tr>

@@ -6,6 +6,7 @@ import { iniciais } from "../utils/usuario";
 import { listEtapas } from "../api/etapas";
 import { Card } from "../components/ui/Card";
 import { IconUserPlaceholder } from "../components/icons";
+import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
 function pontuarPrioridade(p) {
   let score = 0;
@@ -28,6 +29,8 @@ function diasSemAtividade(p) {
 }
 
 const mesmoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+const ITENS_POR_PAGINA = 50;
 
 const FILTROS = [
   { chave: "todos", rotulo: "Todos" },
@@ -55,7 +58,9 @@ const FILTROS = [
 ];
 
 export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
+  const arrastePaginacao = useArrastarHorizontal();
   const [filtro, setFiltro] = useState("todos");
+  const [pagina, setPagina] = useState(1);
   const [mostrarTudo, setMostrarTudo] = useState(false);
   const [etapas, setEtapas] = useState([]);
   useEffect(() => { listEtapas().then(setEtapas).catch(() => setEtapas([])); }, []);
@@ -87,12 +92,17 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
 
   const escondidos = patients.length - visiveis.length;
 
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / ITENS_POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const paginados = filtrados.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
+  const trocarFiltro = (chave) => { setFiltro(chave); setPagina(1); };
+
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Fila de Trabalho</div>
         {escondidos > 0 && (
-          <button style={s.btnGhostSm} onClick={() => setMostrarTudo((v) => !v)}>
+          <button style={s.btnGhostSm} onClick={() => { setMostrarTudo((v) => !v); setPagina(1); }}>
             {mostrarTudo ? "Ocultar resolvidos" : `Mostrar tudo (${escondidos} ocultos)`}
           </button>
         )}
@@ -101,7 +111,7 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
         {FILTROS.map((f) => (
           <button
             key={f.chave}
-            onClick={() => setFiltro(f.chave)}
+            onClick={() => trocarFiltro(f.chave)}
             style={{
               padding: "6px 12px", borderRadius: 20, fontSize: 12.5, fontWeight: 700,
               background: filtro === f.chave ? T.primarySoft : T.lineSoft,
@@ -116,7 +126,7 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
         <Card><div style={{ textAlign: "center", padding: 24, color: T.inkSoft }}>Nada por aqui — fila zerada.</div></Card>
       )}
       <div style={{ display: "grid", gap: 8 }}>
-        {filtrados.map((p) => {
+        {paginados.map((p) => {
           const colaborador = colaboradores.find((c) => c.id === p.responsavelId);
           const aguardando = p.ultimaMensagemDirecao === "ENTRADA";
           const vencido = !!p.proximaAcaoEm && new Date(p.proximaAcaoEm).getTime() < Date.now();
@@ -163,6 +173,27 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa }) {
           );
         })}
       </div>
+      {totalPaginas > 1 && (
+        <div
+          ref={arrastePaginacao.ref}
+          style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, ...arrastePaginacao.style }}
+          {...arrastePaginacao.props}
+        >
+          {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              onClick={() => setPagina(n)}
+              style={{
+                minWidth: 30, padding: "6px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 700, flexShrink: 0,
+                background: paginaAtual === n ? T.primarySoft : T.lineSoft,
+                color: paginaAtual === n ? T.primaryDark : T.inkSoft,
+              }}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
