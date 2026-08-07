@@ -9,15 +9,11 @@ import org.springframework.stereotype.Component;
 // (ESTAGIOS_LEAD), pra virarem colunas de verdade editaveis - sem isso os 9
 // leads existentes com Contato.estagio="Lead"/"Lead Qualificado"/"Cliente"
 // ficariam sem nenhuma coluna correspondente na primeira carga.
-// @Order(1): precisa rodar antes do EtapaTagSyncInitializer, que depende das
-// etapas ja existirem pra criar as tags vinculadas.
-//
 // So semeia UMA VEZ NA VIDA (marcador em EtapaSeedMarcador, nao
 // repository.count()==0) - a versao antiga checava so a contagem, e isso
-// recriava as 3 colunas padrao (e suas tags, via EtapaTagSyncInitializer) TODA
-// VEZ que o ADMIN excluia todas as etapas e o backend reiniciava depois (cold
-// start do Render conta como reinicio) - a exclusao deliberada nunca deveria
-// voltar sozinha.
+// recriava as 3 colunas padrao TODA VEZ que o ADMIN excluia todas as etapas e
+// o backend reiniciava depois (cold start do Render conta como reinicio) - a
+// exclusao deliberada nunca deveria voltar sozinha.
 @Component
 @Order(1)
 @RequiredArgsConstructor
