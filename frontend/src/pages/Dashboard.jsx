@@ -168,7 +168,11 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
       )}
       <div className="kpiRow" style={s.kpiRow}>
         {metricasSemDisparados.map((m) => <div key={m.chave}>{m.montar(kpis, ctx)}</div>)}
-        {cards.flatMap((c) => (c.valores || []).map((v) => {
+        {/* So cards em modo "lista" viram big number individual aqui no topo -
+            pizza/barra ja tem espaco proprio (mais legivel) no detalhamento
+            abaixo, sem duplicar E sem lotar a fileira do topo com dezenas de
+            numeros quando o campo tem muitos valores distintos. */}
+        {cards.filter((c) => (c.tipoVisualizacao || "lista") === "lista").flatMap((c) => (c.valores || []).map((v) => {
           const Icone = iconeDoCard(c.campoNome);
           return (
             <KpiCard

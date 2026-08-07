@@ -24,6 +24,16 @@ public class PainelCardService {
 
     private static final String VAZIO = "(vazio)";
 
+    // Teto de valores distintos por card - sem isso, um campo continuo (ex.:
+    // Valor do Orcamento, um preco por lead, quase todo valor e' unico) gera
+    // 1 "big number" por valor distinto na fileira do topo do Painel e
+    // estoura o layout (achado real: card "teste" com 40+ valores diferentes
+    // vazou a tela pra direita, 06/08/2026). Os valores que sobram do teto
+    // entram somados num balde "Outros" em vez de simplesmente desaparecer -
+    // a soma dos baldes continua batendo com o total de leads do campo.
+    private static final int MAX_VALORES_POR_CARD = 12;
+    private static final String OUTROS = "Outros";
+
     // Mapa campoNome (prefixo "fixo:") -> coluna real de "contatos". So os
     // valores deste Map (nunca campoNome em si) entram na string do SQL -
     // campoNome so e' usado como CHAVE de lookup aqui, nunca concatenado
@@ -105,10 +115,19 @@ public class PainelCardService {
                     + "GROUP BY v";
             params = new Object[]{campoNome};
         }
-        return jdbcTemplate.query(sql, params, (rs, rowNum) -> new ValorContagemDTO(rs.getString("v"), rs.getLong("contagem")))
+        List<ValorContagemDTO> todos = jdbcTemplate.query(sql, params, (rs, rowNum) -> new ValorContagemDTO(rs.getString("v"), rs.getLong("contagem")))
                 .stream()
                 .filter(v -> !VAZIO.equals(v.valor()))
                 .sorted(Comparator.comparing(ValorContagemDTO::contagem).reversed())
                 .toList();
+        return limitarComOutros(todos);
+    }
+
+    private List<ValorContagemDTO> limitarComOutros(List<ValorContagemDTO> todos) {
+        if (todos.size() <= MAX_VALORES_POR_CARD) return todos;
+        List<ValorContagemDTO> top = new java.util.ArrayList<>(todos.subList(0, MAX_VALORES_POR_CARD - 1));
+        long somaResto = todos.subList(MAX_VALORES_POR_CARD - 1, todos.size()).stream().mapToLong(ValorContagemDTO::contagem).sum();
+        top.add(new ValorContagemDTO(OUTROS, somaResto));
+        return top;
     }
 }
