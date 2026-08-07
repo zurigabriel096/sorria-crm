@@ -17,7 +17,7 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { IconUsers, IconCheck, IconSend, IconGrid, IconCoin, IconGavel } from "../components/icons";
 import { CAMPOS_FIXOS, rotuloCampo } from "../utils/painelCampos";
 import { iniciais } from "../utils/usuario";
-import { pontuarPrioridade, motivoPrioridade } from "../utils/prioridade";
+import { pontuarPrioridade, motivoPrioridade, diasSemAtividade } from "../utils/prioridade";
 import { brl } from "../utils/format";
 
 // "disparados" (Mensagens disparadas) fica de fora deste catalogo de proposito -
@@ -90,6 +90,17 @@ function GraficoBarras({ valores, onClickValor }) {
   );
 }
 
+// Recortes fixos do Painel Executivo (pedido do Samuel, 07/08/2026):
+// visualizacao de cada um e' FIXA (nao passa pelo TIPOS_VISUALIZACAO do
+// usuario) - so a aba "Personalizado" continua usando os PainelCard
+// configuraveis pelo admin.
+const ABAS_PAINEL = [
+  { chave: "inadimplentes", rotulo: "Inadimplentes" },
+  { chave: "quaseChurn", rotulo: "Quase a churn" },
+  { chave: "aguardandoResposta", rotulo: "Aguardando resposta" },
+  { chave: "personalizado", rotulo: "Personalizado" },
+];
+
 const TIPOS_VISUALIZACAO = [
   { valor: "lista", rotulo: "Lista com barra" },
   { valor: "pizza", rotulo: "Gráfico de pizza" },
@@ -119,6 +130,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   const [cards, setCards] = useState([]);
   const [prospectsHistorico, setProspectsHistorico] = useState([]);
   const [personalizando, setPersonalizando] = useState(false);
+  const [abaFixa, setAbaFixa] = useState("inadimplentes");
 
   const carregarProspectsHistorico = () => listDispatchProspectHistory().then(setProspectsHistorico).catch(() => setProspectsHistorico([]));
 
@@ -180,6 +192,49 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   // nenhum alem de contar o que ja existe em patients.
   const comResponsavel = patients.filter((p) => p.responsavelId).length;
   const pctComResponsavel = patients.length ? Math.round((comResponsavel / patients.length) * 100) : 0;
+
+  // --- Recorte fixo "Inadimplentes" - distribuicao real do campo nativo
+  // financ (Adimplente/Inadimplente/—), dado ja existente em todo Contato.
+  const totalInadimplentes = patients.filter((p) => p.financ === "Inadimplente").length;
+  const distribuicaoFinanceira = ["Adimplente", "Inadimplente", "—"]
+    .map((v) => ({ valor: v, contagem: patients.filter((p) => (p.financ || "—") === v).length }))
+    .filter((v) => v.contagem > 0);
+
+  // --- Recorte fixo "Quase a churn" - sem follow-up futuro agendado
+  // (proximaAcaoEm) E parado ha 30+ dias sem mensagem (mesmo criterio de
+  // "diasSemAtividade" ja usado na ocultacao inteligente da Fila de Trabalho).
+  const BANDAS_CHURN = [
+    { valor: "30–60 dias parado", min: 30, max: 60 },
+    { valor: "60–90 dias parado", min: 60, max: 90 },
+    { valor: "90+ dias parado", min: 90, max: Infinity },
+  ];
+  const churnValores = BANDAS_CHURN
+    .map((b) => ({
+      valor: b.valor,
+      contagem: patients.filter((p) => !p.proximaAcaoEm && diasSemAtividade(p) >= b.min && diasSemAtividade(p) < b.max).length,
+    }))
+    .filter((v) => v.contagem > 0);
+  const totalQuaseChurn = churnValores.reduce((acc, v) => acc + v.contagem, 0);
+
+  // --- Recorte fixo "Aguardando resposta" - cliente falou por ultimo
+  // (ultimaMensagemDirecao "ENTRADA") e ainda ninguem respondeu, bandas por
+  // tempo de espera (quanto mais tempo, maior o risco de perder a venda).
+  const BANDAS_AGUARDANDO = [
+    { valor: "até 1h", min: 0, max: 1 },
+    { valor: "1 a 24h", min: 1, max: 24 },
+    { valor: "mais de 24h", min: 24, max: Infinity },
+  ];
+  const aguardandoRespostaValores = BANDAS_AGUARDANDO
+    .map((b) => ({
+      valor: b.valor,
+      contagem: patients.filter((p) => {
+        if (p.ultimaMensagemDirecao !== "ENTRADA" || !p.ultimaMensagemEm) return false;
+        const horas = (Date.now() - new Date(p.ultimaMensagemEm).getTime()) / 36e5;
+        return horas >= b.min && horas < b.max;
+      }).length,
+    }))
+    .filter((v) => v.contagem > 0);
+  const totalAguardandoResposta = aguardandoRespostaValores.reduce((acc, v) => acc + v.contagem, 0);
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
@@ -280,43 +335,119 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
           </div>
         </Card>
       </div>
-      {metricasVisiveis.includes("baseEstagio") && !!cards.length && (
+      {metricasVisiveis.includes("baseEstagio") && (
         <Card>
-          <div style={{ display: "grid", gap: 24 }}>
-            {cards.filter((c) => c.tipoVisualizacao !== "soma").map((c) => {
-              const valores = c.valores || [];
-              const tipo = c.tipoVisualizacao || "lista";
-              return (
-                <div key={c.id}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink, marginBottom: 10 }}>{c.rotulo || rotuloCampo(c.campoNome)}</div>
-                  {tipo === "pizza" && (
-                    <GraficoPizza valores={valores} onClickValor={(valor) => irParaPacientes({ campo: c.campoNome, valor })} />
-                  )}
-                  {tipo === "barra" && (
-                    <GraficoBarras valores={valores} onClickValor={(valor) => irParaPacientes({ campo: c.campoNome, valor })} />
-                  )}
-                  {tipo === "lista" && (
-                    <div style={{ display: "grid", gap: 6 }}>
-                      {valores.map((v) => (
-                        <div
-                          key={v.valor}
-                          style={{ ...s.segRow, cursor: "pointer" }}
-                          onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
-                        >
-                          <span style={{ ...s.segBadge, color: T.ink, background: T.lineSoft }}>{v.valor}</span>
-                          <div style={s.segBarTrack}>
-                            <div style={{ ...s.segBarFill, width: `${(v.contagem / (kpis.totalContatos || 1)) * 100}%`, background: T.primary }} />
-                          </div>
-                          <b style={{ fontSize: 13, color: T.ink, width: 34, textAlign: "right" }}>{v.contagem}</b>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
+            {ABAS_PAINEL.map((a) => (
+              <button
+                key={a.chave}
+                onClick={() => setAbaFixa(a.chave)}
+                style={{
+                  padding: "6px 14px", borderRadius: 20, fontSize: 12.5, fontWeight: 700,
+                  background: abaFixa === a.chave ? T.primarySoft : T.lineSoft,
+                  color: abaFixa === a.chave ? T.primaryDark : T.inkSoft,
+                }}
+              >
+                {a.rotulo}
+              </button>
+            ))}
           </div>
-          <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
+
+          {abaFixa === "inadimplentes" && (
+            <div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 26, fontWeight: 800, color: T.coral }}>{num(totalInadimplentes)}</span>
+                <span style={{ fontSize: 13, color: T.inkSoft }}>leads inadimplentes agora</span>
+              </div>
+              {distribuicaoFinanceira.length ? (
+                <GraficoPizza valores={distribuicaoFinanceira} onClickValor={(valor) => irParaPacientes({ campo: "fixo:financ", valor })} />
+              ) : (
+                <div style={{ color: T.inkSoft, fontSize: 12.5 }}>Nenhum lead com situação financeira registrada ainda.</div>
+              )}
+              {totalInadimplentes > 0 && (
+                <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => irParaPacientes({ campo: "fixo:financ", valor: "Inadimplente" })}>Ver leads inadimplentes</button>
+              )}
+            </div>
+          )}
+
+          {abaFixa === "quaseChurn" && (
+            <div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 26, fontWeight: 800, color: T.gold }}>{num(totalQuaseChurn)}</span>
+                <span style={{ fontSize: 13, color: T.inkSoft }}>sem agendamento futuro e parados há 30+ dias</span>
+              </div>
+              {churnValores.length ? (
+                <GraficoBarras valores={churnValores} />
+              ) : (
+                <div style={{ color: T.inkSoft, fontSize: 12.5 }}>Nenhum lead nessa situação agora — base saudável.</div>
+              )}
+              {totalQuaseChurn > 0 && (
+                <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("filaTrabalho")}>Ver na fila de trabalho</button>
+              )}
+            </div>
+          )}
+
+          {abaFixa === "aguardandoResposta" && (
+            <div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
+                <span style={{ fontSize: 26, fontWeight: 800, color: T.primary }}>{num(totalAguardandoResposta)}</span>
+                <span style={{ fontSize: 13, color: T.inkSoft }}>leads esperando resposta agora</span>
+              </div>
+              {aguardandoRespostaValores.length ? (
+                <GraficoBarras valores={aguardandoRespostaValores} />
+              ) : (
+                <div style={{ color: T.inkSoft, fontSize: 12.5 }}>Ninguém esperando resposta agora — fila em dia.</div>
+              )}
+              {totalAguardandoResposta > 0 && (
+                <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("filaTrabalho")}>Ver na fila de trabalho</button>
+              )}
+            </div>
+          )}
+
+          {abaFixa === "personalizado" && (
+            !cards.length ? (
+              <div style={{ padding: "8px 0", color: T.inkSoft, fontSize: 12.5 }}>
+                Nenhum card personalizado ainda.
+                {souAdmin && <button style={{ ...s.btnGhost, marginLeft: 10 }} onClick={() => setPersonalizando(true)}>Criar card personalizado</button>}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 24 }}>
+                {cards.filter((c) => c.tipoVisualizacao !== "soma").map((c) => {
+                  const valores = c.valores || [];
+                  const tipo = c.tipoVisualizacao || "lista";
+                  return (
+                    <div key={c.id}>
+                      <div style={{ fontWeight: 700, fontSize: 13.5, color: T.ink, marginBottom: 10 }}>{c.rotulo || rotuloCampo(c.campoNome)}</div>
+                      {tipo === "pizza" && (
+                        <GraficoPizza valores={valores} onClickValor={(valor) => irParaPacientes({ campo: c.campoNome, valor })} />
+                      )}
+                      {tipo === "barra" && (
+                        <GraficoBarras valores={valores} onClickValor={(valor) => irParaPacientes({ campo: c.campoNome, valor })} />
+                      )}
+                      {tipo === "lista" && (
+                        <div style={{ display: "grid", gap: 6 }}>
+                          {valores.map((v) => (
+                            <div
+                              key={v.valor}
+                              style={{ ...s.segRow, cursor: "pointer" }}
+                              onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
+                            >
+                              <span style={{ ...s.segBadge, color: T.ink, background: T.lineSoft }}>{v.valor}</span>
+                              <div style={s.segBarTrack}>
+                                <div style={{ ...s.segBarFill, width: `${(v.contagem / (kpis.totalContatos || 1)) * 100}%`, background: T.primary }} />
+                              </div>
+                              <b style={{ fontSize: 13, color: T.ink, width: 34, textAlign: "right" }}>{v.contagem}</b>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <button style={{ ...s.btnGhost, marginTop: -8 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
+              </div>
+            )
+          )}
         </Card>
       )}
       {!!prospectsHistorico.length && (
