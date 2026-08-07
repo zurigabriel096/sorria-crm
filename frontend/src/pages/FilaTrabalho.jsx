@@ -8,26 +8,7 @@ import { Card } from "../components/ui/Card";
 import { DotMenu } from "../components/ui/DotMenu";
 import { AtribuirResponsavelModal } from "../components/ui/AtribuirResponsavelModal";
 import { IconUserPlaceholder } from "../components/icons";
-
-function pontuarPrioridade(p) {
-  let score = 0;
-  if (p.ultimaMensagemDirecao === "ENTRADA" && p.ultimaMensagemEm) {
-    // Aguardando resposta do cliente e' sempre o que mais importa - soma um
-    // teto de horas de espera pra desempatar quem esta esperando ha mais tempo.
-    score += 1000 + Math.min(500, Math.floor((Date.now() - new Date(p.ultimaMensagemEm).getTime()) / 36e5));
-  }
-  if (p.proximaAcaoEm) {
-    const diffMs = new Date(p.proximaAcaoEm).getTime() - Date.now();
-    if (diffMs < 0) score += 900; // follow-up vencido
-    else if (diffMs < 864e5) score += 700; // vence nas proximas 24h
-  }
-  return score;
-}
-
-function diasSemAtividade(p) {
-  if (!p.ultimaMensagemEm) return Infinity;
-  return Math.floor((Date.now() - new Date(p.ultimaMensagemEm).getTime()) / 864e5);
-}
+import { pontuarPrioridade, diasSemAtividade } from "../utils/prioridade";
 
 const mesmoDia = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 

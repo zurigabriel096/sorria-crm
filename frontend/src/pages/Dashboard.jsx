@@ -16,6 +16,9 @@ import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { IconUsers, IconCheck, IconSend, IconGrid, IconCoin, IconGavel } from "../components/icons";
 import { CAMPOS_FIXOS, rotuloCampo } from "../utils/painelCampos";
+import { iniciais } from "../utils/usuario";
+import { pontuarPrioridade, motivoPrioridade } from "../utils/prioridade";
+import { brl } from "../utils/format";
 
 // "disparados" (Mensagens disparadas) fica de fora deste catalogo de proposito -
 // e' tratado a parte pra sempre ficar por ULTIMO na fileira, com estilo proprio
@@ -91,7 +94,13 @@ const TIPOS_VISUALIZACAO = [
   { valor: "lista", rotulo: "Lista com barra" },
   { valor: "pizza", rotulo: "Gráfico de pizza" },
   { valor: "barra", rotulo: "Gráfico de barras" },
+  { valor: "soma", rotulo: "Soma (R$/número)" },
 ];
+
+function saudacao() {
+  const hora = new Date().getHours();
+  return hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+}
 
 // Icone do card personalizado por campo - Financeiro vira moeda, qualquer
 // campo chamado "Situação" (fixo ou personalizado) vira martelo de juiz;
@@ -103,7 +112,7 @@ function iconeDoCard(campoNome) {
   return IconGrid;
 }
 
-export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas }) {
+export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas, onAbrirConversa }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [kpis, setKpis] = useState(null);
   const [metricasVisiveis, setMetricasVisiveisState] = useState(null);
@@ -158,20 +167,48 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   const metricasSemDisparados = metricasAtivas.filter((m) => m.chave !== "disparados");
   const metricaDisparados = metricasAtivas.find((m) => m.chave === "disparados");
 
+  // "Prioridades de hoje" (pedido do Samuel, 06/08/2026) - reusa o MESMO
+  // pontuarPrioridade da Fila de Trabalho, so' que mostra so' o top 4 aqui no
+  // Painel. Dado real (patients ja carregado), nada inventado.
+  const prioridadesHoje = [...patients]
+    .filter((p) => motivoPrioridade(p))
+    .sort((a, b) => pontuarPrioridade(b) - pontuarPrioridade(a))
+    .slice(0, 4);
+
+  // "Carga da equipe" - quantos leads tem responsavel atribuido x quantos
+  // estao na fila compartilhada (responsavelId null). Dado real, sem calculo
+  // nenhum alem de contar o que ja existe em patients.
+  const comResponsavel = patients.filter((p) => p.responsavelId).length;
+  const pctComResponsavel = patients.length ? Math.round((comResponsavel / patients.length) * 100) : 0;
+
   return (
     <div style={{ display: "grid", gap: 18 }}>
-      <PrimeirosPassos patients={patients} colaboradores={colaboradores || []} campanhas={campanhas || []} setView={setView} />
-      {souAdmin && (
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: T.ink }}>{saudacao()}{usuario?.nome ? `, ${String(usuario.nome).trim().split(/\s+/)[0]}` : ""}.</div>
+          <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 2 }}>Pronto pra recuperar receita hoje?</div>
         </div>
-      )}
+        {souAdmin && <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />}
+      </div>
+      <PrimeirosPassos patients={patients} colaboradores={colaboradores || []} campanhas={campanhas || []} setView={setView} />
       <div className="kpiRow" style={s.kpiRow}>
         {metricasSemDisparados.map((m) => <div key={m.chave}>{m.montar(kpis, ctx)}</div>)}
         {/* So cards em modo "lista" viram big number individual aqui no topo -
             pizza/barra ja tem espaco proprio (mais legivel) no detalhamento
             abaixo, sem duplicar E sem lotar a fileira do topo com dezenas de
-            numeros quando o campo tem muitos valores distintos. */}
+            numeros quando o campo tem muitos valores distintos. "soma" e' 1
+            numero so' por natureza, entao entra direto como big number. */}
+        {cards.filter((c) => c.tipoVisualizacao === "soma").map((c) => {
+          const Icone = iconeDoCard(c.campoNome);
+          return (
+            <KpiCard
+              key={c.id}
+              label={c.rotulo || rotuloCampo(c.campoNome)}
+              value={brl(c.soma || 0)}
+              icon={<Icone color={T.coral} />}
+            />
+          );
+        })}
         {cards.filter((c) => (c.tipoVisualizacao || "lista") === "lista").flatMap((c) => (c.valores || []).map((v) => {
           const Icone = iconeDoCard(c.campoNome);
           return (
@@ -194,10 +231,59 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
         )}
         {metricaDisparados && <div key={metricaDisparados.chave}>{metricaDisparados.montar(kpis, ctx)}</div>}
       </div>
+      <div className="dashGrid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
+        <Card title="Prioridades de hoje">
+          {!prioridadesHoje.length ? (
+            <div style={{ padding: "8px 0", color: T.inkSoft, fontSize: 12.5 }}>Nenhum lead pedindo atenção agora — fila em dia.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {prioridadesHoje.map((p) => {
+                const colaborador = colaboradores?.find((c) => c.id === p.responsavelId);
+                const vencido = motivoPrioridade(p) === "follow-up vencido";
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => (onAbrirConversa ? onAbrirConversa(p.id) : irParaPacientes())}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
+                      borderRadius: 10, background: T.lineSoft, cursor: "pointer",
+                    }}
+                  >
+                    <div style={{
+                      width: 26, height: 26, borderRadius: "50%", background: colaborador?.corPerfil || T.inkSoft, color: "#fff",
+                      display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {iniciais(colaborador?.nome || p.nome || "?")}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: T.ink }}>{p.nome}</div>
+                      <div style={{ fontSize: 11.5, color: vencido ? T.coral : T.inkSoft }}>{motivoPrioridade(p)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <button style={{ ...s.btnGhost, marginTop: 4 }} onClick={() => setView("filaTrabalho")}>Ver fila de trabalho completa</button>
+            </div>
+          )}
+        </Card>
+        <Card title="Carga da equipe">
+          <div style={{ display: "grid", gap: 10 }}>
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: T.inkSoft, marginBottom: 4 }}>
+                <span>Com responsável</span><b style={{ color: T.ink }}>{pctComResponsavel}%</b>
+              </div>
+              <div style={s.segBarTrack}>
+                <div style={{ ...s.segBarFill, width: `${pctComResponsavel}%`, background: T.primary }} />
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: T.inkSoft }}>{num(comResponsavel)} de {num(patients.length)} leads têm um responsável atribuído</div>
+          </div>
+        </Card>
+      </div>
       {metricasVisiveis.includes("baseEstagio") && !!cards.length && (
         <Card>
           <div style={{ display: "grid", gap: 24 }}>
-            {cards.map((c) => {
+            {cards.filter((c) => c.tipoVisualizacao !== "soma").map((c) => {
               const valores = c.valores || [];
               const tipo = c.tipoVisualizacao || "lista";
               return (

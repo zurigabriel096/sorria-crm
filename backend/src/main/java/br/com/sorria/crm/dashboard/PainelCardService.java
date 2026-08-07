@@ -85,9 +85,31 @@ public class PainelCardService {
     }
 
     private PainelCardDTO toDTO(PainelCard c) {
-        List<ValorContagemDTO> valores = contarPorValor(c.getCampoNome());
         String tipo = c.getTipoVisualizacao() != null ? c.getTipoVisualizacao() : "lista";
-        return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getRotulo(), tipo, c.getOrdem(), valores);
+        if ("soma".equals(tipo)) {
+            Double soma = somarValor(c.getCampoNome());
+            return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getRotulo(), tipo, c.getOrdem(), List.of(), soma);
+        }
+        List<ValorContagemDTO> valores = contarPorValor(c.getCampoNome());
+        return new PainelCardDTO(c.getId(), c.getCampoNome(), c.getRotulo(), tipo, c.getOrdem(), valores, null);
+    }
+
+    // Soma numerica de um campo personalizado (ex.: "Valor em Atraso (R$)")
+    // por todos os leads - modo "soma" do card, pensado pra virar 1 big number
+    // no topo do Painel em vez de quebra por valor distinto. So funciona pra
+    // campo personalizado (nao tem "fixo:" numerico hoje no cadastro nativo).
+    // O REPLACE cobre valor gravado com virgula decimal (raro, mas o tipo
+    // MOEDA nao trava formato na entrada) - sem isso um valor assim quebraria
+    // o CAST inteiro em vez de so' ser ignorado.
+    private Double somarValor(String campoNome) {
+        if (campoNome.startsWith("fixo:")) return 0.0;
+        String sql = "SELECT COALESCE(SUM("
+                + "CASE WHEN TRIM(ccc.valor) ~ '^-?[0-9]+([.,][0-9]+)?$' "
+                + "THEN CAST(REPLACE(TRIM(ccc.valor), ',', '.') AS NUMERIC) ELSE 0 END"
+                + "), 0) AS soma "
+                + "FROM contato_campos_customizados ccc WHERE ccc.campo_nome = ?";
+        Double resultado = jdbcTemplate.queryForObject(sql, Double.class, campoNome);
+        return resultado != null ? resultado : 0.0;
     }
 
     // Balde "(vazio)" fica de fora do resultado de proposito (pedido do
