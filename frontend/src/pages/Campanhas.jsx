@@ -27,7 +27,7 @@ const ESCALONAMENTO_OPCOES = [
 ];
 const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, segmentos, patients, onDisparar, showToast, usuario }) {
+export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, segmentos, patients, onDisparar, showToast, usuario, setView }) {
   const responsavel = usuario?.nome || "Você";
   const souAdmin = usuario?.papel === "ADMIN";
   const [modal, setModal] = useState(null);
@@ -336,7 +336,11 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
                 <option value="">Selecione um template ativo...</option>
                 {ativos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
-              {!ativos.length && <div style={{ fontSize: 11.5, color: T.coral, marginTop: 6 }}>Nenhum template ativo — crie um na aba Templates.</div>}
+              {!ativos.length && (
+                <div style={{ fontSize: 11.5, color: T.coral, marginTop: 6 }}>
+                  Nenhum template ativo — <button type="button" onClick={() => setView("templates")} style={{ color: T.coral, fontWeight: 700, textDecoration: "underline" }}>crie um na aba Templates</button>.
+                </div>
+              )}
             </Field>
           )}
           {f.canal === "WhatsApp" && !!numerosDisparo.length && (

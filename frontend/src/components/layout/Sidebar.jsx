@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { T } from "../../theme";
 import { s } from "../../styles/s";
 import { Logo } from "../Logo";
-import { IconGrid, IconUsers, IconFilter, IconMega, IconTeam, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox, IconHome, IconLock, IconCard } from "../icons";
+import { IconGrid, IconUsers, IconFilter, IconMega, IconTeam, IconGear, IconChevron, IconZap, IconPanelLeft, IconKanban, IconInbox, IconHome, IconLock, IconCard, IconChat } from "../icons";
 
 // Remodelacao 06/08/2026 (pivo do orquestrador interdepartamental): menu
 // unificado - TODO MUNDO ve todas as abas, inclusive as restritas a
@@ -24,6 +24,7 @@ const ITEMS_BASE = [
     group: "campanhas", label: "Campanhas", icon: IconMega, restrito: true,
     children: [
       ["segmentacoes", "Segmentação", IconFilter],
+      ["templates", "Templates", IconChat],
       ["automacoes", "Automação", IconZap],
     ],
   },
