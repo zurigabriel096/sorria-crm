@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -83,7 +84,16 @@ public class UsuarioService {
         return chave;
     }
 
+    // Chamado pela tela de Colaboradores (aba "Permissões do painel") -
+    // ADMIN/GESTOR nao precisam disso pra ver o Painel (ver Dashboard.jsx),
+    // entao esta lista so tem efeito pratico pros demais papeis.
+    public UsuarioDTO atualizarAbasDashboard(Long id, List<String> abas) {
+        Usuario usuario = buscarEntidade(id);
+        usuario.setAbasDashboardPermitidas(abas == null ? new ArrayList<>() : new ArrayList<>(abas));
+        return toDTO(usuarioRepository.save(usuario));
+    }
+
     private UsuarioDTO toDTO(Usuario u) {
-        return new UsuarioDTO(u.getId(), u.getNome(), u.getCpf(), u.getEmail(), u.getPapel(), u.getCorPerfil(), u.getAvatarUrl());
+        return new UsuarioDTO(u.getId(), u.getNome(), u.getCpf(), u.getEmail(), u.getPapel(), u.getCorPerfil(), u.getAvatarUrl(), u.getAbasDashboardPermitidas());
     }
 }

@@ -19,6 +19,8 @@ import { CAMPOS_FIXOS, rotuloCampo } from "../utils/painelCampos";
 import { iniciais } from "../utils/usuario";
 import { pontuarPrioridade, motivoPrioridade, diasSemAtividade } from "../utils/prioridade";
 import { brl } from "../utils/format";
+import { ABAS_PAINEL } from "../utils/painelAbas";
+import { getDesempenhoEquipe, getMetas, salvarMetaEmpresa, salvarMetaEquipe, salvarMetaIndividual } from "../api/desempenho";
 
 // "disparados" (Mensagens disparadas) fica de fora deste catalogo de proposito -
 // e' tratado a parte pra sempre ficar por ULTIMO na fileira, com estilo proprio
@@ -90,16 +92,124 @@ function GraficoBarras({ valores, onClickValor }) {
   );
 }
 
-// Recortes fixos do Painel Executivo (pedido do Samuel, 07/08/2026):
-// visualizacao de cada um e' FIXA (nao passa pelo TIPOS_VISUALIZACAO do
-// usuario) - so a aba "Personalizado" continua usando os PainelCard
-// configuraveis pelo admin.
-const ABAS_PAINEL = [
-  { chave: "inadimplentes", rotulo: "Inadimplentes" },
-  { chave: "quaseChurn", rotulo: "Quase a churn" },
-  { chave: "aguardandoResposta", rotulo: "Aguardando resposta" },
-  { chave: "personalizado", rotulo: "Personalizado" },
-];
+// Aba "Equipe" do Painel Executivo - ranking real por colaborador (dados de
+// DesempenhoEquipeService: atendimentos/convertidos/respondidas/vencidos,
+// tudo ja existente no banco) + metas manuais (Empresa/Equipe/Individual,
+// so ADMIN/GESTOR editam - pedido do Samuel 07/08/2026). "Super meta" nao
+// tem numero proprio: e' um selo automatico que acende quando TODO MUNDO
+// que tem meta individual definida bateu a propria meta.
+function DesempenhoEquipe({ desempenho, metaEmpresa, metaEquipe, metaIndividualDe, superMeta, totalConvertidosEquipe, souGestorOuAdmin, onSalvarMeta }) {
+  const [editando, setEditando] = useState(null); // null | "EMPRESA" | "EQUIPE" | colaboradorId
+  const [rascunho, setRascunho] = useState("");
+
+  const abrirEdicao = (chave, valorAtual) => { setEditando(chave); setRascunho(valorAtual != null ? String(valorAtual) : ""); };
+  const confirmarEdicao = async () => {
+    const valor = Math.max(0, parseInt(rascunho, 10) || 0);
+    if (editando === "EMPRESA") await onSalvarMeta("EMPRESA", null, valor);
+    else if (editando === "EQUIPE") await onSalvarMeta("EQUIPE", null, valor);
+    else await onSalvarMeta("INDIVIDUAL", editando, valor);
+    setEditando(null);
+  };
+
+  const MetaCard = ({ titulo, valor, chave }) => {
+    const pct = valor ? Math.min(100, Math.round((totalConvertidosEquipe / valor) * 100)) : null;
+    return (
+      <div style={{ flex: 1, minWidth: 180, padding: 14, borderRadius: 12, background: T.lineSoft }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: T.inkSoft }}>{titulo}</span>
+          {souGestorOuAdmin && editando !== chave && <button style={{ fontSize: 11, color: T.primary, fontWeight: 700 }} onClick={() => abrirEdicao(chave, valor)}>Editar</button>}
+        </div>
+        {editando === chave ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            <input autoFocus type="number" min={0} style={{ ...s.input, padding: "4px 8px" }} value={rascunho} onChange={(e) => setRascunho(e.target.value)} />
+            <button style={s.btnPrimarySm} onClick={confirmarEdicao}>OK</button>
+          </div>
+        ) : valor == null ? (
+          <div style={{ fontSize: 12.5, color: T.inkSoft }}>Meta não definida{souGestorOuAdmin ? "" : " ainda"}</div>
+        ) : (
+          <>
+            <div style={{ fontSize: 20, fontWeight: 800, color: T.ink }}>{num(totalConvertidosEquipe)}<span style={{ fontSize: 13, color: T.inkSoft, fontWeight: 600 }}> / {num(valor)}</span></div>
+            <div style={{ ...s.segBarTrack, marginTop: 6 }}>
+              <div style={{ ...s.segBarFill, width: `${pct}%`, background: pct >= 100 ? T.wa : T.primary }} />
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+        <MetaCard titulo="Meta da empresa" valor={metaEmpresa} chave="EMPRESA" />
+        <MetaCard titulo="Meta da equipe" valor={metaEquipe} chave="EQUIPE" />
+        <div style={{
+          flex: 1, minWidth: 180, padding: 14, borderRadius: 12,
+          background: superMeta ? "#FFF7E0" : T.lineSoft, border: superMeta ? `1.5px solid ${T.gold}` : "none",
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.inkSoft, marginBottom: 6 }}>Super meta</div>
+          {superMeta ? (
+            <div style={{ fontSize: 13, fontWeight: 800, color: T.gold }}>🏆 Toda a equipe bateu a meta individual!</div>
+          ) : (
+            <div style={{ fontSize: 12, color: T.inkSoft }}>Acende quando todo mundo com meta individual definida bater a própria meta.</div>
+          )}
+        </div>
+      </div>
+
+      {!desempenho.length ? (
+        <div style={{ color: T.inkSoft, fontSize: 12.5 }}>Nenhum colaborador com leads atribuídos ainda.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 8 }}>
+          {desempenho.map((d, i) => {
+            const meta = metaIndividualDe(d.colaboradorId);
+            const pct = meta ? Math.min(100, Math.round((d.convertidos / meta) * 100)) : null;
+            const bateuMeta = meta != null && d.convertidos >= meta;
+            return (
+              <div key={d.colaboradorId} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, background: "#fff", border: `1px solid ${T.line}` }}>
+                <div style={{ width: 22, textAlign: "center", fontSize: 12.5, fontWeight: 800, color: i === 0 && d.convertidos > 0 ? T.gold : T.inkSoft }}>
+                  {i === 0 && d.convertidos > 0 ? "🏆" : `#${i + 1}`}
+                </div>
+                <div style={{
+                  width: 30, height: 30, borderRadius: "50%", background: d.corPerfil || T.inkSoft, color: "#fff",
+                  display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, overflow: "hidden",
+                }}>
+                  {d.avatarUrl ? <img src={d.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : iniciais(d.nome)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: T.ink }}>{d.nome}</div>
+                  <div style={{ fontSize: 11, color: T.inkSoft }}>
+                    {num(d.atendimentos)} leads · {num(d.respondidas)} respostas{d.vencidos > 0 ? ` · ${num(d.vencidos)} follow-ups vencidos` : ""}
+                  </div>
+                  {meta != null && (
+                    <div style={{ ...s.segBarTrack, marginTop: 6, maxWidth: 220 }}>
+                      <div style={{ ...s.segBarFill, width: `${pct}%`, background: bateuMeta ? T.wa : T.primary }} />
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: "right", minWidth: 74 }}>
+                  <div style={{ fontWeight: 800, fontSize: 15, color: bateuMeta ? T.wa : T.ink }}>
+                    {num(d.convertidos)}{meta != null && <span style={{ fontSize: 11, color: T.inkSoft, fontWeight: 600 }}> / {num(meta)}</span>}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: T.inkSoft }}>convertidos</div>
+                </div>
+                {souGestorOuAdmin && (
+                  editando === d.colaboradorId ? (
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <input autoFocus type="number" min={0} style={{ ...s.input, width: 60, padding: "4px 6px" }} value={rascunho} onChange={(e) => setRascunho(e.target.value)} />
+                      <button style={s.btnPrimarySm} onClick={confirmarEdicao}>OK</button>
+                    </div>
+                  ) : (
+                    <button style={s.btnGhostSm} onClick={() => abrirEdicao(d.colaboradorId, meta)}>Meta</button>
+                  )
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const TIPOS_VISUALIZACAO = [
   { valor: "lista", rotulo: "Lista com barra" },
@@ -125,12 +235,24 @@ function iconeDoCard(campoNome) {
 
 export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas, onAbrirConversa }) {
   const souAdmin = usuario?.papel === "ADMIN";
+  const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
   const [kpis, setKpis] = useState(null);
   const [metricasVisiveis, setMetricasVisiveisState] = useState(null);
   const [cards, setCards] = useState([]);
   const [prospectsHistorico, setProspectsHistorico] = useState([]);
   const [personalizando, setPersonalizando] = useState(false);
   const [abaFixa, setAbaFixa] = useState("inadimplentes");
+  const [desempenhoEquipe, setDesempenhoEquipe] = useState([]);
+  const [metas, setMetas] = useState([]);
+  const [atualizandoManual, setAtualizandoManual] = useState(false);
+
+  // Colaborador comum (nao ADMIN/GESTOR) so ve as abas que foram liberadas
+  // pra ele em Colaboradores > Permissões do painel - ADMIN/GESTOR sempre
+  // veem todas (pedido do Samuel, 07/08/2026).
+  const abasVisiveis = souGestorOuAdmin
+    ? ABAS_PAINEL
+    : ABAS_PAINEL.filter((a) => (usuario?.abasDashboardPermitidas || []).includes(a.chave));
+  const abaAtual = abasVisiveis.some((a) => a.chave === abaFixa) ? abaFixa : abasVisiveis[0]?.chave;
 
   const carregarProspectsHistorico = () => listDispatchProspectHistory().then(setProspectsHistorico).catch(() => setProspectsHistorico([]));
 
@@ -143,18 +265,45 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
     }
   };
 
+  // Tudo que o Painel mostra e muda no servidor "por fora" (outro colaborador
+  // respondeu, follow-up venceu, meta foi editada) - reusada no carregamento
+  // inicial, no polling automatico e no botao "Atualizar" (F: atualizar sem
+  // dar F5, pedido do Samuel 07/08/2026). NAO inclui `patients`/`historico` -
+  // esses vem de fora (App.jsx), so o Painel em si atualiza sozinho aqui.
+  const carregarPainel = () => Promise.all([
+    getDashboardKpis().then(setKpis).catch((e) => showToast(e.message || "Erro ao carregar KPIs", "warn")),
+    listPainelCards().then(setCards).catch(() => setCards([])),
+    getDesempenhoEquipe().then(setDesempenhoEquipe).catch(() => setDesempenhoEquipe([])),
+    getMetas().then(setMetas).catch(() => setMetas([])),
+    carregarProspectsHistorico(),
+  ]);
+
+  const atualizarManualmente = async () => {
+    setAtualizandoManual(true);
+    await carregarPainel();
+    setAtualizandoManual(false);
+    showToast("Painel atualizado", "ok");
+  };
+
   useEffect(() => {
     if (!patients.length) return;
-    getDashboardKpis().then(setKpis).catch((e) => showToast(e.message || "Erro ao carregar KPIs", "warn"));
     // "baseEstagio" e' migrado sozinho pra dentro da lista salva se ainda nao
     // estiver la (config antiga, de antes dessa secao virar ocultavel) - assim
     // quem ja usava o painel nao perde a secao do nada so por causa da mudanca,
-    // ela so some se a pessoa desmarcar de proposito.
+    // ela so some se a pessoa desmarcar de proposito. So roda 1x (nao entra no
+    // polling abaixo, senao um "desmarcar" do usuario voltaria sozinho).
     getMetricasVisiveis()
       .then((v) => setMetricasVisiveisState(v.includes("baseEstagio") ? v : [...v, "baseEstagio"]))
       .catch(() => setMetricasVisiveisState([...METRICAS.map((m) => m.chave), "baseEstagio"]));
-    listPainelCards().then(setCards).catch(() => setCards([]));
-    carregarProspectsHistorico();
+    carregarPainel();
+    // Atualiza sozinho a cada 60s (dado muda por fora: outro colaborador
+    // respondendo, follow-up vencendo) - sem precisar de F5. Reload de
+    // pagina refaria login/rebuscaria TUDO (patients, colaboradores,
+    // campanhas etc via App.jsx) e perderia scroll/estado da tela; esse
+    // polling so re-busca o que o Painel realmente mostra, mais leve e sem
+    // "piscar" a tela.
+    const intervalo = setInterval(carregarPainel, 60000);
+    return () => clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patients.length, historico.length]);
 
@@ -236,6 +385,29 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
     .filter((v) => v.contagem > 0);
   const totalAguardandoResposta = aguardandoRespostaValores.reduce((acc, v) => acc + v.contagem, 0);
 
+  // --- Aba "Equipe": metas manuais (Empresa/Equipe/Individual) definidas
+  // pelo ADMIN/GESTOR, comparadas com "convertidos" real de cada colaborador
+  // (ver DesempenhoEquipeService no backend). "Super meta" e' automatico:
+  // so acende quando TODO MUNDO que tem meta individual definida bateu ela.
+  const metaEmpresa = metas.find((m) => m.tipo === "EMPRESA")?.valor ?? null;
+  const metaEquipe = metas.find((m) => m.tipo === "EQUIPE")?.valor ?? null;
+  const metaIndividualDe = (colaboradorId) => metas.find((m) => m.tipo === "INDIVIDUAL" && m.colaboradorId === colaboradorId)?.valor ?? null;
+  const totalConvertidosEquipe = desempenhoEquipe.reduce((acc, d) => acc + d.convertidos, 0);
+  const comMetaIndividual = desempenhoEquipe.filter((d) => metaIndividualDe(d.colaboradorId) != null && metaIndividualDe(d.colaboradorId) > 0);
+  const superMeta = comMetaIndividual.length > 0 && comMetaIndividual.every((d) => d.convertidos >= metaIndividualDe(d.colaboradorId));
+
+  const salvarMeta = async (tipo, colaboradorId, valor) => {
+    try {
+      if (tipo === "EMPRESA") await salvarMetaEmpresa(valor);
+      else if (tipo === "EQUIPE") await salvarMetaEquipe(valor);
+      else await salvarMetaIndividual(colaboradorId, valor);
+      setMetas(await getMetas());
+      showToast("Meta salva", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar meta", "warn");
+    }
+  };
+
   return (
     <div style={{ display: "grid", gap: 18 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 10 }}>
@@ -243,7 +415,12 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
           <div style={{ fontSize: 20, fontWeight: 800, color: T.ink }}>{saudacao()}{usuario?.nome ? `, ${String(usuario.nome).trim().split(/\s+/)[0]}` : ""}.</div>
           <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 2 }}>Pronto pra recuperar receita hoje?</div>
         </div>
-        {souAdmin && <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button style={s.btnGhostSm} onClick={atualizarManualmente} disabled={atualizandoManual}>
+            {atualizandoManual ? "Atualizando..." : "Atualizar"}
+          </button>
+          {souAdmin && <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />}
+        </div>
       </div>
       <PrimeirosPassos patients={patients} colaboradores={colaboradores || []} campanhas={campanhas || []} setView={setView} />
       <div className="kpiRow" style={s.kpiRow}>
@@ -338,14 +515,14 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
       {metricasVisiveis.includes("baseEstagio") && (
         <Card>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
-            {ABAS_PAINEL.map((a) => (
+            {abasVisiveis.map((a) => (
               <button
                 key={a.chave}
                 onClick={() => setAbaFixa(a.chave)}
                 style={{
                   padding: "6px 14px", borderRadius: 20, fontSize: 12.5, fontWeight: 700,
-                  background: abaFixa === a.chave ? T.primarySoft : T.lineSoft,
-                  color: abaFixa === a.chave ? T.primaryDark : T.inkSoft,
+                  background: abaAtual === a.chave ? T.primarySoft : T.lineSoft,
+                  color: abaAtual === a.chave ? T.primaryDark : T.inkSoft,
                 }}
               >
                 {a.rotulo}
@@ -353,7 +530,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
             ))}
           </div>
 
-          {abaFixa === "inadimplentes" && (
+          {abaAtual === "inadimplentes" && (
             <div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 26, fontWeight: 800, color: T.coral }}>{num(totalInadimplentes)}</span>
@@ -370,7 +547,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
             </div>
           )}
 
-          {abaFixa === "quaseChurn" && (
+          {abaAtual === "quaseChurn" && (
             <div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 26, fontWeight: 800, color: T.gold }}>{num(totalQuaseChurn)}</span>
@@ -387,7 +564,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
             </div>
           )}
 
-          {abaFixa === "aguardandoResposta" && (
+          {abaAtual === "aguardandoResposta" && (
             <div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 26, fontWeight: 800, color: T.primary }}>{num(totalAguardandoResposta)}</span>
@@ -404,7 +581,21 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
             </div>
           )}
 
-          {abaFixa === "personalizado" && (
+          {abaAtual === "equipe" && (
+            <DesempenhoEquipe
+              desempenho={desempenhoEquipe}
+              colaboradores={colaboradores || []}
+              metaEmpresa={metaEmpresa}
+              metaEquipe={metaEquipe}
+              metaIndividualDe={metaIndividualDe}
+              superMeta={superMeta}
+              totalConvertidosEquipe={totalConvertidosEquipe}
+              souGestorOuAdmin={souGestorOuAdmin}
+              onSalvarMeta={salvarMeta}
+            />
+          )}
+
+          {abaAtual === "personalizado" && (
             !cards.length ? (
               <div style={{ padding: "8px 0", color: T.inkSoft, fontSize: 12.5 }}>
                 Nenhum card personalizado ainda.

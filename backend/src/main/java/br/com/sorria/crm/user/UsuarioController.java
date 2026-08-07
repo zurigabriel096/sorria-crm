@@ -1,5 +1,6 @@
 package br.com.sorria.crm.user;
 
+import br.com.sorria.crm.user.dto.AbasDashboardRequest;
 import br.com.sorria.crm.user.dto.UsuarioDTO;
 import br.com.sorria.crm.user.dto.UsuarioRequest;
 import jakarta.validation.Valid;
@@ -37,6 +38,12 @@ public class UsuarioController {
     @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
     public UsuarioDTO atualizar(@PathVariable Long id, @Valid @RequestBody UsuarioRequest req) {
         return usuarioService.atualizar(id, req);
+    }
+
+    @PutMapping("/{id}/abas-dashboard")
+    @PreAuthorize("hasAnyRole('ADMIN','GESTOR')")
+    public UsuarioDTO atualizarAbasDashboard(@PathVariable Long id, @RequestBody AbasDashboardRequest req) {
+        return usuarioService.atualizarAbasDashboard(id, req.abas());
     }
 
     @DeleteMapping("/{id}")

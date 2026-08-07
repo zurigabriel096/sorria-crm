@@ -32,7 +32,7 @@ import { logout as apiLogout } from "./api/auth";
 import { listContacts, createContact, updateContact, deleteContact, iniciarImportacaoLote, getImportLoteStatus, unificarDuplicados as apiUnificarDuplicados, aplicarTagEmLote, getTagLoteStatus, excluirContatosEmLote, getExcluirLoteStatus, atribuirResponsavelEmLote, getResponsavelLoteStatus } from "./api/contacts";
 import { matchSeg } from "./utils/patients";
 import { listCampaigns, createCampaign, updateCampaign, deleteCampaign, archiveCampaign, listTemplates, listDispatchHistory, limparHistoricoDisparo, limparHistoricoProspects } from "./api/campaigns";
-import { listColaboradores, createColaborador, updateColaborador, deleteColaborador } from "./api/colaboradores";
+import { listColaboradores, createColaborador, updateColaborador, deleteColaborador, updateAbasDashboard } from "./api/colaboradores";
 import { listPapeisCargo, createPapelCargo, updatePapelCargo, deletePapelCargo } from "./api/papeisCargo";
 import { listSegmentacoes, createSegmentacao, updateSegmentacao, deleteSegmentacao, archiveSegmentacao } from "./api/segmentacoes";
 import { listTags, createTag, updateTag, deleteTag } from "./api/tags";
@@ -379,6 +379,12 @@ export default function App() {
     setColaboradores((c) => c.filter((x) => x.id !== id));
   };
 
+  const atualizarAbasDashboardColaborador = async (id, abas) => {
+    const atualizado = await updateAbasDashboard(id, abas);
+    setColaboradores((c) => c.map((x) => (x.id === id ? atualizado : x)));
+    if (usuario?.id === id) setUsuario(atualizado);
+  };
+
   const criarPapelCargoHandler = async (dados) => {
     const criado = await createPapelCargo(dados);
     setPapeisCargo((ps) => [...ps, criado]);
@@ -540,6 +546,10 @@ export default function App() {
   // Menu unificado (remodelacao 06/08/2026) - aba restrita aparece pra todo
   // mundo, mas so' ADMIN/GESTOR ve o conteudo de verdade (ver AcessoRestrito).
   const souAdminOuGestor = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
+  // Colaborador comum entra no Painel Executivo se tiver pelo menos 1 aba
+  // liberada em Colaboradores > Permissões do painel - ADMIN/GESTOR sempre
+  // entram, com todas as abas (ver Dashboard.jsx abasVisiveis).
+  const podeVerPainel = souAdminOuGestor || (usuario?.abasDashboardPermitidas?.length > 0);
 
   return (
     <div style={s.root}>
@@ -547,7 +557,7 @@ export default function App() {
       <div style={s.main}>
         <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} modoNoturno={modoNoturno} onToggleModoNoturno={() => setModoNoturno((v) => !v)} />
         <div style={s.content} key={view}>
-          {view === "dashboard" && <AcessoRestrito liberado={souAdminOuGestor}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} colaboradores={colaboradores} campanhas={campanhas} onAbrirConversa={abrirConversa} /></AcessoRestrito>}
+          {view === "dashboard" && <AcessoRestrito liberado={podeVerPainel}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} colaboradores={colaboradores} campanhas={campanhas} onAbrirConversa={abrirConversa} /></AcessoRestrito>}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} onAbrirFila={abrirFila} />}
           {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} usuario={usuario} filtroInicial={filtroFilaInicial} onAplicouFiltro={() => setFiltroFilaInicial(null)} onAtribuirResponsavel={atribuirResponsavelIndividual} showToast={showToast} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} colaboradores={colaboradores} onAtribuirResponsavel={atribuirResponsavelIndividual} />}
@@ -558,7 +568,7 @@ export default function App() {
           {view === "automacoes" && <AcessoRestrito liberado={souAdminOuGestor}><Automacoes showToast={showToast} usuario={usuario} patients={patients} camposCustomizados={camposCustomizados} /></AcessoRestrito>}
           {view === "disparo" && <DisparoFlow campanha={disparoCampanha} patients={patients} templates={templates} segmentos={segmentos} historico={historico} onFinish={finalizarDisparo} onCancel={() => setView("campanhas")} showToast={showToast} />}
           {view === "disparos" && <HistoricoDisparos historico={historico} patients={patients} onAbrirPaciente={abrirPaciente} usuario={usuario} onLimparHistorico={limparTodoHistoricoDisparo} showToast={showToast} />}
-          {view === "colaboradores" && <AcessoRestrito liberado={souAdminOuGestor}><Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} usuario={usuario} showToast={showToast} papeisCargo={papeisCargo} onCriarPapelCargo={criarPapelCargoHandler} onAtualizarPapelCargo={atualizarPapelCargoHandler} onExcluirPapelCargo={excluirPapelCargoHandler} /></AcessoRestrito>}
+          {view === "colaboradores" && <AcessoRestrito liberado={souAdminOuGestor}><Colaboradores colaboradores={colaboradores} onCriar={criarColaborador} onAtualizar={atualizarColaborador} onExcluir={excluirColaborador} onAtualizarAbasDashboard={atualizarAbasDashboardColaborador} usuario={usuario} showToast={showToast} papeisCargo={papeisCargo} onCriarPapelCargo={criarPapelCargoHandler} onAtualizarPapelCargo={atualizarPapelCargoHandler} onExcluirPapelCargo={excluirPapelCargoHandler} /></AcessoRestrito>}
           {view === "plano" && <AcessoRestrito liberado={souAdminOuGestor}><Plano showToast={showToast} usuario={usuario} /></AcessoRestrito>}
           {view === "suporte" && <Suporte showToast={showToast} />}
           {view === "config" && <AcessoRestrito liberado={souAdminOuGestor}><Config showToast={showToast} usuario={usuario} /></AcessoRestrito>}

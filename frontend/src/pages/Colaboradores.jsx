@@ -8,16 +8,19 @@ import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { ColorPicker } from "../components/ui/ColorPicker";
 import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
+import { ABAS_PAINEL } from "../utils/painelAbas";
 
 // Colaborador = usuário com login real (tabela "usuarios" no backend). O dentista não
 // entra aqui de propósito: não usa o sistema, não tem papel/acesso.
 export function Colaboradores({
-  colaboradores, onCriar, onAtualizar, onExcluir, usuario, showToast,
+  colaboradores, onCriar, onAtualizar, onExcluir, onAtualizarAbasDashboard, usuario, showToast,
   papeisCargo, onCriarPapelCargo, onAtualizarPapelCargo, onExcluirPapelCargo,
 }) {
   const [modal, setModal] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [funcaoForm, setFuncaoForm] = useState(null); // null | {id, rotulo, cor}
+  const [permissoesModal, setPermissoesModal] = useState(null); // null | colaborador
+  const [salvandoPermissoes, setSalvandoPermissoes] = useState(false);
   const souAdmin = usuario?.papel === "ADMIN";
   const arrasteTabela = useArrastarHorizontal();
   const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
@@ -78,6 +81,27 @@ export function Colaboradores({
     }
   };
 
+  // Permissões do painel: ADMIN/GESTOR ja veem TODAS as abas do Painel
+  // Executivo sempre (ver Dashboard.jsx) - essa lista so tem efeito pros
+  // demais papeis, entao nem oferecemos a opção pra quem já é ADMIN/GESTOR.
+  const abrirPermissoes = (c) => setPermissoesModal({ id: c.id, nome: c.nome, abas: c.abasDashboardPermitidas || [] });
+  const alternarAba = (chave) => setPermissoesModal((m) => ({
+    ...m,
+    abas: m.abas.includes(chave) ? m.abas.filter((a) => a !== chave) : [...m.abas, chave],
+  }));
+  const salvarPermissoes = async () => {
+    setSalvandoPermissoes(true);
+    try {
+      await onAtualizarAbasDashboard(permissoesModal.id, permissoesModal.abas);
+      setPermissoesModal(null);
+      showToast("Permissões do painel salvas", "ok");
+    } catch (e) {
+      showToast(e.message || "Erro ao salvar permissões", "warn");
+    } finally {
+      setSalvandoPermissoes(false);
+    }
+  };
+
   return (
     <div style={{ display: "grid", gap: 14 }}>
       {souGestorOuAdmin && (
@@ -98,6 +122,9 @@ export function Colaboradores({
                   <td style={s.tdNum}>{c.email || "—"}</td>
                   <td style={s.td}>
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      {souGestorOuAdmin && c.papel !== "ADMIN" && c.papel !== "GESTOR" && (
+                        <button style={s.btnGhostSm} onClick={() => abrirPermissoes(c)}>Permissões do painel</button>
+                      )}
                       {souGestorOuAdmin && <button style={s.btnGhostSm} onClick={() => abrirEdicao(c)}>Editar</button>}
                       {souAdmin && <button style={{ ...s.btnGhostSm, color: T.coral }} onClick={() => excluir(c)}>Excluir</button>}
                     </div>
@@ -166,6 +193,27 @@ export function Colaboradores({
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setModal(null)}>Cancelar</button>
             <button style={{ ...s.btnPrimary, flex: 1, opacity: salvando ? .6 : 1 }} onClick={salvar} disabled={salvando}>{salvando ? "Salvando..." : "Salvar"}</button>
+          </div>
+        </Modal>
+      )}
+      {permissoesModal && (
+        <Modal title={`Permissões do painel — ${permissoesModal.nome}`} onClose={() => setPermissoesModal(null)}>
+          <p style={{ fontSize: 12.5, color: T.inkSoft, marginBottom: 12 }}>
+            Escolha quais abas do Painel Executivo esse colaborador pode ver. Sem nenhuma marcada, ele continua sem acesso ao Painel (como hoje).
+          </p>
+          <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+            {ABAS_PAINEL.map((a) => (
+              <label key={a.chave} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: T.ink, cursor: "pointer" }}>
+                <input type="checkbox" checked={permissoesModal.abas.includes(a.chave)} onChange={() => alternarAba(a.chave)} />
+                {a.rotulo}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button style={{ ...s.btnGhost, flex: 1 }} onClick={() => setPermissoesModal(null)}>Cancelar</button>
+            <button style={{ ...s.btnPrimary, flex: 1, opacity: salvandoPermissoes ? .6 : 1 }} onClick={salvarPermissoes} disabled={salvandoPermissoes}>
+              {salvandoPermissoes ? "Salvando..." : "Salvar"}
+            </button>
           </div>
         </Modal>
       )}

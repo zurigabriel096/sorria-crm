@@ -5,6 +5,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "usuarios")
 @Getter
@@ -37,4 +40,14 @@ public class Usuario {
     // de antes (EnumType.STRING ja gravava o texto puro), sem migracao de dado.
     @Column(nullable = false)
     private String papel;
+
+    // Chaves de aba do Painel Executivo (ver Dashboard.jsx ABAS_PAINEL) que
+    // este colaborador pode ver quando NAO e' ADMIN/GESTOR - esses dois
+    // continuam vendo todas as abas sempre, independente deste campo (ver
+    // AcessoRestrito/Dashboard.jsx no frontend). Vazio = colaborador comum
+    // sem nenhum acesso ao Painel (comportamento de antes desta feature).
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "usuario_abas_dashboard", joinColumns = @JoinColumn(name = "usuario_id"))
+    @Column(name = "aba")
+    private List<String> abasDashboardPermitidas = new ArrayList<>();
 }
