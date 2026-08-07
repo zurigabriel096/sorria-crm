@@ -201,6 +201,15 @@ export default function App() {
     showToast("Cadastro atualizado", "ok");
   };
 
+  // Atribuicao rapida de responsavel (achado #2 da auditoria de UX) - reusa
+  // o mesmo PUT do cadastro completo, so' que sem abrir o modal - por isso
+  // nao usa salvarPaciente direto (que sempre fecha pacienteAberto/mostra
+  // "Cadastro atualizado").
+  const atribuirResponsavelIndividual = async (paciente, colaboradorId) => {
+    const salvo = await updateContact(paciente.id, { ...paciente, responsavelId: colaboradorId });
+    setPatients((ps) => ps.map((p) => (p.id === salvo.id ? salvo : p)));
+  };
+
   // "Criar novo lead" avulso (fora da importação em massa) - usado pelo
   // "Iniciar conversa" do Kanban e pelo "+ Novo lead" da Base de Leads.
   const criarPacienteAvulso = async (dados) => {
@@ -540,8 +549,8 @@ export default function App() {
         <div style={s.content} key={view}>
           {view === "dashboard" && <AcessoRestrito liberado={souAdminOuGestor}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} /></AcessoRestrito>}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} onAbrirFila={abrirFila} />}
-          {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} usuario={usuario} filtroInicial={filtroFilaInicial} onAplicouFiltro={() => setFiltroFilaInicial(null)} />}
-          {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} />}
+          {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} usuario={usuario} filtroInicial={filtroFilaInicial} onAplicouFiltro={() => setFiltroFilaInicial(null)} onAtribuirResponsavel={atribuirResponsavelIndividual} showToast={showToast} />}
+          {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} colaboradores={colaboradores} onAtribuirResponsavel={atribuirResponsavelIndividual} />}
           {view === "conversas" && <ConversasPreview />}
           {view === "segmentacoes" && <AcessoRestrito liberado={souAdminOuGestor}><Segmentacoes patients={patients} segmentos={segmentos} onCriar={criarSegmentacao} onAtualizar={atualizarSegmentacao} onExcluir={excluirSegmentacao} onArquivar={arquivarSegmentacao} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onAtualizarTag={atualizarTagHandler} onExcluirTag={excluirTagHandler} camposCustomizados={camposCustomizados} onAplicarTagEmLote={aplicarTagSegmentacao} onExcluirLeadsEmLote={excluirLeadsSegmentacao} colaboradores={colaboradores} onAtribuirResponsavelEmLote={atribuirResponsavelSegmentacao} usuario={usuario} onAbrirPaciente={abrirPaciente} showToast={showToast} /></AcessoRestrito>}
           {view === "campanhas" && <Campanhas campanhas={campanhas} onCriarCampanha={criarCampanha} onAtualizarCampanha={atualizarCampanha} onExcluirCampanha={excluirCampanha} onArquivarCampanha={arquivarCampanha} templates={templates} objetivos={objetivos} onCriarObjetivo={criarObjetivoHandler} objetivoObjetos={objetivoObjetos} onExcluirObjetivo={excluirObjetivoHandler} segmentos={segmentos} patients={patients} usuario={usuario} onDisparar={(c) => { setDisparoCampanha(c); setView("disparo"); }} showToast={showToast} setView={setView} />}

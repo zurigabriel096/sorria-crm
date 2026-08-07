@@ -12,6 +12,7 @@ import { Field } from "../components/ui/Field";
 import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { ImportBox } from "../components/ui/ImportBox";
+import { AtribuirResponsavelModal } from "../components/ui/AtribuirResponsavelModal";
 import { IconSearch, IconDownload, IconUpload, IconFilter, IconX } from "../components/icons";
 import { useArrastarHorizontal } from "../utils/arrastarHorizontal";
 
@@ -116,10 +117,14 @@ export function Pacientes({
   patients, tags, tagObjetos, onCriarTag, onImport, showToast, filtroInicial, onAbrirPaciente, onUnificarDuplicados,
   usuario, camposCustomizados, onCriarCampo, onAtualizarCampo, onExcluirCampo,
   colunasVisiveis, onAtualizarColunas, onCriarPaciente, onExcluirPaciente,
+  colaboradores, onAtribuirResponsavel,
 }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
   const arrasteTabela = useArrastarHorizontal();
+  // Atribuicao rapida de responsavel direto na linha (achado #2 da auditoria
+  // de UX) - antes so' dava pra trocar abrindo o cadastro completo do lead.
+  const [atribuindoResponsavel, setAtribuindoResponsavel] = useState(null);
   // Filtro avancado (icone de funil) - lista de condicoes combinadas por E,
   // reaproveita o mesmo motor de Segmentacoes (evalCond). Substituiu os 3
   // <select> separados de Estagio/Elegibilidade/Tag que existiam antes.
@@ -369,6 +374,7 @@ export function Pacientes({
         </div>
         <button style={s.btnGhostSm} onClick={limpar}>Limpar filtros</button>
         <button style={s.btnGhostSm} onClick={() => setMaisAcoesAberto(true)}>+ Mais</button>
+        <ImportBox onImport={onImport} showToast={showToast} variant="button" camposCustomizados={camposCustomizados} onCriarCampo={onCriarCampo} tags={tags} tagObjetos={tagObjetos} onCriarTag={onCriarTag} />
         <div style={{ flex: 1 }} />
         {souAdmin && (
           <button style={s.btnPrimarySm} onClick={() => setNovoLead({ nome: "", tel: "" })}>+ Novo lead</button>
@@ -387,7 +393,7 @@ export function Pacientes({
                     {col.rotulo}{ordenacao?.chave === col.chave && (ordenacao.direcao === "asc" ? " ▲" : " ▼")}
                   </th>
                 ))}
-                {souAdmin && <th style={s.th}></th>}
+                {souGestorOuAdmin && <th style={s.th}></th>}
               </tr>
             </thead>
             <tbody>
@@ -400,9 +406,12 @@ export function Pacientes({
                   {colunasParaMostrar.map((col) => (
                     <td key={col.chave} style={col.numerica ? s.tdNum : s.td}>{col.render(p)}</td>
                   ))}
-                  {souAdmin && (
+                  {souGestorOuAdmin && (
                     <td style={s.td} onClick={(e) => e.stopPropagation()}>
-                      <DotMenu items={[{ label: "Excluir lead", danger: true, onClick: () => excluirLead(p) }]} />
+                      <DotMenu items={[
+                        { label: "Atribuir responsável", onClick: () => setAtribuindoResponsavel(p) },
+                        ...(souAdmin ? [{ label: "Excluir lead", danger: true, onClick: () => excluirLead(p) }] : []),
+                      ]} />
                     </td>
                   )}
                 </tr>
@@ -522,6 +531,16 @@ export function Pacientes({
       )}
 
       <NovoLeadModal novoLead={novoLead} setNovoLead={setNovoLead} salvandoLead={salvandoLead} salvarNovoLead={salvarNovoLead} />
+
+      {atribuindoResponsavel && (
+        <AtribuirResponsavelModal
+          paciente={atribuindoResponsavel}
+          colaboradores={colaboradores || []}
+          onConfirmar={(p, colaboradorId) => onAtribuirResponsavel(p, colaboradorId)}
+          onClose={() => setAtribuindoResponsavel(null)}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }

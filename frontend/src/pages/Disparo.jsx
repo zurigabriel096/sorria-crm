@@ -108,7 +108,10 @@ export function DisparoFlow({ campanha, patients, templates, segmentos, historic
               </div>
               <div style={{ ...s.waPreview, marginTop: 14 }}>
                 <div style={s.waBubble}>
-                  {tpl.corpo.replace(/\{nome\}/g, elegiveis[0]?.primeiro || "Maria").replace(/\{data\}/g, "05/08").replace(/\{hora\}/g, "14:30")}
+                  {tpl.corpo
+                    .replace(/\{nome\}/g, elegiveis[0]?.primeiro || "Maria")
+                    .replace(/\{data\}/g, new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }))
+                    .replace(/\{hora\}/g, new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }))}
                 </div>
               </div>
             </Card>

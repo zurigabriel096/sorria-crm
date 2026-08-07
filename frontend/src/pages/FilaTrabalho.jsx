@@ -5,6 +5,8 @@ import { dataHora, tempoDesde } from "../utils/format";
 import { iniciais } from "../utils/usuario";
 import { listEtapas } from "../api/etapas";
 import { Card } from "../components/ui/Card";
+import { DotMenu } from "../components/ui/DotMenu";
+import { AtribuirResponsavelModal } from "../components/ui/AtribuirResponsavelModal";
 import { IconUserPlaceholder } from "../components/icons";
 
 function pontuarPrioridade(p) {
@@ -54,7 +56,9 @@ const FILTROS = [
   },
 ];
 
-export function FilaTrabalho({ patients, colaboradores, onAbrirConversa, usuario, filtroInicial, onAplicouFiltro }) {
+export function FilaTrabalho({ patients, colaboradores, onAbrirConversa, usuario, filtroInicial, onAplicouFiltro, onAtribuirResponsavel, showToast }) {
+  const souGestorOuAdmin = usuario?.papel === "ADMIN" || usuario?.papel === "GESTOR";
+  const [atribuindoResponsavel, setAtribuindoResponsavel] = useState(null);
   const [filtro, setFiltro] = useState(filtroInicial || "todos");
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState(50);
@@ -182,6 +186,11 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa, usuario
                   </span>
                 )}
               </div>
+              {souGestorOuAdmin && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <DotMenu items={[{ label: "Atribuir responsável", onClick: () => setAtribuindoResponsavel(p) }]} />
+                </div>
+              )}
             </div>
           );
         })}
@@ -205,6 +214,16 @@ export function FilaTrabalho({ patients, colaboradores, onAbrirConversa, usuario
           <button style={s.btnGhostSm} disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>Próxima ›</button>
         </div>
       </div>
+
+      {atribuindoResponsavel && (
+        <AtribuirResponsavelModal
+          paciente={atribuindoResponsavel}
+          colaboradores={colaboradores || []}
+          onConfirmar={(p, colaboradorId) => onAtribuirResponsavel(p, colaboradorId)}
+          onClose={() => setAtribuindoResponsavel(null)}
+          showToast={showToast}
+        />
+      )}
     </div>
   );
 }
