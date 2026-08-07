@@ -9,7 +9,7 @@ import { Modal } from "../components/ui/Modal";
 import { DotMenu } from "../components/ui/DotMenu";
 import { IconSend } from "../components/icons";
 import { listNumeros } from "../api/whatsappNumeros";
-import { dispatchCampaign, getCampaignPerformance } from "../api/campaigns";
+import { getCampaignPerformance, criarDisparoAbJob } from "../api/campaigns";
 import { matchSeg } from "../utils/patients";
 
 const vazio = () => ({ id: null, nome: "Campanha • ", objetivo: "Reativação", canal: "WhatsApp", emailMsg: "", segmentoId: "", templateId: "", intervaloSegundos: 60, whatsappNumeroId: "", modoProspects: false });
@@ -17,15 +17,18 @@ const vazio = () => ({ id: null, nome: "Campanha • ", objetivo: "Reativação"
 // Escalonamento entre números no Disparo A/B/C: em vez de todos os números
 // começarem juntos (padrão que os sistemas antiabuso do WhatsApp associam
 // como disparo coordenado em massa), cada número só entra depois que o
-// anterior já começou há X minutos. Só frontend (setTimeout) - se a aba for
-// fechada antes da hora, os números seguintes não disparam (aceito, ver
-// SESSAO do dia da suspensão de 04/08/2026).
+// anterior já começou há X minutos. Roda como job no backend
+// (DisparoAbJobService, scheduler a cada 60s) desde 07/08/2026 - antes era
+// um loop de "await setTimeout" aqui mesmo no navegador, que podia levar
+// HORAS (Recomendável = 120min por número) e parava de vez se a aba fosse
+// fechada. Corrigido a pedido do Samuel apos a auditoria de UX (risco que
+// antes era aceito conscientemente, ver SESSAO do dia da suspensão de
+// 04/08/2026).
 const ESCALONAMENTO_OPCOES = [
   { chave: "risco", rotulo: "Risco", minutos: 5 },
   { chave: "moderado", rotulo: "Moderado", minutos: 30 },
   { chave: "recomendavel", rotulo: "Recomendável", minutos: 120 },
 ];
-const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onExcluirCampanha, onArquivarCampanha, templates, objetivos, objetivoObjetos, onCriarObjetivo, onExcluirObjetivo, segmentos, patients, onDisparar, showToast, usuario, setView }) {
   const responsavel = usuario?.nome || "Você";
@@ -104,24 +107,21 @@ export function Campanhas({ campanhas, onCriarCampanha, onAtualizarCampanha, onE
       ? (ESCALONAMENTO_OPCOES.find((o) => o.chave === abModal.escalonamento)?.minutos ?? 0)
       : 0;
     const letras = "ABC".slice(0, nV).split("").join("/");
-    setAbModal(null); // fecha o modal já - com escalonamento isso pode levar horas, não faz sentido travar a tela
+    const totalContatos = gruposPorNumero.reduce((acc, g) => acc + g.chamadasDesseNumero.reduce((a, c) => a + c.ids.length, 0), 0);
+    setAbModal(null);
     try {
-      let totalGeral = 0;
-      for (let ni = 0; ni < gruposPorNumero.length; ni++) {
-        if (ni > 0 && minutosEscalonamento > 0) {
-          showToast(`Disparo ${letras}: aguardando ${minutosEscalonamento} min pra iniciar o número ${ni + 1}/${nN}...`, "ok");
-          await esperar(minutosEscalonamento * 60 * 1000);
-        }
-        const { numeroId, chamadasDesseNumero } = gruposPorNumero[ni];
-        // O envio de verdade roda em segundo plano no servidor (fila com pausa
-        // entre mensagens) - esta resposta só confirma quantos ENTRARAM na fila,
-        // não quantos já foram entregues (acompanhar no Histórico de Disparos).
-        const resultados = await Promise.all(
-          chamadasDesseNumero.map((c) => dispatchCampaign(c.campanhaId, null, c.ids, numeroId || null))
-        );
-        totalGeral += resultados.reduce((acc, r) => acc + (r.total || 0), 0);
-      }
-      showToast(`Disparo ${letras} agendado — ${totalGeral} lead(s) na fila, em ${nN} número(s). Acompanhe no Histórico de Disparos.`, "ok");
+      // O escalonamento entre numeros roda no BACKEND (DisparoAbJobService,
+      // scheduler a cada 60s) - o 1o numero dispara quase na hora, os demais
+      // continuam mesmo se a aba fechar, sem depender do navegador ficar aberto.
+      const grupos = gruposPorNumero.map(({ numeroId, chamadasDesseNumero }) => ({
+        numeroId: numeroId || null,
+        itens: chamadasDesseNumero.map((c) => ({ campanhaId: c.campanhaId, contatoIds: c.ids })),
+      }));
+      await criarDisparoAbJob(letras, minutosEscalonamento, grupos);
+      const avisoEscalonamento = minutosEscalonamento > 0 && nN > 1
+        ? ` Os próximos números entram a cada ${minutosEscalonamento} min, mesmo se você fechar essa aba.`
+        : "";
+      showToast(`Disparo ${letras} agendado — ${totalContatos} lead(s) em ${nN} número(s).${avisoEscalonamento} Acompanhe no Histórico de Disparos.`, "ok");
     } catch (e) {
       showToast(e.message || "Erro no disparo A/B", "warn");
     }

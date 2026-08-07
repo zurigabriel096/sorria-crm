@@ -33,6 +33,13 @@ export const dispatchProspects = (id, templateId, prospects) =>
 // pensado pra comparar 2 campanhas usadas como variantes de teste A/B.
 export const getCampaignPerformance = (id) => api.get(`/api/campaigns/${id}/performance`);
 
+// Escalonamento do Disparo A/B/C entre numeros - roda no backend (job
+// durável + scheduler), nao mais num loop de setTimeout no navegador. `grupos`
+// = [{numeroId, itens: [{campanhaId, contatoIds}]}], um grupo por numero,
+// na ordem que devem disparar.
+export const criarDisparoAbJob = (letras, minutosEscalonamento, grupos) =>
+  api.post("/api/disparo-ab", { letras, minutosEscalonamento, grupos });
+
 export const listDispatchProspectHistory = () => api.get("/api/dispatch-prospect-history");
 
 // Limpeza manual do historico de disparo (CRM + prospects) - irreversivel,
