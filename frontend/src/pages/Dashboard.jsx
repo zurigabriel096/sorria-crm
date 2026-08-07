@@ -8,6 +8,7 @@ import { getMetricasVisiveis, setMetricasVisiveis as apiSetMetricasVisiveis } fr
 import { listPainelCards, createPainelCard, updatePainelCard, deletePainelCard } from "../api/painelCards";
 import { Card } from "../components/ui/Card";
 import { KpiCard } from "../components/ui/KpiCard";
+import { PrimeirosPassos } from "../components/ui/PrimeirosPassos";
 import { ImportBox } from "../components/ui/ImportBox";
 import { Field } from "../components/ui/Field";
 import { Select } from "../components/ui/Select";
@@ -102,7 +103,7 @@ function iconeDoCard(campoNome) {
   return IconGrid;
 }
 
-export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag }) {
+export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const [kpis, setKpis] = useState(null);
   const [metricasVisiveis, setMetricasVisiveisState] = useState(null);
@@ -159,6 +160,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
 
   return (
     <div style={{ display: "grid", gap: 18 }}>
+      <PrimeirosPassos patients={patients} colaboradores={colaboradores || []} campanhas={campanhas || []} setView={setView} />
       {souAdmin && (
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />
