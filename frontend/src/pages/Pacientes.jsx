@@ -56,6 +56,39 @@ function colunasFixas() {
   ];
 }
 
+// Ordem estrategica da Base de Leads (pivo de recuperacao de receita,
+// 06/08/2026): sinal financeiro/agenda/orcamento primeiro, dado geral por
+// ultimo - reflete a priorizacao discutida com o Samuel (inadimplencia,
+// orcamento parado, agenda vazia sao os 3 eixos do novo posicionamento).
+// Campos personalizados cujo nome nao bate exatamente com o cadastrado no
+// banco (ou campo novo, nunca visto aqui) simplesmente caem no fim, na
+// ordem que vierem do backend - sort() e' estavel, nao quebra nada.
+const ORDEM_PRIORIDADE_CHAVES = [
+  "financ",
+  "custom:Atrasadas",
+  "custom:Total de atraso",
+  "custom:Situação",
+  "custom:Próx. Atend.",
+  "custom:Hora Próx. Atend.",
+  "custom:Status Últ Agendam.",
+  "custom:Valor do procedimento",
+  "custom:Procedimento",
+  "estagio",
+  "elegivel",
+  "custom:Data do fechamento do orto",
+  "recencia",
+  "dentista",
+  "custom:Especialidade",
+];
+
+function ordenarPorPrioridade(colunas) {
+  const indice = (chave) => {
+    const i = ORDEM_PRIORIDADE_CHAVES.indexOf(chave);
+    return i === -1 ? ORDEM_PRIORIDADE_CHAVES.length : i;
+  };
+  return [...colunas].sort((a, b) => indice(a.chave) - indice(b.chave));
+}
+
 function colunaCustomizada(campo) {
   return {
     chave: `custom:${campo.nome}`,
@@ -119,7 +152,7 @@ export function Pacientes({
   const [novoLead, setNovoLead] = useState(null); // null | {nome, tel}
   const [salvandoLead, setSalvandoLead] = useState(false);
 
-  const todasColunas = [...colunasFixas(), ...(camposCustomizados || []).map(colunaCustomizada)];
+  const todasColunas = ordenarPorPrioridade([...colunasFixas(), ...(camposCustomizados || []).map(colunaCustomizada)]);
   const colunasParaMostrar = todasColunas.filter((c) => (colunasVisiveis || []).includes(c.chave));
   const filtroFieldMeta = montarFiltroFieldMeta(camposCustomizados, etapas);
 
