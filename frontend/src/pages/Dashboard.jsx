@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { T } from "../theme";
 import { s } from "../styles/s";
 import { num } from "../utils/format";
@@ -233,7 +233,7 @@ function iconeDoCard(campoNome) {
   return IconGrid;
 }
 
-export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas, onAbrirConversa }) {
+export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas, onAbrirConversa, registrarAtualizar }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
   const [kpis, setKpis] = useState(null);
@@ -244,7 +244,6 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   const [abaFixa, setAbaFixa] = useState("inadimplentes");
   const [desempenhoEquipe, setDesempenhoEquipe] = useState([]);
   const [metas, setMetas] = useState([]);
-  const [atualizandoManual, setAtualizandoManual] = useState(false);
 
   // Colaborador comum (nao ADMIN/GESTOR) so ve as abas que foram liberadas
   // pra ele em Colaboradores > Permissões do painel - ADMIN/GESTOR sempre
@@ -279,11 +278,21 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   ]);
 
   const atualizarManualmente = async () => {
-    setAtualizandoManual(true);
     await carregarPainel();
-    setAtualizandoManual(false);
     showToast("Painel atualizado", "ok");
   };
+
+  // Registra o botao de atualizar da Topbar (fixo ao lado do relogio, ver
+  // Topbar.jsx/App.jsx) - so 1x no mount, delegando pra versao mais recente
+  // de atualizarManualmente via ref (senao reregistraria toda hora, ja que
+  // essa funcao e recriada em todo render, e App.jsx re-renderizaria em loop).
+  const atualizarRef = useRef(atualizarManualmente);
+  atualizarRef.current = atualizarManualmente;
+  useEffect(() => {
+    registrarAtualizar?.(() => atualizarRef.current());
+    return () => registrarAtualizar?.(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!patients.length) return;
@@ -416,9 +425,6 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
           <div style={{ fontSize: 13, color: T.inkSoft, marginTop: 2 }}>Pronto pra recuperar receita hoje?</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button style={s.btnGhostSm} onClick={atualizarManualmente} disabled={atualizandoManual}>
-            {atualizandoManual ? "Atualizando..." : "Atualizar"}
-          </button>
           {souAdmin && <DotMenu items={[{ label: "Personalizar painel", onClick: () => setPersonalizando(true) }]} />}
         </div>
       </div>

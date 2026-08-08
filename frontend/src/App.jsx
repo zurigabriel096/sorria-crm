@@ -58,6 +58,25 @@ export default function App() {
     localStorage.setItem("sorria_modo_noturno", modoNoturno ? "1" : "0");
   }, [modoNoturno]);
   const [sistemaAtivo, setSistemaAtivo] = useState(true);
+  // Botao "Atualizar" fixo na Topbar (ao lado do relogio, pedido do Samuel
+  // 07/08/2026) - qualquer tela pode "se registrar" passando uma funcao
+  // async pra registrarAtualizarTela; a Topbar so mostra o botao ativo
+  // quando a tela atual registrou algo (ver Dashboard.jsx).
+  const [refreshHandlerTela, setRefreshHandlerTela] = useState(null);
+  const [atualizandoTela, setAtualizandoTela] = useState(false);
+  // setState(fn) trataria fn como updater (chamaria fn(prevState) na hora) -
+  // por isso o wrap em "() => fn": assim o valor guardado no estado E' a
+  // funcao fn, nao o resultado de chama-la.
+  const registrarAtualizarTela = (fn) => setRefreshHandlerTela(() => fn);
+  const atualizarTelaAtual = async () => {
+    if (!refreshHandlerTela) return;
+    setAtualizandoTela(true);
+    try {
+      await refreshHandlerTela();
+    } finally {
+      setAtualizandoTela(false);
+    }
+  };
   const [usuario, setUsuario] = useState(null);
   const [filtroPacientesInicial, setFiltroPacientesInicial] = useState(null);
   const [filtroFilaInicial, setFiltroFilaInicial] = useState(null);
@@ -555,9 +574,9 @@ export default function App() {
     <div style={s.root}>
       <Sidebar view={view} setView={setView} collapsed={collapsed} setCollapsed={setCollapsed} angry={angry} setAngry={setAngry} usuario={usuario} />
       <div style={s.main}>
-        <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} modoNoturno={modoNoturno} onToggleModoNoturno={() => setModoNoturno((v) => !v)} />
+        <Topbar view={view} usuario={usuario} papeisCargo={papeisCargo} onAvatarUploaded={setUsuario} avatarColor={avatarColor} setAvatarColor={mudarCorPerfil} sistemaAtivo={sistemaAtivo} onReportarProblema={() => setView("suporte")} onLogout={onLogout} showToast={showToast} modoNoturno={modoNoturno} onToggleModoNoturno={() => setModoNoturno((v) => !v)} onAtualizarTela={refreshHandlerTela ? atualizarTelaAtual : null} atualizandoTela={atualizandoTela} />
         <div style={s.content} key={view}>
-          {view === "dashboard" && <AcessoRestrito liberado={podeVerPainel}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} colaboradores={colaboradores} campanhas={campanhas} onAbrirConversa={abrirConversa} /></AcessoRestrito>}
+          {view === "dashboard" && <AcessoRestrito liberado={podeVerPainel}><Dashboard patients={patients} historico={historico} onImport={onImport} showToast={showToast} setView={setView} irParaPacientes={irParaPacientes} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} colaboradores={colaboradores} campanhas={campanhas} onAbrirConversa={abrirConversa} registrarAtualizar={registrarAtualizarTela} /></AcessoRestrito>}
           {view === "inicio" && <InicioColaborador usuario={usuario} patients={patients} setView={setView} onAbrirFila={abrirFila} />}
           {view === "filaTrabalho" && <FilaTrabalho patients={patients} colaboradores={colaboradores} onAbrirConversa={abrirConversa} usuario={usuario} filtroInicial={filtroFilaInicial} onAplicouFiltro={() => setFiltroFilaInicial(null)} onAtribuirResponsavel={atribuirResponsavelIndividual} showToast={showToast} />}
           {view === "pacientes" && <Pacientes patients={patients} tags={tags} tagObjetos={tagObjetos} onCriarTag={criarTagHandler} onImport={onImport} showToast={showToast} filtroInicial={filtroPacientesInicial} onAbrirPaciente={abrirPaciente} onUnificarDuplicados={unificarDuplicados} usuario={usuario} camposCustomizados={camposCustomizados} onCriarCampo={criarCampoHandler} onAtualizarCampo={atualizarCampoHandler} onExcluirCampo={excluirCampoHandler} colunasVisiveis={colunasVisiveis} onAtualizarColunas={atualizarColunasHandler} onCriarPaciente={criarPacienteAvulso} onExcluirPaciente={excluirPaciente} colaboradores={colaboradores} onAtribuirResponsavel={atribuirResponsavelIndividual} />}

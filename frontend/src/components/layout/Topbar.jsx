@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { T, AVATAR_COLORS, CLINICA } from "../../theme";
 import { s } from "../../styles/s";
-import { IconLogout, IconMoon, GlowDot } from "../icons";
+import { IconLogout, IconMoon, IconRefresh, GlowDot } from "../icons";
 import { ColorPicker } from "../ui/ColorPicker";
 import { AvatarUploader } from "../ui/AvatarUploader";
 import { iniciais } from "../../utils/usuario";
@@ -19,8 +19,33 @@ function RelogioAoVivo() {
   return (
     <div style={{ textAlign: "right", lineHeight: 1.25 }}>
       <div style={{ fontSize: 10.5, color: T.inkSoft, textTransform: "capitalize" }}>{data}</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, fontVariantNumeric: "tabular-nums" }}>{hora}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--relogioHora)", fontVariantNumeric: "tabular-nums" }}>{hora}</div>
     </div>
+  );
+}
+
+// Botao flat fixo na Topbar, ao lado do relogio - atualiza os dados da tela
+// atual sem precisar de F5 (pedido do Samuel, 07/08/2026). So faz algo
+// quando a tela atual registrou um jeito de se atualizar (ver App.jsx
+// registrarAtualizarTela/Dashboard.jsx) - nas demais telas fica ali "fixo"
+// visualmente mas sem acao, ate elas tambem adotarem esse padrao.
+function BotaoAtualizar({ onAtualizar, atualizando }) {
+  return (
+    <button
+      className="iconBtnFlat"
+      onClick={onAtualizar}
+      disabled={!onAtualizar || atualizando}
+      title={onAtualizar ? "Atualizar dados desta tela" : "Nada pra atualizar nesta tela"}
+      style={{
+        display: "grid", placeItems: "center", width: 30, height: 30, borderRadius: "50%",
+        opacity: onAtualizar ? 1 : 0.35, cursor: onAtualizar ? "pointer" : "default",
+        transition: "background .15s",
+      }}
+    >
+      <span style={{ display: "grid", animation: atualizando ? "spin .7s linear infinite" : "none" }}>
+        <IconRefresh color={T.inkSoft} />
+      </span>
+    </button>
   );
 }
 
@@ -32,7 +57,7 @@ const TITLES = {
   suporte: "Suporte", config: "Configurações",
 };
 
-export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout, showToast, modoNoturno, onToggleModoNoturno }) {
+export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarColor, setAvatarColor, sistemaAtivo, onReportarProblema, onLogout, showToast, modoNoturno, onToggleModoNoturno, onAtualizarTela, atualizandoTela }) {
   const [open, setOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const ref = useRef(null);
@@ -60,6 +85,7 @@ export function Topbar({ view, usuario, papeisCargo, onAvatarUploaded, avatarCol
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <RelogioAoVivo />
+        <BotaoAtualizar onAtualizar={onAtualizarTela} atualizando={atualizandoTela} />
         <button
           onClick={() => { if (!sistemaAtivo) onReportarProblema(); }}
           title={sistemaAtivo ? "Sistema operando normalmente" : "Clique para reportar o problema"}

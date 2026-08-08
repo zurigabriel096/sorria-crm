@@ -3,6 +3,11 @@
 :root {
   color-scheme: light;
   --ink: #16263B; --inkSoft: #5C6E7E; --bg: #F3F7F6; --line: #E6EDEC; --lineSoft: #F0F4F3; --cardBg: #FFFFFF;
+  /* Cor pedida a parte pro horario da Topbar (RelogioAoVivo) - coincide com
+     --ink no claro, mas no escuro e' diferente do --ink padrao (pedido
+     especifico do Samuel, 07/08/2026), por isso token proprio em vez de
+     reusar --ink. */
+  --relogioHora: #16263B;
 }
 /* Modo noturno (toggle no painel do avatar, Topbar.jsx) - foco no fundo
    #282828 pedido pelo Samuel. So os tokens neutros (texto/fundo/linha) mudam
@@ -12,6 +17,7 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --ink: #EDEDED; --inkSoft: #A3A3A3; --bg: #282828; --line: #3D3D3D; --lineSoft: #333333; --cardBg: #333333;
+  --relogioHora: #F3F7F6;
 }
 * { box-sizing: border-box; margin: 0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; }
@@ -44,11 +50,13 @@ input:focus, select:focus, textarea:focus { border-color: #0FA895 !important; bo
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .55; transform: scale(.82); }
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .modalIn { animation: modalIn .18s ease-out; }
 .modalOut { animation: modalOut .18s ease-in forwards; }
 .pop { animation: popIn .14s ease-out; }
 .fadeItem { animation: fadeUp .18s ease-out; }
+.iconBtnFlat:hover:not(:disabled) { background: var(--lineSoft); }
 
 @media (max-width: 820px) {
   .dashGrid { grid-template-columns: 1fr !important; }

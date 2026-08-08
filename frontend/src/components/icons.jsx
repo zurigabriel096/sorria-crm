@@ -53,6 +53,7 @@ export const IconShield = (p) => <svg {...I(p)}><path d="M12 3l8 3v6c0 5-3.5 8-8
 // AcessoRestrito.jsx e Sidebar.jsx, remodelacao 06/08/2026).
 export const IconLock = (p) => <svg {...I(p)}><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></svg>;
 export const IconMoon = (p) => <svg {...I(p)}><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" /></svg>;
+export const IconRefresh = (p) => <svg {...I(p)}><path d="M3 12a9 9 0 0115.4-6.4M21 12a9 9 0 01-15.4 6.4" /><path d="M18.4 3.6v5h-5M5.6 20.4v-5h5" /></svg>;
 // Silhueta solida (preenchida, nao contorno) - usada como placeholder de
 // avatar quando o lead nao tem responsavel atribuido (ver FilaTrabalho.jsx).
 // Corpo desenhado como 1 arco eliptico so (M...A...Z) de proposito - garante
