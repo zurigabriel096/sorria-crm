@@ -17,7 +17,7 @@ import { DotMenu } from "../components/ui/DotMenu";
 import { IconUsers, IconCheck, IconSend, IconGrid, IconCoin, IconGavel } from "../components/icons";
 import { CAMPOS_FIXOS, rotuloCampo } from "../utils/painelCampos";
 import { iniciais } from "../utils/usuario";
-import { pontuarPrioridade, motivoPrioridade, diasSemAtividade } from "../utils/prioridade";
+import { diasSemAtividade } from "../utils/prioridade";
 import { brl } from "../utils/format";
 import { ABAS_PAINEL } from "../utils/painelAbas";
 import { getDesempenhoEquipe, getMetas, salvarMetaEmpresa, salvarMetaEquipe, salvarMetaIndividual } from "../api/desempenho";
@@ -92,13 +92,31 @@ function GraficoBarras({ valores, onClickValor }) {
   );
 }
 
+// Dados FICTICIOS so pra visualizar o layout da aba "Equipe" antes de existir
+// atendimento/conversao real (pedido explicito do Samuel, 07/08/2026) - NUNCA
+// gravados no banco, so aparecem na tela enquanto Dashboard.jsx detecta que
+// nenhum colaborador real tem atendimento/resposta/conversao ainda. colaboradorId
+// negativo de proposito (nunca colide com um id real, que e' sempre positivo).
+const DEMO_DESEMPENHO = [
+  { colaboradorId: -1, nome: "Ana Souza (demo)", corPerfil: "#0FA895", avatarUrl: null, atendimentos: 42, convertidos: 18, respondidas: 96, vencidos: 2 },
+  { colaboradorId: -2, nome: "Bruno Lima (demo)", corPerfil: "#4C6FFF", avatarUrl: null, atendimentos: 35, convertidos: 15, respondidas: 80, vencidos: 5 },
+  { colaboradorId: -3, nome: "Carla Prado (demo)", corPerfil: "#FF6B5B", avatarUrl: null, atendimentos: 28, convertidos: 20, respondidas: 70, vencidos: 0 },
+];
+const DEMO_METAS = [
+  { tipo: "EMPRESA", colaboradorId: null, valor: 60 },
+  { tipo: "EQUIPE", colaboradorId: null, valor: 50 },
+  { tipo: "INDIVIDUAL", colaboradorId: -1, valor: 15 },
+  { tipo: "INDIVIDUAL", colaboradorId: -2, valor: 15 },
+  { tipo: "INDIVIDUAL", colaboradorId: -3, valor: 15 },
+];
+
 // Aba "Equipe" do Painel Executivo - ranking real por colaborador (dados de
 // DesempenhoEquipeService: atendimentos/convertidos/respondidas/vencidos,
 // tudo ja existente no banco) + metas manuais (Empresa/Equipe/Individual,
 // so ADMIN/GESTOR editam - pedido do Samuel 07/08/2026). "Super meta" nao
 // tem numero proprio: e' um selo automatico que acende quando TODO MUNDO
 // que tem meta individual definida bateu a propria meta.
-function DesempenhoEquipe({ desempenho, metaEmpresa, metaEquipe, metaIndividualDe, superMeta, totalConvertidosEquipe, souGestorOuAdmin, onSalvarMeta }) {
+function DesempenhoEquipe({ desempenho, usandoDemo, metaEmpresa, metaEquipe, metaIndividualDe, superMeta, totalConvertidosEquipe, comResponsavel, pctComResponsavel, totalLeads, souGestorOuAdmin, onSalvarMeta }) {
   const [editando, setEditando] = useState(null); // null | "EMPRESA" | "EQUIPE" | colaboradorId
   const [rascunho, setRascunho] = useState("");
 
@@ -140,9 +158,19 @@ function DesempenhoEquipe({ desempenho, metaEmpresa, metaEquipe, metaIndividualD
 
   return (
     <div>
+      {usandoDemo && (
+        <div style={{ padding: "8px 12px", borderRadius: 8, background: "#FBF1D8", color: "#8A6412", fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
+          Mostrando dados de demonstração (fictícios) — assim que a equipe tiver atendimentos reais, isso troca sozinho.
+        </div>
+      )}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
         <MetaCard titulo="Meta da empresa" valor={metaEmpresa} chave="EMPRESA" />
         <MetaCard titulo="Meta da equipe" valor={metaEquipe} chave="EQUIPE" />
+        <div style={{ flex: 1, minWidth: 180, padding: 14, borderRadius: 12, background: T.lineSoft }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.inkSoft, marginBottom: 6 }}>Cobertura da equipe</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: T.ink }}>{pctComResponsavel}%</div>
+          <div style={{ fontSize: 11, color: T.inkSoft, marginTop: 2 }}>{num(comResponsavel)} de {num(totalLeads)} leads com responsável</div>
+        </div>
         <div style={{
           flex: 1, minWidth: 180, padding: 14, borderRadius: 12,
           background: superMeta ? "#FFF7E0" : T.lineSoft, border: superMeta ? `1.5px solid ${T.gold}` : "none",
@@ -192,7 +220,10 @@ function DesempenhoEquipe({ desempenho, metaEmpresa, metaEquipe, metaIndividualD
                   </div>
                   <div style={{ fontSize: 10.5, color: T.inkSoft }}>convertidos</div>
                 </div>
-                {souGestorOuAdmin && (
+                {/* colaboradorId negativo = colaborador fake (so' demo) - nao deixa
+                    editar meta individual pra ele, senao viraria uma linha real e
+                    orfa em metas_desempenho (colaborador que nao existe de verdade). */}
+                {souGestorOuAdmin && d.colaboradorId > 0 && (
                   editando === d.colaboradorId ? (
                     <div style={{ display: "flex", gap: 4 }}>
                       <input autoFocus type="number" min={0} style={{ ...s.input, width: 60, padding: "4px 6px" }} value={rascunho} onChange={(e) => setRascunho(e.target.value)} />
@@ -233,7 +264,7 @@ function iconeDoCard(campoNome) {
   return IconGrid;
 }
 
-export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas, onAbrirConversa, registrarAtualizar }) {
+export function Dashboard({ patients, historico, onImport, showToast, setView, irParaPacientes, usuario, camposCustomizados, onCriarCampo, tags, tagObjetos, onCriarTag, colaboradores, campanhas, registrarAtualizar }) {
   const souAdmin = usuario?.papel === "ADMIN";
   const souGestorOuAdmin = souAdmin || usuario?.papel === "GESTOR";
   const [kpis, setKpis] = useState(null);
@@ -337,17 +368,11 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   const metricasSemDisparados = metricasAtivas.filter((m) => m.chave !== "disparados");
   const metricaDisparados = metricasAtivas.find((m) => m.chave === "disparados");
 
-  // "Prioridades de hoje" (pedido do Samuel, 06/08/2026) - reusa o MESMO
-  // pontuarPrioridade da Fila de Trabalho, so' que mostra so' o top 4 aqui no
-  // Painel. Dado real (patients ja carregado), nada inventado.
-  const prioridadesHoje = [...patients]
-    .filter((p) => motivoPrioridade(p))
-    .sort((a, b) => pontuarPrioridade(b) - pontuarPrioridade(a))
-    .slice(0, 4);
-
-  // "Carga da equipe" - quantos leads tem responsavel atribuido x quantos
-  // estao na fila compartilhada (responsavelId null). Dado real, sem calculo
-  // nenhum alem de contar o que ja existe em patients.
+  // "Carga da equipe" (mostrada dentro da aba "Equipe" agora, nao mais como
+  // secao propria - prioridade de atendimento individual saiu do Painel do
+  // gestor de proposito, 07/08/2026: isso e' operacional, quem precisa ver
+  // isso e' a Fila de Trabalho). Quantos leads tem responsavel atribuido x
+  // quantos estao na fila compartilhada (responsavelId null) - dado real.
   const comResponsavel = patients.filter((p) => p.responsavelId).length;
   const pctComResponsavel = patients.length ? Math.round((comResponsavel / patients.length) * 100) : 0;
 
@@ -398,11 +423,23 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
   // pelo ADMIN/GESTOR, comparadas com "convertidos" real de cada colaborador
   // (ver DesempenhoEquipeService no backend). "Super meta" e' automatico:
   // so acende quando TODO MUNDO que tem meta individual definida bateu ela.
-  const metaEmpresa = metas.find((m) => m.tipo === "EMPRESA")?.valor ?? null;
-  const metaEquipe = metas.find((m) => m.tipo === "EQUIPE")?.valor ?? null;
-  const metaIndividualDe = (colaboradorId) => metas.find((m) => m.tipo === "INDIVIDUAL" && m.colaboradorId === colaboradorId)?.valor ?? null;
-  const totalConvertidosEquipe = desempenhoEquipe.reduce((acc, d) => acc + d.convertidos, 0);
-  const comMetaIndividual = desempenhoEquipe.filter((d) => metaIndividualDe(d.colaboradorId) != null && metaIndividualDe(d.colaboradorId) > 0);
+  //
+  // Enquanto NENHUM colaborador real tem atendimento/resposta/conversao
+  // ainda, mostra dados de DEMONSTRACAO (marcados como "(demo)" e com aviso
+  // na tela) so pra dar pra visualizar o layout - pedido explicito do
+  // Samuel, 07/08/2026. Isso NUNCA grava nada no banco e some sozinho, sem
+  // precisar de limpeza manual, no instante em que existir 1 atendimento
+  // real de verdade.
+  const desempenhoTemDadoReal = desempenhoEquipe.some((d) => d.atendimentos > 0 || d.convertidos > 0 || d.respondidas > 0);
+  const usandoDemo = !desempenhoTemDadoReal;
+  const desempenhoParaExibir = usandoDemo ? DEMO_DESEMPENHO : desempenhoEquipe;
+  const metasParaExibir = usandoDemo ? DEMO_METAS : metas;
+
+  const metaEmpresa = metasParaExibir.find((m) => m.tipo === "EMPRESA")?.valor ?? null;
+  const metaEquipe = metasParaExibir.find((m) => m.tipo === "EQUIPE")?.valor ?? null;
+  const metaIndividualDe = (colaboradorId) => metasParaExibir.find((m) => m.tipo === "INDIVIDUAL" && m.colaboradorId === colaboradorId)?.valor ?? null;
+  const totalConvertidosEquipe = desempenhoParaExibir.reduce((acc, d) => acc + d.convertidos, 0);
+  const comMetaIndividual = desempenhoParaExibir.filter((d) => metaIndividualDe(d.colaboradorId) != null && metaIndividualDe(d.colaboradorId) > 0);
   const superMeta = comMetaIndividual.length > 0 && comMetaIndividual.every((d) => d.convertidos >= metaIndividualDe(d.colaboradorId));
 
   const salvarMeta = async (tipo, colaboradorId, valor) => {
@@ -431,34 +468,6 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
       <PrimeirosPassos patients={patients} colaboradores={colaboradores || []} campanhas={campanhas || []} setView={setView} />
       <div className="kpiRow" style={s.kpiRow}>
         {metricasSemDisparados.map((m) => <div key={m.chave}>{m.montar(kpis, ctx)}</div>)}
-        {/* So cards em modo "lista" viram big number individual aqui no topo -
-            pizza/barra ja tem espaco proprio (mais legivel) no detalhamento
-            abaixo, sem duplicar E sem lotar a fileira do topo com dezenas de
-            numeros quando o campo tem muitos valores distintos. "soma" e' 1
-            numero so' por natureza, entao entra direto como big number. */}
-        {cards.filter((c) => c.tipoVisualizacao === "soma").map((c) => {
-          const Icone = iconeDoCard(c.campoNome);
-          return (
-            <KpiCard
-              key={c.id}
-              label={c.rotulo || rotuloCampo(c.campoNome)}
-              value={brl(c.soma || 0)}
-              icon={<Icone color={T.coral} />}
-            />
-          );
-        })}
-        {cards.filter((c) => (c.tipoVisualizacao || "lista") === "lista").flatMap((c) => (c.valores || []).map((v) => {
-          const Icone = iconeDoCard(c.campoNome);
-          return (
-            <KpiCard
-              key={`${c.id}-${v.valor}`}
-              label={`${c.rotulo || rotuloCampo(c.campoNome)}: ${v.valor}`}
-              value={num(v.contagem)}
-              icon={<Icone color={T.primary} />}
-              onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
-            />
-          );
-        }))}
         {!!prospectsHistorico.length && (
           <KpiCard
             label="Enviado pra prospects"
@@ -469,64 +478,22 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
         )}
         {metricaDisparados && <div key={metricaDisparados.chave}>{metricaDisparados.montar(kpis, ctx)}</div>}
       </div>
-      <div className="dashGrid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
-        <Card title="Prioridades de hoje">
-          {!prioridadesHoje.length ? (
-            <div style={{ padding: "8px 0", color: T.inkSoft, fontSize: 12.5 }}>Nenhum lead pedindo atenção agora — fila em dia.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 8 }}>
-              {prioridadesHoje.map((p) => {
-                const colaborador = colaboradores?.find((c) => c.id === p.responsavelId);
-                const vencido = motivoPrioridade(p) === "follow-up vencido";
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => (onAbrirConversa ? onAbrirConversa(p.id) : irParaPacientes())}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
-                      borderRadius: 10, background: T.lineSoft, cursor: "pointer",
-                    }}
-                  >
-                    <div style={{
-                      width: 26, height: 26, borderRadius: "50%", background: colaborador?.corPerfil || T.inkSoft, color: "#fff",
-                      display: "grid", placeItems: "center", fontSize: 11, fontWeight: 700, flexShrink: 0,
-                    }}>
-                      {iniciais(colaborador?.nome || p.nome || "?")}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: T.ink }}>{p.nome}</div>
-                      <div style={{ fontSize: 11.5, color: vencido ? T.coral : T.inkSoft }}>{motivoPrioridade(p)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-              <button style={{ ...s.btnGhost, marginTop: 4 }} onClick={() => setView("filaTrabalho")}>Ver fila de trabalho completa</button>
-            </div>
-          )}
-        </Card>
-        <Card title="Carga da equipe">
-          <div style={{ display: "grid", gap: 10 }}>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: T.inkSoft, marginBottom: 4 }}>
-                <span>Com responsável</span><b style={{ color: T.ink }}>{pctComResponsavel}%</b>
-              </div>
-              <div style={s.segBarTrack}>
-                <div style={{ ...s.segBarFill, width: `${pctComResponsavel}%`, background: T.primary }} />
-              </div>
-            </div>
-            <div style={{ fontSize: 12, color: T.inkSoft }}>{num(comResponsavel)} de {num(patients.length)} leads têm um responsável atribuído</div>
-          </div>
-        </Card>
-      </div>
+
+      {/* Abas no topo (pedido do Samuel, 07/08/2026): clicar troca TODO o
+          conteudo abaixo de uma vez, em vez de abrir uma secao extra la no
+          fim da pagina - cada aba e' uma visao de negocio inteira, nao um
+          detalhe a mais empilhado. "Prioridades de hoje" saiu de proposito
+          (prioridade individual de atendimento e' operacional, nao faz
+          sentido no Painel do gestor - ver Fila de Trabalho pra isso). */}
       {metricasVisiveis.includes("baseEstagio") && (
-        <Card>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
+        <>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {abasVisiveis.map((a) => (
               <button
                 key={a.chave}
                 onClick={() => setAbaFixa(a.chave)}
                 style={{
-                  padding: "6px 14px", borderRadius: 20, fontSize: 12.5, fontWeight: 700,
+                  padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: 700,
                   background: abaAtual === a.chave ? T.primarySoft : T.lineSoft,
                   color: abaAtual === a.chave ? T.primaryDark : T.inkSoft,
                 }}
@@ -537,7 +504,7 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
           </div>
 
           {abaAtual === "inadimplentes" && (
-            <div>
+            <Card>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 26, fontWeight: 800, color: T.coral }}>{num(totalInadimplentes)}</span>
                 <span style={{ fontSize: 13, color: T.inkSoft }}>leads inadimplentes agora</span>
@@ -550,11 +517,11 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
               {totalInadimplentes > 0 && (
                 <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => irParaPacientes({ campo: "fixo:financ", valor: "Inadimplente" })}>Ver leads inadimplentes</button>
               )}
-            </div>
+            </Card>
           )}
 
           {abaAtual === "quaseChurn" && (
-            <div>
+            <Card>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 26, fontWeight: 800, color: T.gold }}>{num(totalQuaseChurn)}</span>
                 <span style={{ fontSize: 13, color: T.inkSoft }}>sem agendamento futuro e parados há 30+ dias</span>
@@ -567,11 +534,11 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
               {totalQuaseChurn > 0 && (
                 <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("filaTrabalho")}>Ver na fila de trabalho</button>
               )}
-            </div>
+            </Card>
           )}
 
           {abaAtual === "aguardandoResposta" && (
-            <div>
+            <Card>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 16 }}>
                 <span style={{ fontSize: 26, fontWeight: 800, color: T.primary }}>{num(totalAguardandoResposta)}</span>
                 <span style={{ fontSize: 13, color: T.inkSoft }}>leads esperando resposta agora</span>
@@ -584,25 +551,58 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
               {totalAguardandoResposta > 0 && (
                 <button style={{ ...s.btnGhost, marginTop: 16 }} onClick={() => setView("filaTrabalho")}>Ver na fila de trabalho</button>
               )}
-            </div>
+            </Card>
           )}
 
           {abaAtual === "equipe" && (
-            <DesempenhoEquipe
-              desempenho={desempenhoEquipe}
-              colaboradores={colaboradores || []}
-              metaEmpresa={metaEmpresa}
-              metaEquipe={metaEquipe}
-              metaIndividualDe={metaIndividualDe}
-              superMeta={superMeta}
-              totalConvertidosEquipe={totalConvertidosEquipe}
-              souGestorOuAdmin={souGestorOuAdmin}
-              onSalvarMeta={salvarMeta}
-            />
+            <Card>
+              <DesempenhoEquipe
+                desempenho={desempenhoParaExibir}
+                usandoDemo={usandoDemo}
+                metaEmpresa={metaEmpresa}
+                metaEquipe={metaEquipe}
+                metaIndividualDe={metaIndividualDe}
+                superMeta={superMeta}
+                totalConvertidosEquipe={totalConvertidosEquipe}
+                comResponsavel={comResponsavel}
+                pctComResponsavel={pctComResponsavel}
+                totalLeads={patients.length}
+                souGestorOuAdmin={souGestorOuAdmin}
+                onSalvarMeta={salvarMeta}
+              />
+            </Card>
           )}
 
           {abaAtual === "personalizado" && (
-            !cards.length ? (
+            <Card>
+            {!!cards.filter((c) => c.tipoVisualizacao === "soma" || (c.tipoVisualizacao || "lista") === "lista").length && (
+              <div className="kpiRow" style={{ ...s.kpiRow, marginBottom: 20 }}>
+                {cards.filter((c) => c.tipoVisualizacao === "soma").map((c) => {
+                  const Icone = iconeDoCard(c.campoNome);
+                  return (
+                    <KpiCard
+                      key={c.id}
+                      label={c.rotulo || rotuloCampo(c.campoNome)}
+                      value={brl(c.soma || 0)}
+                      icon={<Icone color={T.coral} />}
+                    />
+                  );
+                })}
+                {cards.filter((c) => (c.tipoVisualizacao || "lista") === "lista").flatMap((c) => (c.valores || []).map((v) => {
+                  const Icone = iconeDoCard(c.campoNome);
+                  return (
+                    <KpiCard
+                      key={`${c.id}-${v.valor}`}
+                      label={`${c.rotulo || rotuloCampo(c.campoNome)}: ${v.valor}`}
+                      value={num(v.contagem)}
+                      icon={<Icone color={T.primary} />}
+                      onClick={() => irParaPacientes({ campo: c.campoNome, valor: v.valor })}
+                    />
+                  );
+                }))}
+              </div>
+            )}
+            {!cards.length ? (
               <div style={{ padding: "8px 0", color: T.inkSoft, fontSize: 12.5 }}>
                 Nenhum card personalizado ainda.
                 {souAdmin && <button style={{ ...s.btnGhost, marginLeft: 10 }} onClick={() => setPersonalizando(true)}>Criar card personalizado</button>}
@@ -643,9 +643,10 @@ export function Dashboard({ patients, historico, onImport, showToast, setView, i
                 })}
                 <button style={{ ...s.btnGhost, marginTop: -8 }} onClick={() => setView("pacientes")}>Ver base de leads</button>
               </div>
-            )
+            )}
+            </Card>
           )}
-        </Card>
+        </>
       )}
       {!!prospectsHistorico.length && (
         <Card title="Disparos pra prospects (fora do CRM)">
